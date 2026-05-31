@@ -984,4 +984,18 @@ describe('renderDashboard — ODDS / decision-point honesty', () => {
     const foilLine = out.split('\n').find((l) => /foil/i.test(l))
     expect(foilLine).toContain(String(FOIL_COST))
   })
+
+  it('keeps the foil CTA "(sq foil)" visible — the rarity-curve line must fit the box (R10 regression)', () => {
+    // R10 widened the foil line to surface the 3→72 curve; at the default width
+    // (inner budget = width-4 = 56) it overflowed and boxRow() truncated the
+    // trailing "(sq foil)" CTA. The CTA must survive so the player knows the verb.
+    const state: GameState = {
+      ...initialState(),
+      cards: [{ id: 'forest.oak', name: 'Oak', rarity: 'common', set: 'forest' }],
+      player: { ...initialState().player, shards: FOIL_COST },
+    }
+    const out = renderDashboard(state)
+    const foilLine = out.split('\n').find((l) => /foil/i.test(l))
+    expect(foilLine).toContain('(sq foil)')
+  })
 })

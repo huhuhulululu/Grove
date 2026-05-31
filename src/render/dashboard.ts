@@ -395,8 +395,8 @@ function renderOdds(state: GameState, width: number): string {
 
   // The foil shard sink — a completed collection still has a renewable target.
   // Cost scales with the card's rarity (commons cheap, shiny dearest), so surface
-  // the CURVE, not just the floor (R10).
-  const foilLine = `✨ foil any owned card · ${FOIL_COST_BY_RARITY.common} to ${FOIL_COST_BY_RARITY.shiny} shards by rarity (sq foil)`
+  // the CURVE, not just the floor — kept short so the (sq foil) CTA fits the box (R10).
+  const foilLine = `✨ foil owned card · ${FOIL_COST_BY_RARITY.common}-${FOIL_COST_BY_RARITY.shiny} shards by rarity (sq foil)`
 
   return [
     boxTop(width),

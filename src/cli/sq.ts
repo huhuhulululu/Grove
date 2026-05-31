@@ -35,7 +35,16 @@ import type { GroveEvent } from '../core/events'
 import { scanRepo } from '../detect/pillarb'
 import { QUESTS } from '../core/quests'
 import { installPostCommit, uninstallPostCommit } from '../adapters/githook'
-import { enhance, repairGear, enhanceCost, repairCost } from '../engine/gear'
+import {
+  enhance,
+  repairGear,
+  enhanceCost,
+  repairCost,
+  ENHANCE_COST_BASE,
+  ENHANCE_COST_PER_LEVEL,
+  REPAIR_COST_BASE,
+  REPAIR_COST_PER_LEVEL,
+} from '../engine/gear'
 import {
   pull as enginePull,
   pullPremium,
@@ -43,7 +52,11 @@ import {
   buyPrestige,
   PULL_COST,
   PREMIUM_PULL_COST,
+  PRESTIGE_COST,
 } from '../engine/reduce'
+import { convertShards, SHARDS_PER_CRAFT, SHARD_TO_SEED } from '../engine/collection'
+import { runTui } from '../tui/app'
+import { startWebServer } from '../web/server'
 import { renderDashboard } from '../render/dashboard'
 import { renderEnhanceOdds, renderEnhanceResult, renderPullFrames } from '../render/enhance'
 import { mulberry32, hashStringToSeed } from '../core/rng'
@@ -72,7 +85,7 @@ interface ParsedArgs {
  */
 // Flags that carry NO value (boolean-only). A flag in this set is set to
 // 'true' unconditionally, never consuming the following positional token.
-const BOOL_FLAGS = new Set(['zen', 'no-clear', 'premium'])
+const BOOL_FLAGS = new Set(['zen', 'no-clear', 'premium', 'once', 'no-wait'])
 
 function parseArgs(argv: string[]): ParsedArgs {
   const positional: string[] = []
@@ -148,8 +161,9 @@ function parsePositiveIntFlag(value: string | undefined, fallback: number): numb
 /** Every top-level subcommand sq accepts (drives did-you-mean suggestions). */
 const SUBCOMMANDS = [
   'event', 'status', 'recap', 'scan', 'quests', 'pull', 'enhance', 'repair',
-  'protect', 'craft', 'prestige', 'dashboard', 'statusline-ingest', 'statusline',
-  'init', 'uninstall', 'commit-hook', 'suggest-commit', 'checkpoint', 'wrap', 'help',
+  'protect', 'craft', 'convert', 'prestige', 'dashboard', 'tui', 'serve',
+  'statusline-ingest', 'statusline', 'init', 'uninstall', 'commit-hook',
+  'suggest-commit', 'checkpoint', 'wrap', 'help',
 ] as const
 
 /** Classic Levenshtein edit distance (pure). */
@@ -243,7 +257,23 @@ function binOnPath(bin: string): boolean {
 // Usage block
 // ---------------------------------------------------------------------------
 
-const USAGE = `
+/**
+ * Seed price to arm a one-shot enhance protection. (Enhance & repair prices are
+ * now LEVEL-SCALING — see the engine's enhanceCost(level) / repairCost(gear),
+ * which R6 wired in place of the old flat ENHANCE_COST/REPAIR_COST constants.)
+ * Declared here (above USAGE_TEXT) so the help body can interpolate it. Exported
+ * so the help-text cost-drift guard can treat it as a backing constant too.
+ */
+export const PROTECT_COST = 40
+
+/**
+ * The help body. INTERPOLATES the live engine cost constants (P2 anti-drift):
+ * every cost number below is `${CONSTANT}`, never a hardcoded literal, so a
+ * balance change in the engine flows straight into the help text and the
+ * integrate cost-drift guard can never go stale. Exported so a test can assert
+ * directly against it without re-rendering.
+ */
+export const USAGE_TEXT = `
 Usage: sq [--home <DIR>] [--zen] <subcommand> [flags]
 
 Global flags:
@@ -284,44 +314,62 @@ Subcommands:
       ✓ done  ◆ active  · not yet started
 
   pull [--premium] [--seed N] [--home DIR]
-      Spend 30 🌰 seeds for one gacha pull (the core decision — you choose WHEN).
-      --premium  Spend 150 🌰 for a PREMIUM pull (better odds; the escalating sink).
+      Spend ${PULL_COST} 🌰 seeds for one gacha pull (the core decision — you choose WHEN).
+      --premium  Spend ${PREMIUM_PULL_COST} 🌰 for a PREMIUM pull (better odds; the escalating sink).
       Earn seeds by shipping outcomes (commits, green tests, merges, docs).
       Refuses calmly when you can't afford it. Cosmetic only (ADR-0005).
 
   craft [cardId] [--home DIR]
-      Spend 40 shards to craft ONE chosen missing card (the dup-tail SINK — every
+      Spend ${SHARDS_PER_CRAFT} shards to craft ONE chosen missing card (the dup-tail SINK — every
       duplicate pull banks rarity-scaled shards). With no id, crafts the first
       missing card in your unlocked sets. Refuses calmly when short on shards or
       nothing is left to craft. Cosmetic only (ADR-0005).
 
+  convert [n] [--home DIR]
+      Trade banked shards back into 🌰 seeds at ${SHARD_TO_SEED} 🌰 per shard (the dead-shard
+      relief valve: once your collection is craftable-complete, surplus shards
+      still have a horizon). With no count, converts ALL banked shards; with [n],
+      exactly min(n, banked). Refuses calmly at zero shards. Cosmetic only (ADR-0005).
+
   prestige [--home DIR]
-      Spend seeds to buy the next ENDGAME prestige rank — a permanent cosmetic
-      flair at an escalating, recurring cost (the late-game seed sink: a finished
-      collection always has a target). Refuses calmly when broke. Cosmetic-only,
-      confers ZERO power (ADR-0005).
+      Spend ${PRESTIGE_COST} 🌰 seeds to buy the next ENDGAME prestige rank — a permanent
+      cosmetic flair at an escalating, recurring cost (the late-game seed sink: a
+      finished collection always has a target). Refuses calmly when broke.
+      Cosmetic-only, confers ZERO power (ADR-0005).
 
   enhance <ref> [--seed N] [--home DIR]
       Spend seeds to attempt to enhance a piece of cosmetic gear (risk + reward).
-      Cost SCALES with the gear's level (20 at +0, +8 per level), so chasing a
+      Cost SCALES with the gear's level (${ENHANCE_COST_BASE} at +0, +${ENHANCE_COST_PER_LEVEL} per level), so chasing a
       high +N is a deepening sink. <ref> can be a gear id, a 1-based index, or 'first'.
       If the gear is PROTECTED (sq protect), a would-be break softens to a downgrade.
       Refuses calmly when you can't afford it. Cosmetic only — real code is NEVER affected (ADR-0005).
 
   repair <ref> [--home DIR]
       Spend seeds to un-break a cosmetic gear (its level is preserved). Cost SCALES
-      with the gear's level (50 at +0, +10 per level) — a broken +12 costs far more
+      with the gear's level (${REPAIR_COST_BASE} at +0, +${REPAIR_COST_PER_LEVEL} per level) — a broken +12 costs far more
       than a +1. <ref> can be a gear id, a 1-based index, or 'first'.
       Refuses calmly when you can't afford it. Cosmetic only (ADR-0005).
 
   protect <ref> [--home DIR]
-      Spend 40 🌰 seeds to arm a ONE-SHOT protection: the next enhance turns a
+      Spend ${PROTECT_COST} 🌰 seeds to arm a ONE-SHOT protection: the next enhance turns a
       would-be break into a downgrade instead. <ref> = gear id, index, or 'first'.
       Refuses calmly when broke. Cosmetic risk-management only (ADR-0005).
 
   dashboard [--no-clear] [--home DIR]
       Display the full in-place Grove dashboard (levels, gear, collection, quests).
       --no-clear  Skip the terminal clear (useful for tests / piped output).
+
+  tui [--once] [--home DIR]
+      Launch the navigable, live-updating Grove dashboard (Ink TUI): arrow/tab to
+      move focus, p pull · P premium · e enhance · c craft · b prestige · q quit.
+      Every action runs the same engine and persists under the lock. Cosmetic only.
+      --once  Render ONE static frame and exit (for tests / CI / piped output).
+
+  serve [--port N] [--host H] [--home DIR]
+      Start a local, READ-ONLY web dashboard over your Grove state and print its
+      URL; runs until Ctrl-C, live-updating an open page as state changes. Binds
+      to 127.0.0.1 by default; --host 0.0.0.0 exposes it on your LAN (opt-in, loud).
+      --port  TCP port (default: an ephemeral free port).
 
   statusline-ingest [--home DIR]
       Read the Claude Code statusline JSON from STDIN, parse it, and ingest a
@@ -805,13 +853,6 @@ function handleEnhance(
 }
 
 /**
- * Seed price to arm a one-shot enhance protection. (Enhance & repair prices are
- * now LEVEL-SCALING — see the engine's enhanceCost(level) / repairCost(gear),
- * which R6 wired in place of the old flat ENHANCE_COST/REPAIR_COST constants.)
- */
-const PROTECT_COST = 40
-
-/**
  * Sleep `ms` milliseconds WITHOUT a CPU-burning busy-loop, in a synchronous
  * context. `Atomics.wait` parks the thread on a private SharedArrayBuffer that
  * is never signalled, so it blocks for the timeout without spinning a core
@@ -961,6 +1002,43 @@ function handlePrestige(flags: Record<string, string>, dir: string, zen: boolean
 }
 
 /**
+ * `sq convert [n]` — trade banked shards back into seeds at SHARD_TO_SEED (the
+ * dead-shard-tail relief valve). Loads state under the lock, runs the PURE engine
+ * `convertShards` (debits shards, credits seeds; refuses calmly at zero), persists,
+ * and renders the reward. With no count, converts ALL banked shards; with `n`,
+ * exactly min(n, banked). Cosmetic-only (ADR-0005). Respects --zen.
+ */
+function handleConvert(positional: string[], dir: string, zen: boolean): number {
+  // Optional positive count; absent → convert all (undefined). A non-numeric /
+  // zero token is NaN-guarded by parsePositiveIntFlag → 0 → engine refuses calmly.
+  const countToken = positional[0]
+  const n = countToken === undefined ? undefined : parsePositiveIntFlag(countToken, 0)
+
+  const result = withStateLock(dir, () => {
+    const state = loadState(dir)
+    const before = state.player.shards ?? 0
+    const { state: next, rewards } = convertShards(state, n)
+    saveState(dir, next)
+    return { rewards, converted: before - (next.player.shards ?? 0) }
+  })
+
+  if (zen) {
+    // Calm: the engine ran & persisted; one quiet line either way.
+    calmConfirm(
+      result.converted > 0
+        ? `${result.converted} shards → ${result.converted * SHARD_TO_SEED} 🌰`
+        : 'convert skipped · no shards',
+    )
+    return 0
+  }
+
+  for (const reward of result.rewards) {
+    console.log(formatReward(reward))
+  }
+  return 0
+}
+
+/**
  * Resolve a gear ref (gear id, 1-based index, or 'first') to an index into
  * `gear`. Returns -1 when the ref is unresolvable. Pure helper.
  */
@@ -1100,6 +1178,68 @@ function handleDashboard(flags: Record<string, string>, dir: string): number {
   const state = loadState(dir)
   // Inject wall-clock epoch so energy ETAs render correctly (pure renderer).
   console.log(renderDashboard(state, { nowEpoch: Date.now() }))
+  return 0
+}
+
+// ---------------------------------------------------------------------------
+// tui / serve handlers (async — the M3 TUI + M5 web renderers)
+// ---------------------------------------------------------------------------
+
+/**
+ * `sq tui [--once]` — launch the navigable live Ink dashboard over the engine.
+ * Delegates to the existing `runTui` renderer (NO game logic here):
+ *  - `--once` renders ONE static frame string (deterministic, headless/CI-safe —
+ *    never mounts Ink raw-mode) and logs it.
+ *  - otherwise mounts the live interactive <App>; resolves on the user's q/Ctrl-C.
+ * Returns 0 (a TUI session has no failure exit code).
+ */
+async function handleTui(flags: Record<string, string>, dir: string): Promise<number> {
+  const once = flags['once'] === 'true'
+  const frame = await runTui(dir, once ? { once: true } : {})
+  // In --once mode log the frame so CI / pipes can assert on it. The live path
+  // already rendered to the terminal via Ink; its returned frame is redundant
+  // there, so only print on the once path.
+  if (once) console.log(frame)
+  return 0
+}
+
+/**
+ * `sq serve [--port N] [--host H]` — start the local READ-ONLY web dashboard via
+ * the existing `startWebServer` (NO game logic here), print its URL, and keep the
+ * process alive until Ctrl-C (live-updating an open page as state changes).
+ *
+ * `--no-wait` is the TEST/CI seam: it starts the server, prints the URL, then
+ * IMMEDIATELY closes the handle and returns — so a test never blocks on a signal.
+ */
+async function handleServe(flags: Record<string, string>, dir: string): Promise<number> {
+  const port = flags['port'] !== undefined ? parseIntFlag(flags['port'], 0) : 0
+  const host = flags['host']
+  const noWait = flags['no-wait'] === 'true'
+
+  const server = startWebServer({
+    dir,
+    port,
+    ...(host !== undefined ? { host } : {}),
+  })
+
+  console.log(`  🌳 Grove web dashboard · ${server.url}`)
+  console.log(`  Read-only view of your state · live-updates as you ship · Ctrl-C to stop.`)
+
+  if (noWait) {
+    // Test/CI seam: don't block on a signal — tear the server down and return.
+    server.close()
+    return 0
+  }
+
+  // Keep the process alive until SIGINT/SIGTERM, then close cleanly.
+  await new Promise<void>((resolve) => {
+    const stop = (): void => {
+      server.close()
+      resolve()
+    }
+    process.once('SIGINT', stop)
+    process.once('SIGTERM', stop)
+  })
   return 0
 }
 
@@ -1519,7 +1659,40 @@ function handleCommitHook(flags: Record<string, string>, dir: string, zen: boole
 // ---------------------------------------------------------------------------
 
 /**
- * Execute the sq CLI.
+ * Subcommands whose handler is ASYNC (the Ink TUI session and the long-running
+ * web server). They are dispatched by `runAsync`; the synchronous `run` returns
+ * a directive to use `runAsync` if one is reached there directly (it never is in
+ * the normal entry path — the script guard calls `runAsync`).
+ */
+const ASYNC_SUBCOMMANDS = new Set(['tui', 'serve'])
+
+/**
+ * Async entry point. Handles the two async subcommands (`tui`, `serve`) and
+ * delegates EVERYTHING ELSE to the synchronous `run` — so the whole existing
+ * sync surface is untouched. The script guard awaits this.
+ *
+ * @param argv  Arguments AFTER the script name (i.e. process.argv.slice(2)).
+ * @returns     Process exit code (0 = success, 2 = usage error).
+ */
+export async function runAsync(argv: string[]): Promise<number> {
+  const sepIdx = argv.indexOf('--')
+  const sqSide = sepIdx === -1 ? argv : argv.slice(0, sepIdx)
+  const { positional, flags } = parseArgs(sqSide)
+
+  const subcommand = positional[0]
+  if (subcommand !== undefined && ASYNC_SUBCOMMANDS.has(subcommand)) {
+    const home = flags['home']
+    const dir = home ? stateDir(home) : stateDir()
+    if (subcommand === 'tui') return handleTui(flags, dir)
+    if (subcommand === 'serve') return handleServe(flags, dir)
+  }
+
+  // Every other subcommand is synchronous.
+  return run(argv)
+}
+
+/**
+ * Execute the sq CLI (synchronous subcommands).
  *
  * @param argv  Arguments AFTER the script name (i.e. process.argv.slice(2)).
  * @returns     Process exit code (0 = success, 2 = usage error).
@@ -1588,6 +1761,9 @@ export function run(argv: string[]): number {
     case 'prestige':
       return handlePrestige(flags, dir, zen)
 
+    case 'convert':
+      return handleConvert(rest, dir, zen)
+
     case 'dashboard':
       return handleDashboard(flags, dir)
 
@@ -1601,7 +1777,7 @@ export function run(argv: string[]): number {
       } else if (statuslineCmd === 'uninstall') {
         return handleStatuslineUninstall(flags)
       } else {
-        console.log(USAGE)
+        console.log(USAGE_TEXT)
         console.error(`Error: unknown statusline subcommand "${statuslineCmd ?? '(none)'}"`)
         return 2
       }
@@ -1624,7 +1800,7 @@ export function run(argv: string[]): number {
 
     case 'help':
     case undefined:
-      console.log(USAGE)
+      console.log(USAGE_TEXT)
       return 0
 
     default: {
@@ -1659,6 +1835,15 @@ export function isRunAsScript(argv1: string | undefined): boolean {
 }
 
 if (isRunAsScript(process.argv[1])) {
-  const exitCode = run(process.argv.slice(2))
-  process.exit(exitCode)
+  // runAsync covers the async subcommands (tui/serve) and delegates the rest to
+  // the synchronous run. A live `serve` keeps the process alive on its own; the
+  // promise resolves with the exit code when the command finishes.
+  runAsync(process.argv.slice(2))
+    .then((exitCode) => {
+      process.exit(exitCode)
+    })
+    .catch((err: unknown) => {
+      console.error(err instanceof Error ? err.message : String(err))
+      process.exit(1)
+    })
 }

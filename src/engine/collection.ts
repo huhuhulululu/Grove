@@ -38,6 +38,67 @@ export function shardsForDuplicate(rarity: Rarity): number {
   return SHARDS_BY_RARITY[rarity]
 }
 
+/**
+ * Seeds one shard converts into (P3 dead-shard-tail). When the collection is
+ * craftable-complete, banked shards have nothing left to spend on; `convertShards`
+ * trades them back into seeds at THIS published rate so they never become dead
+ * weight. Set below SHARDS_PER_CRAFT's implied value so crafting stays the better
+ * deal — conversion is the relief valve, not the optimal path. Published (ADR-0002).
+ */
+export const SHARD_TO_SEED = 2
+
+/**
+ * Convert banked shards into seeds at SHARD_TO_SEED (the dead-shard-tail relief
+ * valve, P3). A craftable-complete player's shards are otherwise unspendable; this
+ * trades them back into the cosmetic seed economy so the dup tail always advances.
+ *
+ *  - `n` omitted → convert ALL banked shards.
+ *  - `n` given   → convert exactly min(n, banked) shards (clamped; never overdraws).
+ *  - `n <= 0` or zero shards → calm refusal: NO debit, NO credit, never shaming
+ *    (ADR-0005 / ADR-0009).
+ *
+ * Returns a NEW state and pushes one terse 'currency' reward. PURE & IMMUTABLE —
+ * no I/O, no wall-clock, no rng. Rate published (ADR-0002); cosmetic-only (ADR-0005).
+ */
+export function convertShards(
+  state: GameState,
+  n?: number,
+): { state: GameState; rewards: Reward[] } {
+  const rewards: Reward[] = []
+  const haveShards = state.player.shards ?? 0
+
+  // How many to convert: all when n omitted; clamped into [0, haveShards] otherwise.
+  const want = n === undefined ? haveShards : Math.floor(n)
+  const convert = Math.max(0, Math.min(haveShards, want))
+
+  if (convert <= 0) {
+    rewards.push({
+      kind: 'currency',
+      amount: haveShards,
+      message: `no shards to convert — have ${haveShards}`,
+    })
+    return { state: { ...state, player: { ...state.player } }, rewards }
+  }
+
+  const seeds = convert * SHARD_TO_SEED
+  rewards.push({
+    kind: 'currency',
+    amount: seeds,
+    message: `+${seeds} 🌰 · ${convert} shards → seeds`,
+  })
+  return {
+    state: {
+      ...state,
+      player: {
+        ...state.player,
+        currency: state.player.currency + seeds,
+        shards: haveShards - convert,
+      },
+    },
+    rewards,
+  }
+}
+
 /** Compensation seeds granted when a pull yields an already-owned (duplicate) card. */
 export const DUP_COMP_SEEDS = 10
 

@@ -19,7 +19,7 @@
  * router + frame renderer stay pure so they are trivially testable.
  */
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { Box, Text, useApp, useInput, render as inkRender } from 'ink'
 
 import type { GameState } from '../core/state'
@@ -154,17 +154,17 @@ function enhanceFocused(state: GameState, rng: Rng, index: number): DispatchResu
   return { state: next, rewards, changed: true }
 }
 
-/** A terse enhance result line (ADR-0009 loot grammar). */
+/** A terse enhance result line — canonical loot grammar (TONE.md / render/enhance.ts). */
 function enhanceMessage(from: number, to: number, result: string): string {
   switch (result) {
     case 'success':
       return `ENHANCE +${from}→+${to} · ✓ success`
     case 'downgrade':
-      return `ENHANCE +${from}→+${to} · ↓ downgrade`
+      return `ENHANCE +${from}→+${to} · ↓ +${to}`
     case 'break':
-      return `ENHANCE +${from} · ✗ broke (code safe)`
+      return `ENHANCE +${from} · ✗ SHATTERED (code safe)`
     default:
-      return `ENHANCE +${from} · – no change`
+      return `ENHANCE +${from} · – broken`
   }
 }
 
@@ -330,6 +330,14 @@ export function App(props: AppProps): React.ReactElement {
     },
     [dir, seed, focus, focusedGearIndex],
   )
+
+  // Juice: the flash highlight is transient — auto-clear it after a short beat so
+  // it doesn't persist until the next action (matches the "briefly flashes" doc).
+  useEffect(() => {
+    if (flash === null) return
+    const t = setTimeout(() => setFlash(null), 1500)
+    return () => clearTimeout(t)
+  }, [flash])
 
   useInput((input, keyMeta) => {
     if (input === 'q' || (keyMeta.ctrl && input === 'c')) {

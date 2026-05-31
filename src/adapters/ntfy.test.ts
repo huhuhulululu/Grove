@@ -26,7 +26,10 @@
  * 15. Does not throw when called with valid args (mocked https)
  */
 
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
 import type { Reward } from '../core/rewards'
 
 // ---------------------------------------------------------------------------
@@ -225,6 +228,48 @@ describe('ntfyTopic', () => {
     process.env['GROVE_NTFY_TOPIC'] = ''
     const { ntfyTopic } = await import('./ntfy')
     expect(ntfyTopic()).toBeNull()
+  })
+
+  // The config file is written with a trailing newline (sq config), and may be
+  // hand-edited to multiple lines. The topic must be the FIRST non-empty line —
+  // a topic with embedded newlines yields an invalid ntfy.sh URL after encoding.
+  describe('config-file fallback (GROVE_NTFY_TOPIC unset)', () => {
+    let home: string
+    const prevHome = process.env['GROVE_HOME']
+
+    beforeEach(() => {
+      delete process.env['GROVE_NTFY_TOPIC']
+      home = fs.mkdtempSync(path.join(os.tmpdir(), 'grove-ntfy-'))
+      process.env['GROVE_HOME'] = home
+    })
+    afterEach(() => {
+      fs.rmSync(home, { recursive: true, force: true })
+      if (prevHome === undefined) delete process.env['GROVE_HOME']
+      else process.env['GROVE_HOME'] = prevHome
+    })
+
+    it('reads the topic from <groveHome>/ntfy-topic, stripping the trailing newline', async () => {
+      fs.writeFileSync(path.join(home, 'ntfy-topic'), 'my-grove-alerts\n')
+      const { ntfyTopic } = await import('./ntfy')
+      const topic = ntfyTopic()
+      expect(topic).toBe('my-grove-alerts')
+      // Must yield a single-segment URL with no embedded newline.
+      expect(topic).not.toMatch(/[\r\n]/)
+    })
+
+    it('returns only the FIRST non-empty line of a multi-line file (no embedded newlines)', async () => {
+      fs.writeFileSync(path.join(home, 'ntfy-topic'), '\n  my-topic  \nstale-second-line\n')
+      const { ntfyTopic } = await import('./ntfy')
+      const topic = ntfyTopic()
+      expect(topic).toBe('my-topic')
+      expect(topic).not.toMatch(/[\r\n]/)
+    })
+
+    it('returns null for a whitespace-only config file', async () => {
+      fs.writeFileSync(path.join(home, 'ntfy-topic'), '\n   \n')
+      const { ntfyTopic } = await import('./ntfy')
+      expect(ntfyTopic()).toBeNull()
+    })
   })
 })
 

@@ -123,6 +123,35 @@ describe('dispatchKey — pure key → engine action router', () => {
     const out = dispatchKey(initialState(), 'x', 'Economy', mulberry32(1))
     expect(out.changed).toBe(false)
   })
+
+  it("'e' on an already-broken gear yields the canonical '– broken' line (not 'no change')", () => {
+    const gear = { ...makeGear(mulberry32(3)), name: 'Build Anvil', level: 4, broken: true }
+    const state: GameState = {
+      ...initialState(),
+      player: { xp: 0, level: 1, currency: 500, shards: 0 },
+      gear: [gear],
+    }
+    const out = dispatchKey(state, 'e', 'Gear', mulberry32(7), { focusedGearIndex: 0 })
+    const msg = out.rewards.find((r) => r.kind === 'gear')?.message ?? ''
+    // Canonical loot grammar (TONE.md / render/enhance.ts) — no stale 中二/typo tokens.
+    expect(msg).toContain('– broken')
+    expect(msg).not.toContain('no change')
+    expect(msg).not.toContain('SHATTERED') // a 'stay' is not a shatter
+  })
+
+  it("a successful 'e' enhance renders the canonical '✓ success' token", () => {
+    const gear = { ...makeGear(mulberry32(3)), name: 'Build Anvil', level: 0, broken: false }
+    const state: GameState = {
+      ...initialState(),
+      player: { xp: 0, level: 1, currency: 500, shards: 0 },
+      gear: [gear],
+    }
+    // level 0..3 always succeeds.
+    const out = dispatchKey(state, 'e', 'Gear', mulberry32(7), { focusedGearIndex: 0 })
+    const msg = out.rewards.find((r) => r.kind === 'gear')?.message ?? ''
+    expect(msg).toContain('✓ success')
+    expect(msg).not.toContain('broke') // never the old typo token
+  })
 })
 
 describe('runTui — interactive loop entry (once mode for CI)', () => {

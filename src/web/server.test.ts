@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as os from 'node:os'
@@ -207,5 +207,29 @@ describe('startWebServer', () => {
     const srv = startWebServer({ dir, port: 0, host: '0.0.0.0' })
     servers.push(srv)
     expect(srv.url).toMatch(/^http:\/\/0\.0\.0\.0:\d+\/?$/)
+  })
+
+  it('surfaces (does NOT silently swallow) an EADDRINUSE on an EXPLICIT port', async () => {
+    const dir = makeStateDir()
+    saveState(dir, seededState())
+
+    // Hold an explicit port, then try to bind the SAME explicit port — an
+    // explicit collision is never silently retried, so it must reach the operator.
+    const first = startWebServer({ dir, port: 0 })
+    servers.push(first)
+    const port = Number(new URL(first.url).port)
+
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const second = startWebServer({ dir, port })
+    servers.push(second)
+
+    // The async 'error' fires on the next tick after listen() fails.
+    await new Promise((r) => setTimeout(r, 100))
+
+    const surfaced = errSpy.mock.calls.some((c) =>
+      String(c[0] ?? '').includes('Grove web server error'),
+    )
+    errSpy.mockRestore()
+    expect(surfaced).toBe(true)
   })
 })

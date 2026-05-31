@@ -124,11 +124,14 @@ export function ntfyTopic(): string | null {
     return envVal
   }
 
-  // Fallback: config file under groveHome
+  // Fallback: config file under groveHome. The file is written with a trailing
+  // newline (sq config), so read the FIRST non-empty line — never the whole blob,
+  // or embedded newlines would yield an invalid ntfy.sh URL after encoding.
   try {
     const configPath = path.join(groveHome(), 'ntfy-topic')
-    const raw = fs.readFileSync(configPath, 'utf8').trim()
-    if (raw.length > 0) return raw
+    const raw = fs.readFileSync(configPath, 'utf8')
+    const topic = raw.split('\n').map((l) => l.trim()).find((l) => l.length > 0) ?? ''
+    if (topic.length > 0) return topic
   } catch {
     // Not present — disabled
   }
@@ -172,6 +175,13 @@ export function sendNtfy(topic: string, n: NtfyNotification): void {
 
     req.on('error', () => {
       // Silently ignore — fire-and-forget, never disrupt the workflow
+    })
+
+    // Drain the response so the socket is released back to the pool promptly —
+    // otherwise a long-running `sq serve` leaks one socket per push. Still never
+    // awaited, still never throws.
+    req.on('response', (res) => {
+      res.resume()
     })
 
     req.write(body)

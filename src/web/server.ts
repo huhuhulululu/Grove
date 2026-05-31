@@ -145,11 +145,19 @@ export function startWebServer(opts: WebServerOptions): WebServerHandle {
   // `url` is a getter over `boundPort`, so a retry keeps the handle's URL
   // accurate. An EXPLICIT port is never silently moved — its collision is the
   // caller's to resolve (e.g. the close()→rebind round-trip relies on stability).
+  // Every OTHER error (EACCES on a privileged port, EADDRNOTAVAIL, post-listen
+  // failures) is surfaced — never swallowed while the URL was already printed.
+  let retries = 0
+  const MAX_RETRIES = 10
   server.on('error', (err: NodeJS.ErrnoException) => {
-    if (err.code === 'EADDRINUSE' && !explicit) {
+    if (err.code === 'EADDRINUSE' && !explicit && retries < MAX_RETRIES) {
+      retries += 1
       boundPort = randomPort()
       server.listen(boundPort, host)
+      return
     }
+    // eslint-disable-next-line no-console
+    console.error('Grove web server error:', err.message)
   })
 
   server.listen(boundPort, host)

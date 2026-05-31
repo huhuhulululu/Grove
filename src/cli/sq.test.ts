@@ -16,6 +16,7 @@ import { QUESTS } from '../core/quests'
 import { GROVE_BEGIN, installPostCommit } from '../adapters/githook'
 import { loadState, saveState } from '../store/store'
 import { stateDir } from '../store/paths'
+import { PULL_COST } from '../engine/reduce'
 
 // ---- Helpers ----------------------------------------------------------------
 
@@ -242,25 +243,25 @@ describe('sq CLI', () => {
     })
 
     it('spends seeds and yields a card once the player can afford a pull', () => {
-      // Earn seeds: a pr_merged grants +20 and several green tests grant +8 each.
-      for (let i = 0; i < 6; i++) {
+      // Earn seeds: test_result(magnitude=2) grants +8 each (4×2). 12 events = 96 seeds.
+      for (let i = 0; i < 12; i++) {
         captureRun(['event', 'test_result', '--magnitude', '2', '--home', tmpHome])
       }
-      // Status should now show currency well above the 30 pull cost.
+      // Status should now show currency well above PULL_COST (45).
       const before = loadState(stateDir(tmpHome))
-      expect(before.player.currency).toBeGreaterThanOrEqual(30)
+      expect(before.player.currency).toBeGreaterThanOrEqual(PULL_COST)
 
       // --seed for determinism: a time-seeded pull can land a DUPLICATE, which
-      // grants +10 dup-comp seeds and would break a strict `before - 30` check.
+      // grants +10 dup-comp seeds and would break a strict `before - PULL_COST` check.
       const { code, output } = captureRun(['pull', '--seed', '3', '--home', tmpHome])
       expect(code).toBe(0)
 
       const after = loadState(stateDir(tmpHome))
-      // A card landed and seeds were debited by the 30 pull cost. A duplicate may
-      // refund +10 dup-comp, so the net is in [before-30, before-20].
+      // A card landed and seeds were debited by PULL_COST. A duplicate may
+      // refund +10 dup-comp, so the net is in [before-PULL_COST, before-PULL_COST+10].
       expect(after.cards.length).toBe(before.cards.length + 1)
-      expect(after.player.currency).toBeLessThanOrEqual(before.player.currency - 20)
-      expect(after.player.currency).toBeGreaterThanOrEqual(before.player.currency - 30)
+      expect(after.player.currency).toBeLessThanOrEqual(before.player.currency - PULL_COST + 10)
+      expect(after.player.currency).toBeGreaterThanOrEqual(before.player.currency - PULL_COST)
       // The pull output mentions a card / rarity line.
       expect(output.join('\n').length).toBeGreaterThan(0)
     })
@@ -716,8 +717,12 @@ describe('enhance subcommand', () => {
   })
 
   it('returns 0 and gear changes after enhance on state with gear (--seed for determinism)', () => {
-    // First ingest a pr_merged to get gear
+    // First ingest a pr_merged to get gear (grants 12 seeds + gear + pull)
     captureRun(['event', 'pr_merged', '--home', tmpHome])
+    // Enhance costs 20 seeds (ENHANCE_COST_BASE); add commits to top up the wallet.
+    for (let i = 0; i < 3; i++) {
+      captureRun(['event', 'commit', '--home', tmpHome])
+    }
 
     const { code, output } = captureRun([
       'enhance', 'first',
@@ -732,6 +737,10 @@ describe('enhance subcommand', () => {
 
   it('prints the odds line before the result', () => {
     captureRun(['event', 'pr_merged', '--home', tmpHome])
+    // Enhance costs 20 seeds (ENHANCE_COST_BASE); add commits to top up the wallet.
+    for (let i = 0; i < 3; i++) {
+      captureRun(['event', 'commit', '--home', tmpHome])
+    }
     const { output } = captureRun([
       'enhance', 'first',
       '--home', tmpHome,
@@ -1718,17 +1727,18 @@ describe('pull subcommand — reveal + earn-more', () => {
     }
   }
 
-  it('on a state with >=30 seeds yields a card and debits PULL_COST (deterministic --seed)', () => {
-    earnSeeds(6)
+  it('on a state with >=PULL_COST seeds yields a card and debits PULL_COST (deterministic --seed)', () => {
+    // earnSeeds(6)=24 is below PULL_COST=45; earn 12 instead (96 seeds).
+    earnSeeds(12)
     const before = loadState(stateDir(tmpHome))
-    expect(before.player.currency).toBeGreaterThanOrEqual(30)
+    expect(before.player.currency).toBeGreaterThanOrEqual(PULL_COST)
 
     const { code, output } = captureRun(['pull', '--seed', '7', '--home', tmpHome])
     expect(code).toBe(0)
 
     const after = loadState(stateDir(tmpHome))
     expect(after.cards.length).toBe(before.cards.length + 1)
-    expect(after.player.currency).toBe(before.player.currency - 30)
+    expect(after.player.currency).toBe(before.player.currency - PULL_COST)
     // A drop card line was printed.
     const combined = output.join('\n')
     expect(combined).toMatch(/common|uncommon|rare|epic|legendary|shiny/i)

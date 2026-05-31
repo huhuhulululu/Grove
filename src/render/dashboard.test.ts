@@ -9,6 +9,7 @@ import { renderDashboard } from './dashboard'
 import { displayWidth } from './width'
 import { initialState } from '../core/state'
 import type { GameState } from '../core/state'
+import { SHARDS_PER_CRAFT } from '../engine/collection'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -230,15 +231,15 @@ describe('renderDashboard — SHARDS', () => {
   })
 
   it('surfaces a craft target when shards reach the craft threshold', () => {
-    // 40 shards = SHARDS_PER_CRAFT, level 1 → forest.sapling is the first missing.
+    // SHARDS_PER_CRAFT shards, level 1 → forest.sapling is the first missing.
     const state: GameState = {
       ...initialState(),
-      player: { ...initialState().player, shards: 40 },
+      player: { ...initialState().player, shards: SHARDS_PER_CRAFT },
     }
     const out = renderDashboard(state)
     const lower = out.toLowerCase()
     // A craftable hint must appear (the player can craft now).
-    expect(lower).toMatch(/craft/)
+    expect(lower).toMatch(/craftable/)
   })
 
   it('does NOT surface a craft target when shards are below the threshold', () => {
@@ -726,5 +727,183 @@ describe('renderDashboard — ENERGY (known=false / Wellspring)', () => {
     expect(lower).not.toContain('0%')
     // Should read terse + unmetered (no scarcity framing)
     expect(lower).toMatch(/unmetered|wellspring/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// PRESTIGE VISIBLE — current rank + next cost in the header (R7 economy/product P2)
+// ---------------------------------------------------------------------------
+
+import { prestigeRank, prestigeCost, prestigeBuffId } from '../engine/reduce'
+
+/** Build N prestige buffs (rank 1..N), the exact shape buyPrestige grants. */
+function prestigeBuffs(n: number): GameState['buffs'] {
+  const out: GameState['buffs'] = []
+  for (let r = 1; r <= n; r++) {
+    out.push({ id: prestigeBuffId(r), label: `Prestige ${r}`, kind: 'rest' })
+  }
+  return out
+}
+
+describe('renderDashboard — PRESTIGE VISIBLE', () => {
+  it('shows the current prestige rank in the header', () => {
+    const state = stateWithBuffs(prestigeBuffs(3))
+    expect(prestigeRank(state)).toBe(3) // sanity: fixture matches the engine
+    const out = renderDashboard(state)
+    expect(out).toMatch(/prestige 3/i)
+  })
+
+  it('shows the NEXT prestige cost from prestigeCost(rank)', () => {
+    const state = stateWithBuffs(prestigeBuffs(3))
+    const out = renderDashboard(state)
+    // next cost = prestigeCost(3) — surfaced near the rank, with the 🌰 unit.
+    expect(out).toContain(String(prestigeCost(3)))
+    const line = out.split('\n').find((l) => /prestige 3/i.test(l))
+    expect(line).toBeDefined()
+    expect(line).toContain(String(prestigeCost(3)))
+    expect(line).toContain('🌰')
+  })
+
+  it('shows the rank-0 next cost (the FIRST prestige) when no prestige owned yet', () => {
+    const out = renderDashboard(initialState()) // rank 0
+    const line = out.split('\n').find((l) => /prestige 0/i.test(l))
+    expect(line).toBeDefined()
+    expect(line).toContain(String(prestigeCost(0)))
+  })
+})
+
+// ---------------------------------------------------------------------------
+// BUFFS ROLLUP — collapse N prestige rows into one "✦ Prestige ×N" badge (R7)
+// ---------------------------------------------------------------------------
+
+describe('renderDashboard — BUFFS prestige rollup', () => {
+  it('collapses N prestige buffs into a single "✦ Prestige ×N" badge', () => {
+    const state = stateWithBuffs(prestigeBuffs(4))
+    const out = renderDashboard(state)
+    // A single rollup badge with the count, not four separate rows.
+    expect(out).toContain('✦ Prestige ×4')
+  })
+
+  it('does NOT print a separate row per prestige rank in the BUFFS panel', () => {
+    const state = stateWithBuffs(prestigeBuffs(3))
+    const out = renderDashboard(state)
+    // The per-rank labels ("Prestige 1", "Prestige 2", …) must NOT each appear as
+    // their own buff row — only the rollup ×N carries the count.
+    const rows = out.split('\n').filter((l) => /prestige/i.test(l))
+    // Exactly the header rank line + the single rollup badge — never 3 buff rows.
+    const buffRowCount = rows.filter((l) => /prestige [123]\b/i.test(l) && !l.includes('×')).length
+    // The only allowed "Prestige N" (no ×) line is the HEADER rank line.
+    expect(buffRowCount).toBeLessThanOrEqual(1)
+  })
+
+  it('still renders non-prestige buffs as their own rows alongside the rollup', () => {
+    const state = stateWithBuffs([
+      ...prestigeBuffs(2),
+      { id: 'multiplier-2x', label: 'Double XP', kind: 'multiplier' },
+    ])
+    const out = renderDashboard(state)
+    expect(out).toContain('✦ Prestige ×2')
+    expect(out).toContain('Double XP')
+  })
+
+  it('shows no prestige rollup badge when no prestige buffs are owned', () => {
+    const state = stateWithBuffs([{ id: 'freshness', label: 'Freshness', kind: 'freshness' }])
+    const out = renderDashboard(state)
+    expect(out).not.toContain('✦ Prestige ×')
+    expect(out).toContain('Freshness')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// DISCOVERABILITY CTA — surface what the current balance affords (R7 product P1)
+// ---------------------------------------------------------------------------
+
+import { PULL_COST, PREMIUM_PULL_COST } from '../engine/reduce'
+
+describe('renderDashboard — affordable-action CTA', () => {
+  it('surfaces a "can: pull" CTA when seeds afford a basic pull', () => {
+    const state: GameState = {
+      ...initialState(),
+      player: { ...initialState().player, currency: PULL_COST },
+    }
+    const out = renderDashboard(state).toLowerCase()
+    expect(out).toMatch(/can:.*pull/)
+  })
+
+  it('omits premium from the CTA when seeds afford pull but not premium', () => {
+    const state: GameState = {
+      ...initialState(),
+      player: { ...initialState().player, currency: PULL_COST },
+    }
+    const out = renderDashboard(state).toLowerCase()
+    // basic pull affordable, premium (150) is NOT.
+    expect(out).toMatch(/can:.*pull/)
+    expect(out).not.toMatch(/can:.*premium/)
+  })
+
+  it('lists premium in the CTA once seeds afford a premium pull', () => {
+    const state: GameState = {
+      ...initialState(),
+      player: { ...initialState().player, currency: PREMIUM_PULL_COST },
+    }
+    const out = renderDashboard(state).toLowerCase()
+    expect(out).toMatch(/premium/)
+  })
+
+  it('lists prestige (with its next cost) in the CTA when seeds afford it', () => {
+    const cost = prestigeCost(0)
+    const state: GameState = {
+      ...initialState(),
+      player: { ...initialState().player, currency: cost },
+    }
+    const out = renderDashboard(state)
+    const lower = out.toLowerCase()
+    expect(lower).toMatch(/can:/)
+    expect(lower).toMatch(/prestige/)
+    // The CTA prestige entry carries the next cost so the player knows the price.
+    const ctaLine = out.split('\n').find((l) => /can:/i.test(l) && /prestige/i.test(l))
+    expect(ctaLine).toBeDefined()
+    expect(ctaLine).toContain(String(cost))
+  })
+
+  it('shows the basic-pull cost in the CTA', () => {
+    const state: GameState = {
+      ...initialState(),
+      player: { ...initialState().player, currency: PULL_COST },
+    }
+    const out = renderDashboard(state)
+    const ctaLine = out.split('\n').find((l) => /can:/i.test(l))
+    expect(ctaLine).toBeDefined()
+    expect(ctaLine).toContain(String(PULL_COST))
+  })
+
+  it('omits the CTA entirely when the balance affords nothing', () => {
+    const state: GameState = {
+      ...initialState(),
+      player: { ...initialState().player, currency: 0 },
+    }
+    const out = renderDashboard(state)
+    expect(out.toLowerCase()).not.toMatch(/can:/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// CRAFT TARGET NAME — the craft hint shows the card NAME, not the raw id (R7 P3)
+// ---------------------------------------------------------------------------
+
+describe('renderDashboard — craft target shows card name', () => {
+  it('shows the craft target card NAME, not its raw id', () => {
+    // At the craft threshold; level 1 → forest.sapling ("Sapling") is first missing.
+    const state: GameState = {
+      ...initialState(),
+      player: { ...initialState().player, shards: SHARDS_PER_CRAFT },
+    }
+    const out = renderDashboard(state)
+    const craftLine = out.split('\n').find((l) => /craft/i.test(l))
+    expect(craftLine).toBeDefined()
+    // Friendly NAME present…
+    expect(craftLine).toContain('Sapling')
+    // …and the raw dotted id is NOT shown as the target.
+    expect(craftLine).not.toContain('forest.sapling')
   })
 })

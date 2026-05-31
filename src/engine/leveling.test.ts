@@ -14,7 +14,7 @@ import { initialState } from '../core/state'
 import type { GameState } from '../core/state'
 import type { GroveEvent } from '../core/events'
 import { mulberry32 } from '../core/rng'
-import { reduce, pull } from './reduce'
+import { reduce, pull, PULL_COST } from './reduce'
 import { LEVELUP_SEED_BONUS } from './xp'
 import { SHARDS_PER_CRAFT } from './collection'
 import { unlockedSets, ALL_CARD_DEFS, cardIdsInSet } from '../core/cards'
@@ -130,7 +130,7 @@ describe('reduce — a duplicate pull accrues shards (dup tail / endgame horizon
       ...initialState(),
       cards: owned,
       completedSets: [...lvl1Sets],
-      player: { xp: 0, level: 1, currency: 30 },
+      player: { xp: 0, level: 1, currency: PULL_COST },
     }
     const beforeShards = state.player.shards ?? 0
 
@@ -150,7 +150,7 @@ describe('reduce — a duplicate pull accrues shards (dup tail / endgame horizon
       ...initialState(),
       cards: owned,
       completedSets: [...lvl1Sets],
-      player: { xp: 0, level: 1, currency: 30 * 20 },
+      player: { xp: 0, level: 1, currency: PULL_COST * 20 },
     }
     const rng = mulberry32(5)
     for (let i = 0; i < 20; i++) state = pull(state, rng).state
@@ -158,7 +158,7 @@ describe('reduce — a duplicate pull accrues shards (dup tail / endgame horizon
   })
 
   it('shards never grow on a fresh (non-duplicate) pull', () => {
-    const state: GameState = { ...initialState(), player: { xp: 0, level: 1, currency: 30 } }
+    const state: GameState = { ...initialState(), player: { xp: 0, level: 1, currency: PULL_COST } }
     const { state: next } = pull(state, mulberry32(1))
     // first pull of an empty collection cannot be a duplicate
     expect((next.player.shards ?? 0)).toBe(0)
@@ -174,7 +174,7 @@ describe('reduce — a duplicate pull accrues shards (dup tail / endgame horizon
     let state: GameState = {
       ...initialState(),
       cards: owned,
-      player: { xp: 0, level: 1, currency: 30 * 80 },
+      player: { xp: 0, level: 1, currency: PULL_COST * 80 },
     }
     const rng = mulberry32(11)
     for (let i = 0; i < 80; i++) state = pull(state, rng).state

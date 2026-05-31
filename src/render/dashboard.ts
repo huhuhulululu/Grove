@@ -9,13 +9,37 @@
  */
 
 import type { GameState } from '../core/state'
-import { CARD_SETS, cardIdsInSet, setUnlockLevel, unlockedSets, nextSetUnlock } from '../core/cards'
+import {
+  CARD_SETS,
+  cardIdsInSet,
+  setUnlockLevel,
+  unlockedSets,
+  nextSetUnlock,
+  ALL_CARD_DEFS,
+} from '../core/cards'
 import { QUESTS } from '../core/quests'
 import { xpForLevel } from '../engine/xp'
 import { gearEffectText } from '../engine/gear'
-import { WORK_MILESTONE } from '../engine/reduce'
+import {
+  WORK_MILESTONE,
+  PRESTIGE_BUFF_ID,
+  prestigeRank,
+  prestigeCost,
+  PULL_COST,
+  PREMIUM_PULL_COST,
+} from '../engine/reduce'
 import { craftableCardId } from '../engine/collection'
 import { displayWidth, padToWidth, truncateToWidth } from './width'
+
+/** True when a buff is one of the prestige-rank flair buffs (rolled-up, not per-row). */
+function isPrestigeBuff(buff: GameState['buffs'][number]): boolean {
+  return buff.id.startsWith(PRESTIGE_BUFF_ID)
+}
+
+/** The friendly card NAME for a card id, falling back to the raw id if unknown. */
+function cardName(cardId: string): string {
+  return ALL_CARD_DEFS.find((d) => d.id === cardId)?.name ?? cardId
+}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -241,11 +265,17 @@ function renderHeader(state: GameState, width: number): string {
 
   // R6 P1: the dup-tail shards were invisible at the surface. Surface the balance
   // and — when enough to craft — the craft target (the endgame horizon).
+  // R7 P3: show the card NAME (def.name), never the raw dotted id.
   const shards = state.player.shards ?? 0
   const craftTarget = craftableCardId(state.cards, unlockedSets(level), shards)
   const shardsLine = craftTarget !== null
-    ? `🔧 ${shards} shards · craftable: ${craftTarget} (sq craft)`
+    ? `🔧 ${shards} shards · craftable: ${cardName(craftTarget)} (sq craft)`
     : `🔧 ${shards} shards`
+
+  // R7 economy/product P2: surface the ENDGAME prestige rank + the NEXT rank's
+  // cost so the late-game sink is visible (was buried). e.g. "Prestige 3 · next 1250 🌰".
+  const rank = prestigeRank(state)
+  const prestigeLine = `✦ Prestige ${rank} · next ${prestigeCost(rank)} 🌰`
 
   // R6 P1: the next-set unlock horizon — a forward goal so leveling reads as
   // progress toward richer pulls (omitted once everything is unlocked).
@@ -254,15 +284,41 @@ function renderHeader(state: GameState, width: number): string {
     ? [boxRow(`next set: ${horizon.set} @ L${horizon.level}`, width)]
     : []
 
+  // R7 product P1: an affordable-action CTA — endgame is reachable but wasn't
+  // discoverable, so surface what THIS balance affords (the way the craft hint does).
+  const cta = affordableCta(state)
+  const ctaRows = cta !== null ? [boxRow(cta, width)] : []
+
   return [
     boxTop(width),
     boxRow(titleContent, width),
     boxRow(xpLine, width),
     boxRow(seedsLine, width),
     boxRow(shardsLine, width),
+    boxRow(prestigeLine, width),
     ...horizonRows,
+    ...ctaRows,
     boxBottom(width),
   ].join('\n')
+}
+
+/**
+ * R7 product P1 — the affordable-action CTA. Returns a one-line "can: …" hint of
+ * the actions the current seed balance affords (pull / premium / prestige), or
+ * null when nothing is affordable (so the line is omitted rather than empty).
+ * PURE: reads only the balance + prestige rank; no I/O.
+ */
+function affordableCta(state: GameState): string | null {
+  const seeds = state.player.currency
+  const parts: string[] = []
+
+  if (seeds >= PULL_COST) parts.push(`pull (${PULL_COST})`)
+  if (seeds >= PREMIUM_PULL_COST) parts.push(`premium (${PREMIUM_PULL_COST})`)
+
+  const nextPrestige = prestigeCost(prestigeRank(state))
+  if (seeds >= nextPrestige) parts.push(`prestige (next ${nextPrestige})`)
+
+  return parts.length > 0 ? `can: ${parts.join(' · ')}` : null
 }
 
 /**
@@ -376,19 +432,25 @@ function renderQuests(state: GameState, width: number): string {
 }
 
 function renderBuffs(state: GameState, width: number): string {
-  let buffRows: string[]
+  // R7 product/code: the per-rank prestige buffs are pure cosmetic flair and were
+  // cluttering the panel with N near-identical rows. Collapse them into a SINGLE
+  // rollup badge "✦ Prestige ×N"; render every other buff as its own row.
+  const rank = prestigeRank(state)
+  const otherBuffs = state.buffs.filter((b) => !isPrestigeBuff(b))
 
-  if (state.buffs.length === 0) {
-    buffRows = [boxRow('none', width)]
-  } else {
-    buffRows = state.buffs.map((b) => boxRow(b.label, width))
-  }
+  const rollupRows = rank > 0 ? [boxRow(`✦ Prestige ×${rank}`, width)] : []
+  const otherRows = otherBuffs.map((b) => boxRow(b.label, width))
+
+  const bodyRows =
+    rollupRows.length === 0 && otherRows.length === 0
+      ? [boxRow('none', width)]
+      : [...rollupRows, ...otherRows]
 
   return [
     boxTop(width),
     boxTitle('BUFFS', width),
     boxDivider(width),
-    ...buffRows,
+    ...bodyRows,
     boxBottom(width),
   ].join('\n')
 }

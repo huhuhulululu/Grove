@@ -220,6 +220,54 @@ describe('shardsForDuplicate', () => {
   })
 })
 
+// ---------------------------------------------------------------------------
+// CRAFT HORIZON (R7 economy P3) — a craft must cost enough that a common-heavy
+// dupe tail sustains. The audit found 40 shards/craft closed the collection too
+// fast (against a mix where the average dupe banks only ~2.4 shards, a craft was
+// ~17 dupe-pulls). SHARDS_PER_CRAFT was stretched (40→60) so the tail lasts longer.
+// Low-rarity shard values are already minimal (common 1 / uncommon 2), so the craft
+// cost is the lever. This guards the horizon against a future shrink.
+// ---------------------------------------------------------------------------
+
+describe('craft horizon — the dup tail sustains (R7 economy P3)', () => {
+  it('SHARDS_PER_CRAFT was stretched above the old 40 (a longer tail)', () => {
+    expect(SHARDS_PER_CRAFT).toBeGreaterThan(40)
+  })
+
+  it('keeps the low-rarity shard values minimal (common 1 / uncommon 2)', () => {
+    // The other lever is to lower low-rarity shards; they are already at the floor,
+    // so the craft cost carries the horizon. Pin them so they cannot creep up.
+    expect(SHARDS_BY_RARITY.common).toBe(1)
+    expect(SHARDS_BY_RARITY.uncommon).toBe(2)
+  })
+
+  it('a common-heavy dupe tail needs many dupes per craft (no fast close)', () => {
+    // Model a common-heavy mix: mostly common/uncommon dupes with a thin rare tail.
+    // The average dupe banks well under half a craft's worth, so a craft is many
+    // dupes — the tail does not collapse in a handful of pulls.
+    const mix: Record<Rarity, number> = {
+      common: 60,
+      uncommon: 25,
+      rare: 10,
+      epic: 4,
+      legendary: 1,
+      shiny: 0,
+    }
+    let totalShards = 0
+    let totalDupes = 0
+    for (const [rarity, n] of Object.entries(mix) as [Rarity, number][]) {
+      totalShards += shardsForDuplicate(rarity) * n
+      totalDupes += n
+    }
+    const avgShardsPerDupe = totalShards / totalDupes
+    const dupesPerCraft = SHARDS_PER_CRAFT / avgShardsPerDupe
+    // A common-heavy dupe averages well under half a craft's cost in shards…
+    expect(avgShardsPerDupe).toBeLessThan(SHARDS_PER_CRAFT / 2)
+    // …so a single craft takes a sustaining number of dupes (the stretched horizon).
+    expect(dupesPerCraft).toBeGreaterThanOrEqual(20)
+  })
+})
+
 describe('missingCardIds', () => {
   it('returns every card id not yet owned, within the given unlocked sets', () => {
     const owned: Card[] = []

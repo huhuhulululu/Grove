@@ -21,8 +21,17 @@ export const SHARDS_BY_RARITY: Record<Rarity, number> = {
   shiny: 24,
 }
 
-/** Shards required to craft one chosen missing card. */
-export const SHARDS_PER_CRAFT = 40
+/**
+ * Shards required to craft one chosen missing card.
+ *
+ * R7 CRAFT HORIZON (economy P3): raised 40→60. Against a common-heavy dupe mix the
+ * average dupe banks only ~2.4 shards, so a 40-shard craft closed the collection in
+ * ~17 dupe-pulls — too fast a tail. At 60 a craft takes ~25 dupe-pulls, stretching
+ * the craft horizon ~1.5x so a finished collection's dup tail sustains a goal longer.
+ * The low-rarity shard values (common 1 / uncommon 2) are already minimal, so the
+ * craft cost is the cleaner lever. Published / inspectable (ADR-0002).
+ */
+export const SHARDS_PER_CRAFT = 60
 
 /** Shards a duplicate of the given rarity is worth (rarer dupe → more shards). */
 export function shardsForDuplicate(rarity: Rarity): number {

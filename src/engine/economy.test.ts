@@ -77,44 +77,47 @@ const SEED_NO_SEREN = 2
 // ---------------------------------------------------------------------------
 
 describe('currency — outcomes grant seeds (×magnitude, modest)', () => {
-  it('commit grants +5 seeds and a currency reward', () => {
+  // R7 FAUCET REBALANCE (economy P1): grants HALVED/trimmed to pull affordable
+  // standard-pulls/active-day down to ≤ ~10 (commit 5→3, test 8→4, build/lint 5→3,
+  // review 6→4, pr_merged 20→12, doc/spec/plan 15→10). See the active-day model below.
+  it('commit grants +3 seeds and a currency reward', () => {
     const { state, rewards } = reduce(initialState(), ev({ type: 'commit', magnitude: 1 }), mulberry32(SEED_NO_SEREN))
     const cur = rewards.find((r) => r.kind === 'currency')
     expect(cur).toBeDefined()
-    expect(cur!.amount).toBe(5)
-    expect(state.player.currency).toBe(5)
+    expect(cur!.amount).toBe(3)
+    expect(state.player.currency).toBe(3)
   })
 
-  it('test_result grants +8 seeds per magnitude (×magnitude scales)', () => {
+  it('test_result grants +4 seeds per magnitude (×magnitude scales)', () => {
     const { state } = reduce(initialState(), ev({ type: 'test_result', magnitude: 3 }), mulberry32(SEED_NO_SEREN))
-    expect(state.player.currency).toBe(8 * 3)
+    expect(state.player.currency).toBe(4 * 3)
   })
 
-  it('pr_merged grants +20 seeds (and still the guaranteed pull)', () => {
+  it('pr_merged grants +12 seeds (and still the guaranteed pull)', () => {
     const { state, rewards } = reduce(initialState(), ev({ type: 'pr_merged', magnitude: 1 }), mulberry32(SEED_NO_SEREN))
-    const cur = rewards.find((r) => r.kind === 'currency' && r.amount === 20)
+    const cur = rewards.find((r) => r.kind === 'currency' && r.amount === 12)
     expect(cur).toBeDefined()
-    expect(state.player.currency).toBeGreaterThanOrEqual(20)
+    expect(state.player.currency).toBeGreaterThanOrEqual(12)
     expect(state.cards.length).toBe(1) // guaranteed pull still lands
   })
 
-  it('Pillar-B doc/spec/plan grant +15 seeds each', () => {
+  it('Pillar-B doc/spec/plan grant +10 seeds each', () => {
     for (const type of ['doc_updated', 'spec_written', 'plan_written'] as const) {
       const { rewards } = reduce(initialState(), ev({ type, magnitude: 1 }), mulberry32(SEED_NO_SEREN))
-      expect(rewards.some((r) => r.kind === 'currency' && r.amount === 15)).toBe(true)
+      expect(rewards.some((r) => r.kind === 'currency' && r.amount === 10)).toBe(true)
     }
   })
 
-  it('review_confirmed grants +6 seeds; build/lint grant +5', () => {
+  it('review_confirmed grants +4 seeds; build/lint grant +3', () => {
     expect(
       reduce(initialState(), ev({ type: 'review_confirmed' }), mulberry32(SEED_NO_SEREN)).state.player.currency,
-    ).toBe(6)
+    ).toBe(4)
     expect(
       reduce(initialState(), ev({ type: 'build_result' }), mulberry32(SEED_NO_SEREN)).state.player.currency,
-    ).toBe(5)
+    ).toBe(3)
     expect(
       reduce(initialState(), ev({ type: 'lint_clean' }), mulberry32(SEED_NO_SEREN)).state.player.currency,
-    ).toBe(5)
+    ).toBe(3)
   })
 
   it('a failing outcome grants NO seeds (firewall — never punish, never reward failure)', () => {
@@ -154,8 +157,8 @@ describe('pulls are a choice — test/build/lint no longer auto-pull', () => {
 })
 
 describe('pull() — the explicit, agency-bearing action', () => {
-  it('exports a PULL_COST of 30 seeds', () => {
-    expect(PULL_COST).toBe(30)
+  it('exports a PULL_COST of 45 seeds (R7 faucet rebalance: raised 30→45)', () => {
+    expect(PULL_COST).toBe(45)
   })
 
   it('debits exactly PULL_COST seeds and yields one card when funded', () => {
@@ -348,6 +351,77 @@ describe('serendipity (奇遇) — surprise bonus on successful outcomes', () =>
     // floor chest can come from it, never a serendipity roll.
     const { rewards } = reduce(initialState(), costFrame({ outputTokens: 1 }), mulberry32(SEED_SEREN_PULL))
     expect(rewards.some((r) => r.message.includes('奇遇'))).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// FAUCET ≫ SINK MODEL (R7 economy P1) — an ACTIVE DAY affords ≤ ~10 standard pulls
+//
+// The re-score④ audit found ~26 affordable standard pulls per active day — the
+// save-vs-spend decision "barely bit". This MODELS a representative active day's
+// full event stream through the REAL engine (so it captures grant ×scale bonuses,
+// the token-milestone floor chests/seeds, dup-comp, AND serendipity) and asserts
+// the affordable standard-pulls/day is now ≤ ~10. If a future change re-floods the
+// faucet, this test fails — it is the economy guard rail.
+// ---------------------------------------------------------------------------
+
+describe('faucet ≫ sink — an active day affords ≤ ~10 standard pulls', () => {
+  /** ~49 outcome events in a realistic mix + cost frames across ~4 5h windows. */
+  function activeDayEvents(): GroveEvent[] {
+    const evs: GroveEvent[] = []
+    const mix: Partial<Record<GroveEvent['type'], number>> = {
+      commit: 15,
+      test_result: 10,
+      build_result: 6,
+      lint_clean: 4,
+      review_confirmed: 3,
+      pr_merged: 2,
+      doc_updated: 3,
+      spec_written: 3,
+      plan_written: 3,
+    }
+    for (const [type, n] of Object.entries(mix)) {
+      for (let i = 0; i < (n as number); i++) evs.push(ev({ type: type as GroveEvent['type'] }))
+    }
+    // A heavy day spans ~4 distinct 5h windows, each burning past the milestone cap.
+    for (let w = 0; w < 4; w++) {
+      evs.push(costFrame({ costUsd: 100 * (w + 1), fiveHourResetsAt: 1000 + w, present: true }))
+    }
+    return evs
+  }
+
+  it('the modeled active day has ~49 outcome events (the audit baseline)', () => {
+    const outcomes = activeDayEvents().filter((e) => e.type !== 'quota_update')
+    expect(outcomes.length).toBe(49)
+  })
+
+  it('average affordable standard pulls/active-day is ≤ 10 (save-vs-spend restored)', () => {
+    let totalAfford = 0
+    let worst = 0
+    const trials = 50
+    for (let seed = 0; seed < trials; seed++) {
+      let state = initialState()
+      const rng = mulberry32(seed + 1)
+      for (const e of activeDayEvents()) state = reduce(state, e, rng).state
+      const afford = Math.floor(state.player.currency / PULL_COST)
+      totalAfford += afford
+      worst = Math.max(worst, afford)
+    }
+    const avg = totalAfford / trials
+    // The PRIMARY target: an active day affords ≤ ~10 standard pulls on average.
+    expect(avg).toBeLessThanOrEqual(10)
+    // Even the luckiest modeled day (windfalls/serendipity) stays well clear of the
+    // old ~26 faucet — a hard ceiling guards against a regression.
+    expect(worst).toBeLessThan(16)
+  })
+
+  it('is far below the OLD pre-rebalance affordability (the regression guard)', () => {
+    // Sanity: with the new grants + PULL_COST + tightened floor, a single average
+    // day cannot fund anywhere near a full collection's worth of pulls.
+    let state = initialState()
+    const rng = mulberry32(7)
+    for (const e of activeDayEvents()) state = reduce(state, e, rng).state
+    expect(Math.floor(state.player.currency / PULL_COST)).toBeLessThanOrEqual(10)
   })
 })
 

@@ -15,7 +15,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { run } from './sq'
 import { loadState, saveState } from '../store/store'
 import { stateDir } from '../store/paths'
-import { PREMIUM_PULL_COST, PRESTIGE_COST } from '../engine/reduce'
+import { PULL_COST, PREMIUM_PULL_COST, PRESTIGE_COST } from '../engine/reduce'
 import { SHARDS_PER_CRAFT } from '../engine/collection'
 import { enhanceCost, repairCost } from '../engine/gear'
 import type { GameState } from '../core/state'
@@ -174,13 +174,13 @@ describe('sq wiring (R6)', () => {
       expect(after.cards.length).toBe(before.cards.length + 1)
     })
 
-    it('uses the STANDARD cost (30) for a non-premium pull (regression guard)', () => {
+    it('uses the STANDARD cost (PULL_COST) for a non-premium pull (regression guard)', () => {
       seedState(tmpHome, (s) => ({ ...s, player: { ...s.player, currency: 100 } }))
       const { code } = captureRun(['pull', '--home', tmpHome, '--seed', '3'])
       expect(code).toBe(0)
       const after = loadState(stateDir(tmpHome))
-      // Standard pull cost is 30 — premium (150) was NOT charged.
-      expect(after.player.currency).toBe(70)
+      // Standard pull cost is PULL_COST (45) — premium was NOT charged.
+      expect(after.player.currency).toBe(100 - PULL_COST)
     })
 
     it('refuses calmly when below the premium cost', () => {

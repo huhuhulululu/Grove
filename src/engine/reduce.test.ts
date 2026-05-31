@@ -3,7 +3,19 @@ import { initialState } from '../core/state'
 import type { GameState } from '../core/state'
 import type { GroveEvent } from '../core/events'
 import { mulberry32 } from '../core/rng'
-import { reduce, pull, CRIT_CHANCE, PULL_COST } from './reduce'
+import {
+  reduce,
+  pull,
+  craftCard,
+  buyPrestige,
+  prestigeRank,
+  prestigeBuffId,
+  prestigeCost,
+  PRESTIGE_BUFF_ID,
+  CRIT_CHANCE,
+  PULL_COST,
+} from './reduce'
+import { SHARDS_PER_CRAFT } from './collection'
 import { HARD_PITY, SOFT_PITY } from './gacha'
 import { ALL_CARD_DEFS, cardIdsInSet } from '../core/cards'
 import { AURA_SEED_BONUS, DUP_COMP_SEEDS } from './quests'
@@ -624,18 +636,24 @@ function gearOf(name: string, level: number, broken = false): Gear {
 }
 
 describe('reduce — gear level confers real effects', () => {
-  it('a +10 Commit Hammer makes a commit grant MORE currency than a +0 (assert)', () => {
+  // R7 faucet rebalance HALVED the high-frequency grants (commit 5→3); a +10%
+  // currency bonus rounds away on a base-3 commit, so we measure the gear lift on
+  // pr_merged (base 12) — where +10% clears integer rounding — isolating the base
+  // grant currency line ("· PR merged") from the merge's pull/serendipity lines.
+  const mergeSeeds = (out: { rewards: { kind: string; amount?: number; message: string }[] }) =>
+    out.rewards.find((r) => r.kind === 'currency' && /PR merged/.test(r.message))!.amount!
+
+  it('a +10 Commit Hammer makes a merge grant MORE currency than a +0 (assert)', () => {
     const lo: GameState = { ...initialState(), gear: [gearOf('Commit Hammer', 0)] }
     const hi: GameState = { ...initialState(), gear: [gearOf('Commit Hammer', 10)] }
 
-    // non-serendipity seed so the only currency line is the base commit grant
-    const loOut = reduce(lo, ev({ type: 'commit', magnitude: 1 }), mulberry32(2))
-    const hiOut = reduce(hi, ev({ type: 'commit', magnitude: 1 }), mulberry32(2))
+    const loOut = reduce(lo, ev({ type: 'pr_merged', magnitude: 1 }), mulberry32(2))
+    const hiOut = reduce(hi, ev({ type: 'pr_merged', magnitude: 1 }), mulberry32(2))
 
-    expect(hiOut.state.player.currency).toBeGreaterThan(loOut.state.player.currency)
-    // +0 → base 5; +10 hammer → +10% → 5 * 1.1 = 5.5 → 6 (rounded)
-    expect(loOut.state.player.currency).toBe(5)
-    expect(hiOut.state.player.currency).toBe(6)
+    expect(mergeSeeds(hiOut)).toBeGreaterThan(mergeSeeds(loOut))
+    // +0 → base 12; +10 hammer → +10% → 12 * 1.1 = 13.2 → 13 (rounded)
+    expect(mergeSeeds(loOut)).toBe(12)
+    expect(mergeSeeds(hiOut)).toBe(13)
   })
 
   it('a Type Saber raises crit chance — more commits crit with a +14 saber than with none', () => {
@@ -665,8 +683,8 @@ describe('reduce — gear level confers real effects', () => {
 
   it('a BROKEN +10 Commit Hammer confers no currency bonus (cosmetic dead state)', () => {
     const broken: GameState = { ...initialState(), gear: [gearOf('Commit Hammer', 10, true)] }
-    const out = reduce(broken, ev({ type: 'commit' }), mulberry32(2))
-    expect(out.state.player.currency).toBe(5) // back to base
+    const out = reduce(broken, ev({ type: 'pr_merged' }), mulberry32(2))
+    expect(mergeSeeds(out)).toBe(12) // back to base (no bonus from broken gear)
   })
 })
 
@@ -681,20 +699,23 @@ describe('reduce — aura adds the seed bonus', () => {
       buffs: [{ id: 'aura:grimoire', label: 'Grimoire Aura', kind: 'aura' }],
     }
     const out = reduce(withAura, ev({ type: 'commit' }), mulberry32(2))
-    // base 5 × (1 + 0.05) = 5.25 → round 5; use a bigger base to see the lift clearly
+    // R7: base commit seeds 3 × 1.05 = 3.15 → round 3 (lift hidden by rounding);
+    // use a bigger base (pr_merged) to see the +5% aura lift clearly.
     const big = reduce(
       { ...withAura },
       ev({ type: 'pr_merged', magnitude: 1 }),
       mulberry32(2),
     )
-    // pr_merged base seeds 20 × 1.05 = 21
+    // R7: pr_merged base seeds 12 × 1.05 = 12.6 → round 13
     const baseMerge = reduce(initialState(), ev({ type: 'pr_merged', magnitude: 1 }), mulberry32(2))
-    const auraSeed = big.rewards.find((r) => r.kind === 'currency' && r.amount === 21)
+    const auraSeed = big.rewards.find(
+      (r) => r.kind === 'currency' && r.amount === 13 && /PR merged/.test(r.message),
+    )
     expect(auraSeed).toBeDefined()
     expect(AURA_SEED_BONUS).toBeGreaterThan(0)
-    // sanity: the base (no aura) merge granted the un-boosted 20
-    expect(baseMerge.rewards.some((r) => r.kind === 'currency' && r.amount === 20)).toBe(true)
-    expect(out.state.player.currency).toBeGreaterThanOrEqual(5)
+    // sanity: the base (no aura) merge granted the un-boosted 12
+    expect(baseMerge.rewards.some((r) => r.kind === 'currency' && r.amount === 12 && /PR merged/.test(r.message))).toBe(true)
+    expect(out.state.player.currency).toBeGreaterThanOrEqual(3)
   })
 })
 
@@ -774,5 +795,147 @@ describe('reduce — completing a set grants a legendary + a permanent buff', ()
     expect(setBuff).toBeDefined()
     expect(setBuff!.kind).toBe('aura')
     expect((setBuff!.factor ?? 0)).toBeGreaterThan(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// R7 code nit (P2): grantSetBonus must CASCADE when its bonus legendary itself
+// completes a FURTHER set (the dropped `newlyCompleted` is now recursed).
+// ---------------------------------------------------------------------------
+
+describe('reduce — set-bonus CASCADE (R7 code P2)', () => {
+  // At level 1 the ONLY legendary card in scope is tools.refactor-blade, so a
+  // set-bonus legendary is deterministic. We arrange: own all of `forest` except
+  // its last card, and all of `tools` except its legendary. Completing `forest`
+  // grants a legendary = tools.refactor-blade, which COMPLETES `tools` too → cascade.
+  function cardOf(id: string, set: string) {
+    const def = ALL_CARD_DEFS.find((d) => d.id === id)!
+    return { id: def.id, name: def.name, rarity: def.rarity, set }
+  }
+
+  it('a bonus legendary that completes another set fires THAT set bonus too', () => {
+    const forestIds = cardIdsInSet('forest')
+    const toolsIds = cardIdsInSet('tools')
+    const lastForest = forestIds[forestIds.length - 1]!
+    const legendaryTool = 'tools.refactor-blade'
+
+    // Own every forest card EXCEPT the last, and every tools card EXCEPT the legendary.
+    const owned = [
+      ...forestIds.slice(0, -1).map((id) => cardOf(id, 'forest')),
+      ...toolsIds.filter((id) => id !== legendaryTool).map((id) => cardOf(id, 'tools')),
+    ]
+    const state: GameState = {
+      ...initialState(),
+      cards: owned,
+      player: { xp: 0, level: 1, currency: 0, shards: SHARDS_PER_CRAFT },
+    }
+
+    // Craft the last forest card → completes forest → bonus legendary (refactor-blade)
+    // → completes tools → CASCADE the tools set bonus.
+    const { state: next, rewards } = craftCard(state, lastForest, mulberry32(1))
+
+    expect(next.completedSets).toContain('forest')
+    // The cascade: tools is ALSO now complete and its bonus buff exists.
+    expect(next.completedSets).toContain('tools')
+    expect(next.buffs.some((b) => b.id === 'set:bonus:forest')).toBe(true)
+    expect(next.buffs.some((b) => b.id === 'set:bonus:tools')).toBe(true)
+    // Two distinct set-complete reward lines were surfaced (forest + tools).
+    const setCompleteLines = rewards.filter(
+      (r) => r.kind === 'buff' && /set .+ complete/.test(r.message),
+    )
+    expect(setCompleteLines.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('NO cascade when the bonus legendary does not complete a further set', () => {
+    // Own all forest except the last, but NOTHING of tools → the bonus legendary
+    // (a tools card) does not complete tools, so only forest's bonus fires.
+    const forestIds = cardIdsInSet('forest')
+    const lastForest = forestIds[forestIds.length - 1]!
+    const owned = forestIds.slice(0, -1).map((id) => cardOf(id, 'forest'))
+    const state: GameState = {
+      ...initialState(),
+      cards: owned,
+      player: { xp: 0, level: 1, currency: 0, shards: SHARDS_PER_CRAFT },
+    }
+    const { state: next } = craftCard(state, lastForest, mulberry32(1))
+    expect(next.completedSets).toContain('forest')
+    expect(next.completedSets).not.toContain('tools')
+    expect(next.buffs.some((b) => b.id === 'set:bonus:tools')).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// R7 code nit (P3): prestigeRank must count EXACT rank ids, not a prefix match
+// ('prestige:mark' is a prefix of 'prestige:mark:2', and could falsely match a
+// non-rank id that merely starts with it).
+// ---------------------------------------------------------------------------
+
+describe('reduce — prestigeRank counts exact rank ids (R7 code P3)', () => {
+  it('counts rank-1 (legacy id) and rank-N (suffixed) ids', () => {
+    const state: GameState = {
+      ...initialState(),
+      buffs: [
+        { id: prestigeBuffId(1), label: 'Prestige 1', kind: 'rest' },
+        { id: prestigeBuffId(2), label: 'Prestige 2', kind: 'rest' },
+        { id: prestigeBuffId(3), label: 'Prestige 3', kind: 'rest' },
+      ],
+    }
+    expect(prestigeRank(state)).toBe(3)
+  })
+
+  it('does NOT count a non-rank buff that merely starts with the prestige id', () => {
+    // A hypothetical sibling id sharing the prestige prefix but NOT a rank id —
+    // the old startsWith() test would wrongly count it and inflate the next cost.
+    const state: GameState = {
+      ...initialState(),
+      buffs: [
+        { id: prestigeBuffId(1), label: 'Prestige 1', kind: 'rest' },
+        { id: `${PRESTIGE_BUFF_ID}:flair`, label: 'decoy', kind: 'rest' },
+        { id: `${PRESTIGE_BUFF_ID}er`, label: 'decoy2', kind: 'rest' },
+      ],
+    }
+    // Only the genuine rank-1 buff counts.
+    expect(prestigeRank(state)).toBe(1)
+    // And so the next prestige costs the rank-1 escalation, not a decoy-inflated one.
+    expect(prestigeCost(prestigeRank(state))).toBe(prestigeCost(1))
+  })
+
+  it('still ties cost escalation to the true rank after real purchases', () => {
+    let state: GameState = { ...initialState(), player: { xp: 0, level: 1, currency: 100000, shards: 0 } }
+    state = buyPrestige(state).state
+    state = buyPrestige(state).state
+    expect(prestigeRank(state)).toBe(2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// R7 code nit (P3): grantBuff must DEDUP non-stacking (rest) buffs by id — a
+// repeated checkpoint / window reset replaces the flair, never piles up N copies.
+// ---------------------------------------------------------------------------
+
+describe('reduce — rest buffs dedup by id (R7 code P3)', () => {
+  it('a second checkpoint does not accumulate a duplicate Refreshed buff', () => {
+    let state = initialState()
+    state = reduce(state, ev({ type: 'checkpoint' }), mulberry32(1)).state
+    state = reduce(state, ev({ type: 'checkpoint' }), mulberry32(1)).state
+    state = reduce(state, ev({ type: 'checkpoint' }), mulberry32(1)).state
+    // Exactly ONE 'refreshed' rest buff, no matter how many checkpoints fired.
+    expect(state.buffs.filter((b) => b.id === 'refreshed').length).toBe(1)
+  })
+
+  it('repeated window resets keep exactly one Second Wind buff', () => {
+    // Drive two 5h-window resets (a big upward vigor jump from a known baseline).
+    let state = initialState()
+    const frame = (vigor: number, resetsAt: number): GroveEvent =>
+      ev({
+        type: 'quota_update',
+        meta: { present: true, fiveHourPct: 100 - vigor, fiveHourResetsAt: resetsAt },
+      })
+    // baseline (low vigor), then jump up (reset), then low again, then jump up (reset)
+    state = reduce(state, frame(10, 1), mulberry32(1)).state
+    state = reduce(state, frame(95, 2), mulberry32(1)).state // reset 1 → Second Wind
+    state = reduce(state, frame(10, 3), mulberry32(1)).state
+    state = reduce(state, frame(95, 4), mulberry32(1)).state // reset 2 → Second Wind again
+    expect(state.buffs.filter((b) => b.id === 'rest:second-wind').length).toBe(1)
   })
 })

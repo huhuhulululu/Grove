@@ -9,6 +9,7 @@
 import type { Reward } from '../core/rewards'
 import type { GameState } from '../core/state'
 import type { QuestDef } from '../core/quests'
+import { prestigeRank, PRESTIGE_BUFF_ID } from '../engine/reduce'
 
 // ---------------------------------------------------------------------------
 // RecapData — view-model for the "what you shipped" recap block.
@@ -111,7 +112,20 @@ export function formatStatus(state: GameState): string {
       .join(', ') || '(none)'
 
   const setsLine = completedSets.length ? completedSets.join(', ') : '(none yet)'
-  const buffsLine = buffs.length ? buffs.map((b) => b.label).join(', ') : '(none)'
+
+  // R7 STATUS PARITY (product P2): the plain scriptable surface must AGREE with the
+  // dashboard — show Shards next to Currency + the prestige rank, and collapse the
+  // per-rank prestige flair into a single ✦ Prestige ×N badge (not N entries).
+  const rank = prestigeRank(state)
+  const otherBuffs = buffs.filter((b) => !b.id.startsWith(PRESTIGE_BUFF_ID))
+  const buffLabels = [
+    ...(rank > 0 ? [`✦ Prestige ×${rank}`] : []),
+    ...otherBuffs.map((b) => b.label),
+  ]
+  const buffsLine = buffLabels.length ? buffLabels.join(', ') : '(none)'
+
+  // shards is optional on legacy states → read as 0 (never fabricate a number).
+  const shards = player.shards ?? 0
 
   return [
     '─'.repeat(52),
@@ -120,6 +134,8 @@ export function formatStatus(state: GameState): string {
     `  Level .............. ${player.level}`,
     `  XP (into level) .... ${player.xp}`,
     `  Currency ........... ${player.currency}`,
+    `  Shards ............. ${shards}`,
+    `  Prestige rank ...... ${prestigeRank(state)}`,
     `  Cards collected .... ${cards.length}`,
     `  Card breakdown ..... ${rarityLine}`,
     `  Completed sets ..... ${setsLine}`,

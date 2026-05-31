@@ -286,6 +286,66 @@ describe('formatStatus', () => {
     const state = makeState()
     expect(formatStatus(state)).toContain('\n')
   })
+
+  // R7 STATUS PARITY (product P2): the plain scriptable `sq status` surface must
+  // agree with the dashboard — show a Shards line next to Currency + the prestige rank.
+  it('shows a Shards line with the player.shards balance', () => {
+    const state = makeState({ player: { xp: 0, level: 1, currency: 50, shards: 17 } })
+    const result = formatStatus(state)
+    const shardsLine = result.split('\n').find((l) => l.toLowerCase().includes('shard'))
+    expect(shardsLine).toBeDefined()
+    expect(shardsLine).toContain('17')
+  })
+
+  it('treats a legacy state with undefined shards as 0 shards', () => {
+    const state = makeState({ player: { xp: 0, level: 1, currency: 50 } }) // no shards
+    const result = formatStatus(state)
+    const shardsLine = result.split('\n').find((l) => l.toLowerCase().includes('shard'))
+    expect(shardsLine).toBeDefined()
+    expect(shardsLine).toMatch(/\b0\b/)
+  })
+
+  it('shows the prestige rank', () => {
+    const state = makeState({
+      buffs: [
+        { id: 'prestige:mark', label: 'Prestige 1', kind: 'rest' },
+        { id: 'prestige:mark:2', label: 'Prestige 2', kind: 'rest' },
+      ],
+    })
+    const result = formatStatus(state)
+    const line = result.split('\n').find((l) => /prestige/i.test(l))
+    expect(line).toBeDefined()
+    // rank 2 (two prestige buffs).
+    expect(line).toContain('2')
+  })
+
+  it('shows prestige rank 0 when no prestige buffs are owned', () => {
+    const state = makeState({ buffs: [] })
+    const result = formatStatus(state)
+    const line = result.split('\n').find((l) => /prestige/i.test(l))
+    expect(line).toBeDefined()
+    expect(line).toMatch(/\b0\b/)
+  })
+
+  it('rolls up the per-rank prestige buffs into a single ×N badge in Active buffs', () => {
+    const state = makeState({
+      buffs: [
+        { id: 'prestige:mark', label: 'Prestige 1', kind: 'rest' },
+        { id: 'prestige:mark:2', label: 'Prestige 2', kind: 'rest' },
+        { id: 'prestige:mark:3', label: 'Prestige 3', kind: 'rest' },
+        { id: 'multiplier-2x', label: 'Double XP', kind: 'multiplier' },
+      ],
+    })
+    const result = formatStatus(state)
+    const buffsLine = result.split('\n').find((l) => l.includes('Active buffs'))
+    expect(buffsLine).toBeDefined()
+    // ONE rollup badge with the count, plus the non-prestige buff…
+    expect(buffsLine).toContain('✦ Prestige ×3')
+    expect(buffsLine).toContain('Double XP')
+    // …and NOT three separate "Prestige 1/2/3" entries on the buffs line.
+    expect(buffsLine).not.toMatch(/Prestige 1\b/)
+    expect(buffsLine).not.toMatch(/Prestige 2\b/)
+  })
 })
 
 // ---------------------------------------------------------------------------

@@ -99,3 +99,20 @@ endgame in the ENGINE but left it DEAD at the player surface. R6 must WIRE it, w
 - P1 global-store needs its OWN lock (R2 guarantee regressed for the account-wide file); surface shards /
   next-unlock horizon / locked-set labels / set-unlock reward line in the dashboard; README into package `files`.
 - P1/P2 game-design: unlock-cadence day-5..8 beat; tiered/renewable prestige; grantDupComp dedup; card-name double-print.
+
+## Re-score ④ (after R6) — 7/10 at B+
+| Lens | ② | ③ | ④ | | Lens | ② | ③ | ④ |
+|---|---|---|---|---|---|---|---|---|
+| Game design | B | B | **B+** ✅ | | AI-coding eng | B | A- | **A-** ✅ |
+| Architecture | A- | B+ | **A-** ✅ | | Security | B+ | B+ | **B+** ✅ |
+| Ethics | A- | A- | **A-** ✅ | | QA | B+ | B+ | **A-** ✅ |
+| Strategy | B | B | **B+** ✅ | | Game economy | C+ | B- | B |
+| Code review | B | B- | B | | Product/UX | B | B- | B |
+
+**R7 targets — last 3 lenses, two file-disjoint clusters (parallel; engine APIs already exist so no R5-style disconnect):**
+- **ENGINE/ECONOMY tune** (engine+core): faucet≫sink (raise PULL_COST / lower grants / per-DAY milestone cap so
+  affordable pulls/active-day ≤ ~10); craft horizon (tune SHARDS_PER_CRAFT/SHARDS_BY_RARITY); code nits —
+  grantSetBonus must recurse `newlyCompleted`, prestigeRank exact-match (not startsWith), grantBuff dedup rest-kind.
+- **CLI/RENDER surface** (cli+render): prestige rank + next cost on the dashboard + a single `✦ Prestige ×N` rollup
+  (not N buff rows); affordable-action CTA line; `sq status` shows Shards (+ prestige) for dashboard/status parity;
+  craft target shows card NAME not raw id.

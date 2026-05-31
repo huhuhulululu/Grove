@@ -54,21 +54,37 @@ export const CRIT_CHANCE = 0.08
 // ONLY thing risk mechanics may gamble (ADR-0005); never code/commits/docs.
 // ---------------------------------------------------------------------------
 
-/** Seeds granted per outcome (before magnitude scaling). Modest by design. */
+/**
+ * Seeds granted per outcome (before magnitude scaling). Modest by design.
+ *
+ * R7 FAUCET REBALANCE (economy P1): the high-frequency code grants are HALVED
+ * (commit 5→3, test 8→4, build 5→3, lint 5→3) and the rarer Pillar-B / merge
+ * grants trimmed (review 6→4, pr_merged 20→12, doc/spec/plan 15→10). The re-score④
+ * audit found an active day (~49 outcome events) afforded ~26 standard pulls — the
+ * deliberate-pull decision "barely bit". Together with the raised PULL_COST and the
+ * tightened milestone faucet below, an active day now affords ≤ ~10 standard pulls,
+ * restoring genuine save-vs-spend. Outcomes still pay (ADR-0010), just not a flood.
+ */
 const CURRENCY_GRANT: Partial<Record<GroveEvent['type'], number>> = {
-  commit: 5,
-  test_result: 8,
-  build_result: 5,
-  lint_clean: 5,
-  review_confirmed: 6,
-  pr_merged: 20,
-  doc_updated: 15,
-  spec_written: 15,
-  plan_written: 15,
+  commit: 3,
+  test_result: 4,
+  build_result: 3,
+  lint_clean: 3,
+  review_confirmed: 4,
+  pr_merged: 12,
+  doc_updated: 10,
+  spec_written: 10,
+  plan_written: 10,
 }
 
-/** Seeds one chosen gacha pull costs. Published / inspectable (ADR-0002). */
-export const PULL_COST = 30
+/**
+ * Seeds one chosen gacha pull costs. Published / inspectable (ADR-0002).
+ *
+ * R7 FAUCET REBALANCE (economy P1): raised 30→45 so a standard pull is a heavier
+ * decision against the (now lower) per-outcome seed grants — part of pulling the
+ * affordable-pulls/active-day down to ≤ ~10.
+ */
+export const PULL_COST = 45
 
 /**
  * Seeds one PREMIUM-banner pull costs (R5 escalating seed SINK, economy P1). At
@@ -77,7 +93,7 @@ export const PULL_COST = 30
  * (five cheap standard pulls, or save for one premium). Published (ADR-0002),
  * cosmetic-only (ADR-0005).
  */
-export const PREMIUM_PULL_COST = 150
+export const PREMIUM_PULL_COST = 225
 
 /**
  * Seeds an ENDGAME prestige cosmetic costs (R5 endgame sink, game-design P2). A
@@ -127,15 +143,18 @@ export const COST_TO_WORK = 1
 
 /**
  * Max milestone chests per 5h window (diminishing → can't be farmed). Lowered
- * 3→2 in the R5 faucet rebalance so the floor stays a fair保底, not a fountain.
+ * 3→2 (R5) then 2→1 (R7 faucet rebalance): a heavy day spans ~4 windows, so a
+ * per-window cap of 2 still let the token floor mint ~8 free chests/day — a near-
+ * free faucet that drowned the deliberate-pull decision. At 1/window the floor
+ * pays at most ~4 chests/day across windows: a fair保底 (ADR-0010), not a fountain.
  */
-export const MILESTONE_CAP_PER_WINDOW = 2
+export const MILESTONE_CAP_PER_WINDOW = 1
 
 /**
  * Bonus seeds bundled with a milestone chest (cosmetic-adjacent, modest). Lowered
- * 15→10 in the R5 faucet rebalance to tighten the seed faucet.
+ * 15→10 (R5) then 10→6 (R7 faucet rebalance) to tighten the seed faucet further.
  */
-const MILESTONE_BONUS_SEEDS = 10
+const MILESTONE_BONUS_SEEDS = 6
 
 const BASE_XP: Partial<Record<GroveEvent['type'], number>> = {
   commit: 10,
@@ -338,8 +357,14 @@ function applyPulledCard(
 /**
  * A completed set grants a REAL reward (audit P1): a GUARANTEED legendary pull +
  * a small PERMANENT buff the engine reads (`set:bonus:<set>`, kind 'aura', factor
- * SET_BONUS_SEED → +seeds via activeSeedBonus). Returns a NEW state. No chaining:
- * one guaranteed legendary (its own dup is still compensated).
+ * SET_BONUS_SEED → +seeds via activeSeedBonus). Returns a NEW state.
+ *
+ * R7 code nit (P2): the bonus legendary may ITSELF complete another set (the
+ * collection is small and a legendary closes the last slot of `tools`/`syntax`/…).
+ * `addCard`'s `newlyCompleted` was previously dropped here, so such a completion
+ * was silent — no bonus buff, no celebratory line. We now CASCADE: if the bonus
+ * card completes a further set, recursively grant its set bonus. The recursion is
+ * finite (each step marks one more set complete and never re-fires a completed set).
  */
 function grantSetBonus(state: GameState, set: string, rng: Rng, rewards: Reward[]): GameState {
   const buffId = `set:bonus:${set}`
@@ -355,7 +380,11 @@ function grantSetBonus(state: GameState, set: string, rng: Rng, rewards: Reward[
   })
 
   const card = makeCard('legendary', rng, state.player.level)
-  const { cards, completedSets, duplicate } = addCard(state.cards, state.completedSets, card)
+  const { cards, completedSets, newlyCompleted, duplicate } = addCard(
+    state.cards,
+    state.completedSets,
+    card,
+  )
   rewards.push({
     kind: 'card',
     card,
@@ -365,6 +394,8 @@ function grantSetBonus(state: GameState, set: string, rng: Rng, rewards: Reward[
 
   let next: GameState = { ...state, buffs, cards, completedSets }
   if (duplicate) next = grantDupComp(next, 'legendary', rewards)
+  // Cascade: a bonus legendary that completes a FURTHER set fires that set's bonus too.
+  if (newlyCompleted) next = grantSetBonus(next, newlyCompleted, rng, rewards)
   return next
 }
 
@@ -397,9 +428,22 @@ function grantPull(
 }
 
 /**
+ * Buff kinds that DO NOT STACK — a second one with the same id should REPLACE the
+ * existing buff, never pile up a duplicate. `rest` beats (Refreshed / Second Wind)
+ * are pure cosmetic flair: a second checkpoint or window reset re-celebrates the
+ * SAME flair, it does not accrue N copies of it. (Stacking kinds — multiplier /
+ * freshness / streak — are owned by quests.ts via its own upsert.)
+ */
+const NON_STACKING_KINDS: ReadonlySet<BuffKind> = new Set<BuffKind>(['rest'])
+
+/**
  * Add a cosmetic buff and push a 'buff' reward. Returns a NEW state.
  * `kind` is optional (e.g. 'rest' for celebrated rest beats — never gated on low
  * energy, never shaming; ADR-0005 / anti-burnout).
+ *
+ * R7 code nit (P3): for non-stacking kinds (rest) the buff is DEDUPED by id —
+ * any existing same-id buff is replaced rather than appended, so repeated
+ * checkpoints / window resets never accumulate N identical 'Refreshed' rows.
  */
 function grantBuff(
   state: GameState,
@@ -414,7 +458,11 @@ function grantBuff(
     message: `${label}`,
   })
   const buff: Buff = kind !== undefined ? { id, label, kind } : { id, label }
-  return { ...state, buffs: [...state.buffs, buff] }
+  const base =
+    kind !== undefined && NON_STACKING_KINDS.has(kind)
+      ? state.buffs.filter((b) => b.id !== id)
+      : state.buffs
+  return { ...state, buffs: [...base, buff] }
 }
 
 /**
@@ -730,9 +778,20 @@ export function prestigeBuffId(rank: number): string {
  */
 export const PRESTIGE_COST_STEP = 250
 
-/** The player's current prestige rank = the count of prestige buffs owned. PURE. */
+/**
+ * Whether a buff id is EXACTLY a prestige rank id (not merely prefixed by one).
+ * Rank 1 is the legacy `prestige:mark`; rank ≥ 2 is `prestige:mark:<N>`. PURE.
+ *
+ * R7 code nit (P3): the old `startsWith(PRESTIGE_BUFF_ID)` test mis-counted — any
+ * id that merely STARTS with `prestige:mark` (e.g. a hypothetical `prestige:marker`
+ * or a future `prestige:mark:flair`) would be counted as a rank, inflating the
+ * count and so the next prestigeCost. Matching exact rank ids closes that.
+ */
+const PRESTIGE_RANK_RE = new RegExp(`^${PRESTIGE_BUFF_ID}(:\\d+)?$`)
+
+/** The player's current prestige rank = the count of prestige rank buffs owned. PURE. */
 export function prestigeRank(state: GameState): number {
-  return state.buffs.filter((b) => b.id.startsWith(PRESTIGE_BUFF_ID)).length
+  return state.buffs.filter((b) => PRESTIGE_RANK_RE.test(b.id)).length
 }
 
 /**

@@ -10,6 +10,12 @@ import {
   GEAR_NAMES,
   activeGearBonus,
   repairGear,
+  enhanceCost,
+  repairCost,
+  ENHANCE_COST_BASE,
+  ENHANCE_COST_PER_LEVEL,
+  REPAIR_COST_BASE,
+  REPAIR_COST_PER_LEVEL,
   type EnhanceResult,
 } from './gear'
 
@@ -562,5 +568,57 @@ describe('enhance: protect flag', () => {
     const { result, gear } = enhance(makeTestGear(5), fakeRng, true)
     expect(result).toBe('downgrade')
     expect(gear.level).toBe(4)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// ESCALATING SINK COSTS (R5 economy P1) — enhance/repair scale with gear level
+// so high-level gear is a deepening seed sink (was flat-priced).
+// ---------------------------------------------------------------------------
+
+describe('enhanceCost — scales with gear level', () => {
+  it('a level-0 enhance costs the base', () => {
+    expect(enhanceCost(0)).toBe(ENHANCE_COST_BASE)
+  })
+
+  it('each level adds ENHANCE_COST_PER_LEVEL', () => {
+    expect(enhanceCost(1)).toBe(ENHANCE_COST_BASE + ENHANCE_COST_PER_LEVEL)
+    expect(enhanceCost(5)).toBe(ENHANCE_COST_BASE + 5 * ENHANCE_COST_PER_LEVEL)
+  })
+
+  it('is strictly increasing in level (chasing +N is a deepening sink)', () => {
+    let prev = -1
+    for (let lvl = 0; lvl <= 15; lvl++) {
+      const cost = enhanceCost(lvl)
+      expect(cost).toBeGreaterThan(prev)
+      prev = cost
+    }
+  })
+
+  it('clamps a negative level at 0 (never charges below base)', () => {
+    expect(enhanceCost(-5)).toBe(ENHANCE_COST_BASE)
+  })
+
+  it('floors a fractional level', () => {
+    expect(enhanceCost(3.9)).toBe(enhanceCost(3))
+  })
+})
+
+describe('repairCost — scales with the broken gear level', () => {
+  it('a level-0 repair costs the base', () => {
+    expect(repairCost(makeTestGear(0, true))).toBe(REPAIR_COST_BASE)
+  })
+
+  it('each level adds REPAIR_COST_PER_LEVEL', () => {
+    expect(repairCost(makeTestGear(1, true))).toBe(REPAIR_COST_BASE + REPAIR_COST_PER_LEVEL)
+    expect(repairCost(makeTestGear(12, true))).toBe(REPAIR_COST_BASE + 12 * REPAIR_COST_PER_LEVEL)
+  })
+
+  it('a broken deep gear costs far more to restore than a shallow one', () => {
+    expect(repairCost(makeTestGear(12, true))).toBeGreaterThan(repairCost(makeTestGear(1, true)))
+  })
+
+  it('clamps a negative level at 0', () => {
+    expect(repairCost(makeTestGear(-3, true))).toBe(REPAIR_COST_BASE)
   })
 })

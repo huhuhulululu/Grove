@@ -1,5 +1,59 @@
-import type { Card } from '../core/rewards'
+import type { Card, Rarity } from '../core/rewards'
 import { cardIdsInSet } from '../core/cards'
+
+// ---------------------------------------------------------------------------
+// DUP TAIL (R5) — a duplicate pull is never worthless: it accrues cosmetic
+// "shards" scaled by rarity, and SHARDS_PER_CRAFT shards craft a chosen missing
+// card. So even a finished collection keeps a horizon. All published /
+// inspectable (ADR-0002); cosmetic-only (ADR-0005). The shard BALANCE (exact
+// numbers) is A2's to tune later — these are deliberately simple seams.
+// ---------------------------------------------------------------------------
+
+/** Shards a duplicate yields, by the duplicate's rarity (escalating, never flat). */
+export const SHARDS_BY_RARITY: Record<Rarity, number> = {
+  common: 1,
+  uncommon: 2,
+  rare: 4,
+  epic: 8,
+  legendary: 16,
+  shiny: 24,
+}
+
+/** Shards required to craft one chosen missing card. */
+export const SHARDS_PER_CRAFT = 40
+
+/** Shards a duplicate of the given rarity is worth (rarer dupe → more shards). */
+export function shardsForDuplicate(rarity: Rarity): number {
+  return SHARDS_BY_RARITY[rarity]
+}
+
+/**
+ * Card ids the player does NOT yet own, restricted to the supplied `sets` (e.g.
+ * the player's unlocked sets). Pure & deterministic — preserves set/def order so
+ * a craft target is stable. A locked set's cards are not reported as "missing".
+ */
+export function missingCardIds(cards: Card[], sets: string[]): string[] {
+  const owned = new Set(cards.map((c) => c.id))
+  const out: string[] = []
+  for (const set of sets) {
+    for (const id of cardIdsInSet(set)) {
+      if (!owned.has(id)) out.push(id)
+    }
+  }
+  return out
+}
+
+/**
+ * The card id a craft would produce given `shards` banked and the player's
+ * `cards` + unlocked `sets`: the FIRST missing id when `shards >= SHARDS_PER_CRAFT`,
+ * else null. null also when nothing is left to craft (collection complete). Pure
+ * & deterministic (no rng — the player chooses; this just reports the target).
+ */
+export function craftableCardId(cards: Card[], sets: string[], shards: number): string | null {
+  if (shards < SHARDS_PER_CRAFT) return null
+  const missing = missingCardIds(cards, sets)
+  return missing[0] ?? null
+}
 
 /**
  * Append a card to the collection immutably and detect set completion + duplicates.

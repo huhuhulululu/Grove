@@ -4,6 +4,8 @@ import { rarityRank } from '../core/rewards'
 import type { PityState } from '../core/state'
 import {
   RARITY_ODDS,
+  REALIZED_LEGENDARY_SHINY_RATE,
+  PREMIUM_RARITY_ODDS,
   SOFT_PITY,
   HARD_PITY,
   pull,
@@ -238,6 +240,107 @@ describe('pull — soft pity boost', () => {
 
     // With soft pity boost, we should see more legendary/shiny hits
     expect(softHits).toBeGreaterThan(baseHits)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// HONEST ODDS (ADR-0002 / economy P2) — the published REALIZED rate must match
+// what the pity-threaded engine actually produces over many pulls (within ~10%).
+// ---------------------------------------------------------------------------
+
+describe('honest odds — realized pity-inclusive rate ≈ published REALIZED rate', () => {
+  it('exports a published REALIZED_LEGENDARY_SHINY_RATE above the base-table 1.7%', () => {
+    // A pity floor BY CONSTRUCTION lifts the realized rate above the base table,
+    // so the honest player-facing number is strictly above legendary+shiny base.
+    const base = RARITY_ODDS.legendary + RARITY_ODDS.shiny
+    expect(base).toBeCloseTo(0.017, 6)
+    expect(REALIZED_LEGENDARY_SHINY_RATE).toBeGreaterThan(base)
+  })
+
+  it('the engine-measured realized legendary+shiny rate is within ±10% of the published rate', () => {
+    // Simulate MANY pity-threaded pulls across many independent seeds and measure
+    // the realized fraction of legendary-or-better drops. This is the statistical
+    // test the audit asked for: the player-facing number must be TRUE.
+    const PULLS_PER_TRIAL = 200
+    const TRIALS = 3000
+    let legShiny = 0
+    let total = 0
+    for (let seed = 0; seed < TRIALS; seed++) {
+      const rng = mulberry32((seed * 2654435761) >>> 0)
+      let pity: PityState = { sinceLegendary: 0 }
+      for (let i = 0; i < PULLS_PER_TRIAL; i++) {
+        const r = pull(pity, rng)
+        total++
+        if (rarityRank(r.rarity) >= rarityRank('legendary')) legShiny++
+        pity = r.pity
+      }
+    }
+    const realized = legShiny / total
+    const published = REALIZED_LEGENDARY_SHINY_RATE
+    const relErr = Math.abs(realized - published) / published
+    // ±10% of the published realized rate — the honesty bar from the audit.
+    expect(relErr).toBeLessThanOrEqual(0.1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// PREMIUM BANNER (R5 seed SINK) — better odds, same six rarities, sums to 1.
+// ---------------------------------------------------------------------------
+
+describe('PREMIUM_RARITY_ODDS — the higher-tier banner', () => {
+  it('sums to approximately 1.0', () => {
+    const total = Object.values(PREMIUM_RARITY_ODDS).reduce((s, v) => s + v, 0)
+    expect(total).toBeCloseTo(1.0, 5)
+  })
+
+  it('shifts mass UP: epic+ and legendary+ base odds beat the standard table', () => {
+    const stdEpicPlus = RARITY_ODDS.epic + RARITY_ODDS.legendary + RARITY_ODDS.shiny
+    const premEpicPlus =
+      PREMIUM_RARITY_ODDS.epic + PREMIUM_RARITY_ODDS.legendary + PREMIUM_RARITY_ODDS.shiny
+    expect(premEpicPlus).toBeGreaterThan(stdEpicPlus)
+
+    const stdLegPlus = RARITY_ODDS.legendary + RARITY_ODDS.shiny
+    const premLegPlus = PREMIUM_RARITY_ODDS.legendary + PREMIUM_RARITY_ODDS.shiny
+    expect(premLegPlus).toBeGreaterThan(stdLegPlus)
+  })
+
+  it('covers all six rarities (no new tier introduced)', () => {
+    for (const r of ['common', 'uncommon', 'rare', 'epic', 'legendary', 'shiny'] as const) {
+      expect(PREMIUM_RARITY_ODDS[r]).toBeGreaterThan(0)
+    }
+  })
+
+  it('pull(odds=PREMIUM) realizes a higher legendary+ rate than the standard table', () => {
+    const TRIALS = 4000
+    let premHits = 0
+    let stdHits = 0
+    for (let seed = 0; seed < TRIALS; seed++) {
+      const premRng = mulberry32(seed)
+      const stdRng = mulberry32(seed)
+      const prem = pull({ sinceLegendary: 0 }, premRng, PREMIUM_RARITY_ODDS)
+      const std = pull({ sinceLegendary: 0 }, stdRng, RARITY_ODDS)
+      if (rarityRank(prem.rarity) >= rarityRank('legendary')) premHits++
+      if (rarityRank(std.rarity) >= rarityRank('legendary')) stdHits++
+    }
+    expect(premHits).toBeGreaterThan(stdHits)
+  })
+
+  it('still threads pity on the same counter (a non-legendary premium pull increments)', () => {
+    const rng = mulberry32(2)
+    const r = pull({ sinceLegendary: 0 }, rng, PREMIUM_RARITY_ODDS)
+    if (rarityRank(r.rarity) < rarityRank('legendary')) {
+      expect(r.pity.sinceLegendary).toBe(1)
+    } else {
+      expect(r.pity.sinceLegendary).toBe(0)
+    }
+  })
+
+  it('hard pity still forces legendary+ on a premium pull', () => {
+    for (let seed = 0; seed < 20; seed++) {
+      const rng = mulberry32(seed)
+      const r = pull({ sinceLegendary: HARD_PITY - 1 }, rng, PREMIUM_RARITY_ODDS)
+      expect(rarityRank(r.rarity)).toBeGreaterThanOrEqual(rarityRank('legendary'))
+    }
   })
 })
 

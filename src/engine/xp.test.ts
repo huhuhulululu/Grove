@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { xpForLevel, applyXp } from './xp'
+import { xpForLevel, applyXp, levelUpSeedBonus, LEVELUP_SEED_BONUS } from './xp'
 import type { PlayerState } from '../core/state'
 
 describe('xpForLevel', () => {
@@ -93,5 +93,34 @@ describe('applyXp', () => {
     expect(result.player.level).toBe(3)
     expect(result.player.xp).toBe(4)
     expect(result.levelUps).toBe(2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// levelUpSeedBonus — each level-up grants a small seed bonus (R5 leveling P1:
+// levels now FEED the economy, not just display). Cosmetic seeds only (ADR-0005).
+// ---------------------------------------------------------------------------
+
+describe('levelUpSeedBonus', () => {
+  it('zero level-ups grants zero seeds', () => {
+    expect(levelUpSeedBonus(0)).toBe(0)
+  })
+
+  it('negative level-ups grant zero (never negative seeds)', () => {
+    expect(levelUpSeedBonus(-3)).toBe(0)
+  })
+
+  it('one level-up grants LEVELUP_SEED_BONUS seeds', () => {
+    expect(levelUpSeedBonus(1)).toBe(LEVELUP_SEED_BONUS)
+  })
+
+  it('scales linearly with the number of level-ups in one grant', () => {
+    expect(levelUpSeedBonus(3)).toBe(LEVELUP_SEED_BONUS * 3)
+  })
+
+  it('LEVELUP_SEED_BONUS is a modest positive integer (published / inspectable)', () => {
+    expect(Number.isInteger(LEVELUP_SEED_BONUS)).toBe(true)
+    expect(LEVELUP_SEED_BONUS).toBeGreaterThan(0)
+    expect(LEVELUP_SEED_BONUS).toBeLessThanOrEqual(25)
   })
 })

@@ -391,10 +391,12 @@ describe('formatQuests', () => {
     expect(grimoireLine).toContain('✓')
   })
 
-  it('handles all 4 quests in QUESTS catalog', () => {
+  it('renders every quest in the QUESTS catalog (whatever its size)', () => {
     const state = makeState({ quests: [] })
     const result = formatQuests(QUESTS, state)
-    expect(QUESTS).toHaveLength(4)
+    // Count-agnostic: the catalog grows over time (R5 added more quests), so
+    // assert it is non-empty and that EACH quest's title is rendered.
+    expect(QUESTS.length).toBeGreaterThanOrEqual(4)
     for (const q of QUESTS) {
       expect(result).toContain(q.title)
     }

@@ -88,6 +88,22 @@
   - **Loop plan:** R3 → re-score① → R4 (front door: bin/README/build/portable invocation, `sq wrap`, account-global
     energy, honesty doc trim) → re-score② → R5 (close remaining < B+) → … until all 10 lenses ≥ B+. (ADR-0011 = global
     leaderboard, opt-in/league/server-verified, deferred until after the loop.)
+  - **R5 cluster B (CLI/UX/docs/naming) DONE & verified.** Strategy **P0 name fix:** `grove` is taken on npm →
+    renamed package to **`grovekit`** (ADR-0012); `package.json` name + README install (`npm i -g grovekit`,
+    `npx -p grovekit sq`) + `bin: sq` made consistent, guarded by `cli/packaging.test.ts`. **wrap composes with
+    global flags:** `run()` no longer short-circuits on `argv[0]==='wrap'` — it splits at the first `--`, parses the
+    sq-side generically, so `--zen`/`--home` work BEFORE or AFTER `wrap` (and every subcommand). **Code-review nits:**
+    enhance has a bounds-guard re-validated INSIDE the lock; enhance/repair/protect honor `--zen` (calm `✓` line);
+    `--magnitude`/`--seed` NaN-guarded (default, never NaN); run-as-script guard is a basename match (`sq`/`sq.js`/
+    `sq.ts`), not a fragile substring; `playReveal` uses non-blocking `Atomics.wait` (no CPU busy-spin) and is skipped
+    entirely in non-TTY/tests. **First-aha UX:** README first-run promise corrected to REAL commit-hook output
+    (Pillar-B signal rewards, not a fabricated `+10 XP · commit`); `sq init` is real onboarding — chains the hook,
+    grants a one-time +40 🌰 starter (idempotent via an `.onboarded` marker), detects installed AI CLIs, prints a
+    clear next-step CTA; an unknown subcommand prints a Levenshtein "did you mean …?" instead of the full USAGE wall.
+    **Dashboard alignment:** new pure `render/width.ts` (displayWidth/padToWidth/truncateToWidth) pads box rows by
+    terminal CELLS not `.length`, fixing wide-emoji/CJK border drift (asserted in `dashboard.test.ts`). Evidence:
+    cluster-B test files green (`cli/{sq,zen,wrap-flags,nits,run-guard,onboarding,packaging}.test.ts`,
+    `render/{dashboard,format,enhance,copy-lint,width}.test.ts`), copy-lint pass.
 
 ## Origin / research
 A 10-agent research workflow produced: pain-point map (fatigue + competency pains), prior-art review,

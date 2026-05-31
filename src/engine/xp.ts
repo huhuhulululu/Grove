@@ -9,6 +9,21 @@ export function xpForLevel(level: number): number {
 }
 
 /**
+ * Seeds granted per level-up. R5 leveling P1: a level-up now FEEDS the economy
+ * (was display-only). Cosmetic currency only (ADR-0005); modest by design so
+ * outcomes stay the dominant driver. Published / inspectable (ADR-0002).
+ */
+export const LEVELUP_SEED_BONUS = 15
+
+/**
+ * Total seed bonus for `levelUps` level-ups in a single grant. Linear and never
+ * negative (a zero/negative count grants nothing). Pure.
+ */
+export function levelUpSeedBonus(levelUps: number): number {
+  return Math.max(0, Math.floor(levelUps)) * LEVELUP_SEED_BONUS
+}
+
+/**
  * Applies `amount` XP to `player`, resolving any level-ups.
  * - amount <= 0: returns a clone of player with levelUps = 0 (never lose progress).
  * - Otherwise: adds amount to xp, then advances levels while xp >= xpForLevel(level).

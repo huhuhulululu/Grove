@@ -37,6 +37,31 @@ export const QUESTS: QuestDef[] = [
     description: 'Add a test (edge/error paths and tests-first count extra) · guaranteed loot.',
     pillar: 'B',
   },
+  // --- R5: the remaining four Pillar-B quests (8 total) --------------------
+  {
+    id: 'review-loop',
+    title: 'Close the Review',
+    description: 'Land a confirmed review · Fresh Eyes buff.',
+    pillar: 'B',
+  },
+  {
+    id: 'clean-build',
+    title: 'Keep It Clean',
+    description: 'Ship a lint-clean build · permanent +seeds aura.',
+    pillar: 'B',
+  },
+  {
+    id: 'merge-master',
+    title: 'Merge the PR',
+    description: 'Merge a pull request · guaranteed loot + gear.',
+    pillar: 'B',
+  },
+  {
+    id: 'doc-streak',
+    title: 'Doc Streak',
+    description: 'Keep docs fresh, week over week · a tiered, renewable streak.',
+    pillar: 'B',
+  },
 ]
 
 export function questById(id: string): QuestDef | undefined {
@@ -45,6 +70,46 @@ export function questById(id: string): QuestDef | undefined {
 
 export function allQuestIds(): string[] {
   return QUESTS.map((q) => q.id)
+}
+
+// ---------------------------------------------------------------------------
+// Renewable quests (R5) — a refreshing board, not a static one. A renewable
+// quest stays `active` and re-pays as it is repeated, instead of going `done`
+// and disappearing. Forgiving by default (ADR-0005): a lapsed streak is a
+// renewable gain, never a shame.
+// ---------------------------------------------------------------------------
+
+/** Quest ids that REFRESH rather than retire after completion. */
+export const RENEWABLE_QUEST_IDS = ['doc-streak'] as const
+
+/** Whether `id` is a renewable (refreshing) quest. */
+export function isRenewable(id: string): boolean {
+  return (RENEWABLE_QUEST_IDS as readonly string[]).includes(id)
+}
+
+/**
+ * The Doc Streak's tiers (the renewable, tiered weekly doc-freshness variant).
+ * `at` is the streak length at which the tier is reached; `seeds` is the
+ * celebratory bonus granted on reaching it. Ascending; the engine reads these
+ * to escalate the reward as the streak grows. The exact numbers are A2-tunable.
+ */
+export const DOC_STREAK_TIERS: ReadonlyArray<{ at: number; seeds: number }> = [
+  { at: 0, seeds: 0 },
+  { at: 3, seeds: 10 },
+  { at: 6, seeds: 20 },
+  { at: 10, seeds: 40 },
+]
+
+/**
+ * The tier INDEX a streak of the given length has reached (0-based), capped at
+ * the top tier. Pure; deterministic.
+ */
+export function docStreakTier(streak: number): number {
+  let tier = 0
+  for (let i = 0; i < DOC_STREAK_TIERS.length; i++) {
+    if (streak >= DOC_STREAK_TIERS[i]!.at) tier = i
+  }
+  return tier
 }
 
 /** Document filenames that count as a project-memory "grimoire" for any AI-coding tool. */

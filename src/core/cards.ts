@@ -2,6 +2,16 @@ import type { Card, Rarity } from './rewards'
 
 // The built-in cosmetic card pool. Both gacha (makeCard) and collection (set-completion)
 // depend on this single source so the two engine modules stay consistent.
+//
+// R5 content depth (audit ENGINE cluster): expanded 15→36 cards across 6 sets
+// (was 3) to kill the content cliff. Three sets are GATED behind level thresholds
+// (see SET_UNLOCK_LEVEL / unlockedSets) so leveling finally MATTERS — a higher
+// level unlocks richer pulls. The three original sets stay unlocked at level 1 and
+// together cover EVERY rarity, so a level-1 gacha pull can never starve.
+//
+// Cosmetic-firewall-safe (ADR-0005): a card is pure flavour; unlocking a set only
+// widens the cosmetic pool, never touches real artifacts. Names stay dev-grounded
+// and terse (ADR-0009 / docs/TONE.md) — no fairytale narration.
 
 export interface CardDef {
   id: string
@@ -11,6 +21,7 @@ export interface CardDef {
 }
 
 export const CARD_SETS: Record<string, CardDef[]> = {
+  // -- Level 1 (unlocked from the start) — cover every rarity between them ----
   forest: [
     { id: 'forest.sapling', name: 'Sapling', rarity: 'common', set: 'forest' },
     { id: 'forest.fern', name: 'Fern', rarity: 'common', set: 'forest' },
@@ -32,13 +43,96 @@ export const CARD_SETS: Record<string, CardDef[]> = {
     { id: 'creatures.panic', name: 'Kernel Panic', rarity: 'epic', set: 'creatures' },
     { id: 'creatures.phoenix', name: 'Shiny Phoenix', rarity: 'shiny', set: 'creatures' },
   ],
+
+  // -- Level 3 — "Syntax" (AI-coding flavour) ---------------------------------
+  syntax: [
+    { id: 'syntax.semicolon', name: 'Semicolon', rarity: 'common', set: 'syntax' },
+    { id: 'syntax.brace', name: 'Curly Brace', rarity: 'common', set: 'syntax' },
+    { id: 'syntax.regex', name: 'Regex', rarity: 'uncommon', set: 'syntax' },
+    { id: 'syntax.closure', name: 'Closure', rarity: 'rare', set: 'syntax' },
+    { id: 'syntax.monad', name: 'Monad', rarity: 'epic', set: 'syntax' },
+    { id: 'syntax.quine', name: 'Quine', rarity: 'legendary', set: 'syntax' },
+  ],
+
+  // -- Level 6 — "Deploy" (infra / shipping flavour) --------------------------
+  deploy: [
+    { id: 'deploy.commit', name: 'Green Commit', rarity: 'common', set: 'deploy' },
+    { id: 'deploy.pipeline', name: 'Pipeline', rarity: 'common', set: 'deploy' },
+    { id: 'deploy.container', name: 'Container', rarity: 'uncommon', set: 'deploy' },
+    { id: 'deploy.rollback', name: 'Rollback', rarity: 'rare', set: 'deploy' },
+    { id: 'deploy.bluegreen', name: 'Blue-Green', rarity: 'epic', set: 'deploy' },
+    { id: 'deploy.zero-downtime', name: 'Zero Downtime', rarity: 'legendary', set: 'deploy' },
+  ],
+
+  // -- Level 10 — "Relics" (legacy-code flavour, the late-game prize set) -----
+  relics: [
+    { id: 'relics.tabs', name: 'Tabs vs Spaces', rarity: 'common', set: 'relics' },
+    { id: 'relics.goto', name: 'GOTO', rarity: 'uncommon', set: 'relics' },
+    { id: 'relics.cobol', name: 'COBOL Scroll', rarity: 'rare', set: 'relics' },
+    { id: 'relics.mainframe', name: 'Mainframe', rarity: 'epic', set: 'relics' },
+    { id: 'relics.y2k', name: 'Y2K Survivor', rarity: 'legendary', set: 'relics' },
+    { id: 'relics.golden-master', name: 'Golden Master', rarity: 'shiny', set: 'relics' },
+  ],
+}
+
+// ---------------------------------------------------------------------------
+// Level gating — leveling MUST matter (audit game-design P1: level was display-
+// only). Each set unlocks at a level threshold; higher level → richer pulls.
+// The three level-1 sets together cover every rarity (no starvation at level 1).
+// Published / inspectable (ADR-0002); purely cosmetic widening (ADR-0005).
+// ---------------------------------------------------------------------------
+
+export const SET_UNLOCK_LEVEL: Record<string, number> = {
+  forest: 1,
+  tools: 1,
+  creatures: 1,
+  syntax: 3,
+  deploy: 6,
+  relics: 10,
 }
 
 export const ALL_CARD_DEFS: CardDef[] = Object.values(CARD_SETS).flat()
 
-/** All card defs of a given rarity (every rarity has at least one). */
-export function cardDefsByRarity(rarity: Rarity): CardDef[] {
-  return ALL_CARD_DEFS.filter((c) => c.rarity === rarity)
+/** The level at which `set` unlocks. An unknown set defaults to 1 (always pullable). */
+export function setUnlockLevel(set: string): number {
+  return SET_UNLOCK_LEVEL[set] ?? 1
+}
+
+/**
+ * The set ids a player of the given `level` can pull from. Monotonic in level
+ * (a higher level never removes a set). A level < 1 is treated as level 1, so the
+ * pool is never empty. Drives gacha so level genuinely gates the pull pool.
+ */
+export function unlockedSets(level: number): string[] {
+  const lvl = Math.max(1, level)
+  return setIds().filter((s) => setUnlockLevel(s) <= lvl)
+}
+
+/**
+ * The soonest set gated ABOVE `level` (the player's next unlock "horizon"), or
+ * null once everything is unlocked. Lets the UI surface a forward goal.
+ */
+export function nextSetUnlock(level: number): { set: string; level: number } | null {
+  const lvl = Math.max(1, level)
+  const upcoming = setIds()
+    .map((s) => ({ set: s, level: setUnlockLevel(s) }))
+    .filter((e) => e.level > lvl)
+    .sort((a, b) => a.level - b.level)
+  return upcoming[0] ?? null
+}
+
+/**
+ * All card defs of a given rarity. With `level` provided, the result is scoped to
+ * sets unlocked at that level (gacha respects unlocked sets — richer pulls at
+ * higher level). With no level, returns every def of that rarity (back-compat).
+ * Every rarity has at least one card in the level-1 pool.
+ */
+export function cardDefsByRarity(rarity: Rarity, level?: number): CardDef[] {
+  const inScope =
+    level === undefined
+      ? ALL_CARD_DEFS
+      : ALL_CARD_DEFS.filter((c) => unlockedSets(level).includes(c.set))
+  return inScope.filter((c) => c.rarity === rarity)
 }
 
 /** The set ids that exist. */

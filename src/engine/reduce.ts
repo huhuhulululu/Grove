@@ -17,9 +17,10 @@ import type { Reward } from '../core/rewards'
 import { rarityRank } from '../core/rewards'
 import type { Rng } from '../core/rng'
 
-import { applyXp } from './xp'
-import { pull as pull_, makeCard, SOFT_PITY } from './gacha'
-import { addCard } from './collection'
+import { applyXp, levelUpSeedBonus } from './xp'
+import { pull as pull_, makeCard, SOFT_PITY, PREMIUM_RARITY_ODDS } from './gacha'
+import { addCard, shardsForDuplicate } from './collection'
+import type { Rarity } from '../core/rewards'
 import { makeGear, activeGearBonus } from './gear'
 import {
   applyQuests,
@@ -69,6 +70,24 @@ const CURRENCY_GRANT: Partial<Record<GroveEvent['type'], number>> = {
 /** Seeds one chosen gacha pull costs. Published / inspectable (ADR-0002). */
 export const PULL_COST = 30
 
+/**
+ * Seeds one PREMIUM-banner pull costs (R5 escalating seed SINK, economy P1). At
+ * 5x the standard cost the premium banner (PREMIUM_RARITY_ODDS — materially
+ * better odds) is the late-game seed TARGET: a genuine save-vs-spend choice
+ * (five cheap standard pulls, or save for one premium). Published (ADR-0002),
+ * cosmetic-only (ADR-0005).
+ */
+export const PREMIUM_PULL_COST = 150
+
+/**
+ * Seeds an ENDGAME prestige cosmetic costs (R5 endgame sink, game-design P2). A
+ * one-time, expensive seed drain that grants a permanent cosmetic 'prestige'
+ * buff (a flair the renderer can show) — so once the collection is complete,
+ * accumulated seeds still have a meaningful target and the economy stays a
+ * decision. Cosmetic-only (ADR-0005); confers NO power/xp. Published (ADR-0002).
+ */
+export const PRESTIGE_COST = 500
+
 // ---------------------------------------------------------------------------
 // SERENDIPITY (奇遇) — variable-ratio surprise layered on SUCCESSFUL outcomes.
 // A small chance, on top of the deterministic seed grant, of a rare-boosted
@@ -92,21 +111,31 @@ const SERENDIPITY_SEED_WINDFALL = 25
 
 /**
  * Work units per milestone chest. Cost is in USD; we scale by COST_TO_WORK so a
- * milestone fires roughly a few times per heavy day rather than per dollar.
- * Tuned: a heavy day might be a few dollars of cost → with COST_TO_WORK=1 and
- * WORK_MILESTONE=1, ~3 chests/day before the cap bites. Both exported so the
- * cap math is inspectable.
+ * milestone fires roughly a couple of times per heavy day rather than per dollar.
+ *
+ * R5 FAUCET REBALANCE (economy P1): raised 1→3. The audit found ~36 pulls/day —
+ * 'pull is a choice' had collapsed because the token-milestone floor was a near-
+ * free faucet (a chest per $1, capped 3/window across ~4 windows ≈ 12 free pulls
+ * + 180 bonus seeds/day). Raising the cost-per-chest to $3 (and lowering the cap
+ * below) restores genuine save-vs-spend: the floor still pays heavy work fairly
+ * (ADR-0010) but no longer drowns the deliberate-pull decision.
  */
-export const WORK_MILESTONE = 1
+export const WORK_MILESTONE = 3
 
 /** Cost-USD → work-unit conversion (1 USD = 1 work unit). */
 export const COST_TO_WORK = 1
 
-/** Max milestone chests per 5h window (diminishing → can't be farmed). */
-export const MILESTONE_CAP_PER_WINDOW = 3
+/**
+ * Max milestone chests per 5h window (diminishing → can't be farmed). Lowered
+ * 3→2 in the R5 faucet rebalance so the floor stays a fair保底, not a fountain.
+ */
+export const MILESTONE_CAP_PER_WINDOW = 2
 
-/** Bonus seeds bundled with a milestone chest (cosmetic-adjacent, modest). */
-const MILESTONE_BONUS_SEEDS = 15
+/**
+ * Bonus seeds bundled with a milestone chest (cosmetic-adjacent, modest). Lowered
+ * 15→10 in the R5 faucet rebalance to tighten the seed faucet.
+ */
+const MILESTONE_BONUS_SEEDS = 10
 
 const BASE_XP: Partial<Record<GroveEvent['type'], number>> = {
   commit: 10,
@@ -230,20 +259,44 @@ function grantXp(
     })
   }
 
-  return { ...state, player }
+  // R5: a level-up FEEDS the economy (leveling was display-only). Each level-up
+  // grants modest cosmetic seeds (ADR-0005) on top of the normal grant. Pushed
+  // as a 'currency' reward AFTER the levelup lines so the cause is legible.
+  let leveled = player
+  if (levelUps > 0) {
+    const seeds = levelUpSeedBonus(levelUps)
+    leveled = { ...player, currency: player.currency + seeds }
+    rewards.push({
+      kind: 'currency',
+      amount: seeds,
+      message: `+${seeds} 🌰 · level up ×${levelUps}`,
+    })
+  }
+
+  return { ...state, player: leveled }
 }
 
 /**
- * Grant dup-compensation seeds (a duplicate pull never feels worthless; audit P1).
- * Returns a NEW state and pushes a terse, non-shaming 'currency' reward.
+ * Compensate a duplicate pull (audit P1 + R5 dup tail). A dupe never feels
+ * worthless: DUP_COMP_SEEDS seeds (flat) PLUS rarity-scaled SHARDS banked toward
+ * crafting a chosen missing card — so a completed collection still has a horizon.
+ * Returns a NEW state and pushes one terse, non-shaming 'currency' reward.
  */
-function grantDupComp(state: GameState, rewards: Reward[]): GameState {
+function grantDupComp(state: GameState, rarity: Rarity, rewards: Reward[]): GameState {
+  const shards = shardsForDuplicate(rarity)
   rewards.push({
     kind: 'currency',
     amount: DUP_COMP_SEEDS,
-    message: `+${DUP_COMP_SEEDS} 🌰 dupe`,
+    message: `+${DUP_COMP_SEEDS} 🌰 · +${shards} shards · dupe`,
   })
-  return { ...state, player: { ...state.player, currency: state.player.currency + DUP_COMP_SEEDS } }
+  return {
+    ...state,
+    player: {
+      ...state.player,
+      currency: state.player.currency + DUP_COMP_SEEDS,
+      shards: (state.player.shards ?? 0) + shards,
+    },
+  }
 }
 
 /**
@@ -273,7 +326,7 @@ function applyPulledCard(
   rewards.push({ kind: 'card', card, rarity, message })
 
   let next: GameState = { ...state, cards, completedSets }
-  if (duplicate) next = grantDupComp(next, rewards)
+  if (duplicate) next = grantDupComp(next, rarity, rewards)
   if (newlyCompleted) next = grantSetBonus(next, newlyCompleted, rng, rewards)
   return next
 }
@@ -297,7 +350,7 @@ function grantSetBonus(state: GameState, set: string, rng: Rng, rewards: Reward[
     message: `✦ set ${set} complete · +${Math.round(SET_BONUS_SEED * 100)}% 🌰 (permanent)`,
   })
 
-  const card = makeCard('legendary', rng)
+  const card = makeCard('legendary', rng, state.player.level)
   const { cards, completedSets, duplicate } = addCard(state.cards, state.completedSets, card)
   rewards.push({
     kind: 'card',
@@ -307,7 +360,7 @@ function grantSetBonus(state: GameState, set: string, rng: Rng, rewards: Reward[
   })
 
   let next: GameState = { ...state, buffs, cards, completedSets }
-  if (duplicate) next = grantDupComp(next, rewards)
+  if (duplicate) next = grantDupComp(next, 'legendary', rewards)
   return next
 }
 
@@ -316,10 +369,18 @@ function grantSetBonus(state: GameState, set: string, rng: Rng, rewards: Reward[
  * the collection, and pushing a 'card' reward. A DUPLICATE also grants dup-comp
  * seeds; a newly-completed set grants the real set bonus (legendary + permanent
  * buff). Returns a NEW state.
+ *
+ * `odds` selects the rarity table (default RARITY_ODDS; PREMIUM_RARITY_ODDS for
+ * the premium banner). Pity is threaded identically regardless of table.
  */
-function grantPull(state: GameState, rng: Rng, rewards: Reward[]): GameState {
-  const { rarity, pity } = pull_(state.pity, rng)
-  const card = makeCard(rarity, rng)
+function grantPull(
+  state: GameState,
+  rng: Rng,
+  rewards: Reward[],
+  odds?: Parameters<typeof pull_>[2],
+): GameState {
+  const { rarity, pity } = pull_(state.pity, rng, odds)
+  const card = makeCard(rarity, rng, state.player.level)
   // Thread the new pity onto the state BEFORE the shared card application.
   return applyPulledCard(
     { ...state, pity },
@@ -423,7 +484,7 @@ function rollSerendipity(state: GameState, rng: Rng, rewards: Reward[]): GameSta
           ? 0
           : state.pity.sinceLegendary + 1,
     }
-    const card = makeCard(rarity, rng)
+    const card = makeCard(rarity, rng, state.player.level)
     return applyPulledCard(
       { ...state, pity: realPity },
       card,
@@ -483,7 +544,7 @@ export function pull(
   })
 
   const { rarity, pity } = pull_(state.pity, rng)
-  const card = makeCard(rarity, rng)
+  const card = makeCard(rarity, rng, state.player.level)
   const next = applyPulledCard(
     { ...state, player: { ...state.player, currency: spent }, pity },
     card,
@@ -494,6 +555,107 @@ export function pull(
   )
 
   return { state: next, rewards }
+}
+
+/**
+ * Spend PREMIUM_PULL_COST seeds for ONE pull on the PREMIUM banner (the escalating
+ * seed SINK — better odds via PREMIUM_RARITY_ODDS). The CLI exposes this as
+ * `sq pull --premium` (or similar). Same shape & guardrails as `pull`: debit on
+ * success, friendly refusal when broke (no draw, no debit — never shaming).
+ *
+ * PURE & IMMUTABLE: the input state is never mutated.
+ */
+export function pullPremium(
+  state: GameState,
+  rng: Rng,
+): { state: GameState; rewards: Reward[] } {
+  const rewards: Reward[] = []
+
+  if (state.player.currency < PREMIUM_PULL_COST) {
+    rewards.push({
+      kind: 'currency',
+      amount: state.player.currency,
+      message: `not enough 🌰 — premium needs ${PREMIUM_PULL_COST}, have ${state.player.currency}`,
+    })
+    return { state: { ...state, player: { ...state.player } }, rewards }
+  }
+
+  const spent = state.player.currency - PREMIUM_PULL_COST
+  rewards.push({
+    kind: 'currency',
+    amount: -PREMIUM_PULL_COST,
+    message: `-${PREMIUM_PULL_COST} 🌰 · premium pull`,
+  })
+
+  const { rarity, pity } = pull_(state.pity, rng, PREMIUM_RARITY_ODDS)
+  const card = makeCard(rarity, rng, state.player.level)
+  const next = applyPulledCard(
+    { ...state, player: { ...state.player, currency: spent }, pity },
+    card,
+    rarity,
+    `✦ premium · ${rarityMark(rarity)}${card.name} · ${rarity}`,
+    rng,
+    rewards,
+  )
+
+  return { state: next, rewards }
+}
+
+/** The buff id a purchased prestige grants. */
+export const PRESTIGE_BUFF_ID = 'prestige:mark'
+
+/**
+ * Spend PRESTIGE_COST seeds for a one-time ENDGAME cosmetic prestige (the late-game
+ * seed sink). Grants a permanent cosmetic 'prestige' buff (a renderer flair) —
+ * NO power/xp (ADR-0005). Idempotent-friendly: a player who already owns it, or is
+ * broke, gets a friendly refusal with NO debit (never shaming). PURE & IMMUTABLE.
+ */
+export function buyPrestige(
+  state: GameState,
+): { state: GameState; rewards: Reward[] } {
+  const rewards: Reward[] = []
+
+  if (state.buffs.some((b) => b.id === PRESTIGE_BUFF_ID)) {
+    rewards.push({
+      kind: 'buff',
+      buff: PRESTIGE_BUFF_ID,
+      message: 'prestige already earned',
+    })
+    return { state: { ...state, player: { ...state.player } }, rewards }
+  }
+
+  if (state.player.currency < PRESTIGE_COST) {
+    rewards.push({
+      kind: 'currency',
+      amount: state.player.currency,
+      message: `not enough 🌰 — prestige costs ${PRESTIGE_COST}, have ${state.player.currency}`,
+    })
+    return { state: { ...state, player: { ...state.player } }, rewards }
+  }
+
+  const spent = state.player.currency - PRESTIGE_COST
+  rewards.push({
+    kind: 'currency',
+    amount: -PRESTIGE_COST,
+    message: `-${PRESTIGE_COST} 🌰 · prestige`,
+  })
+  rewards.push({
+    kind: 'buff',
+    buff: PRESTIGE_BUFF_ID,
+    message: '✦ Prestige earned (permanent cosmetic)',
+  })
+
+  // kind:'rest' is purely cosmetic — NOT read by any XP/seed/crit selector — so
+  // prestige confers ZERO economic effect (ADR-0005: cosmetic-only, no power).
+  const buff: Buff = { id: PRESTIGE_BUFF_ID, label: 'Prestige', kind: 'rest' }
+  return {
+    state: {
+      ...state,
+      player: { ...state.player, currency: spent },
+      buffs: [...state.buffs, buff],
+    },
+    rewards,
+  }
 }
 
 // ---------------------------------------------------------------------------

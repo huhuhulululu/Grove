@@ -213,7 +213,41 @@ export function gearEffectText(gear: Gear): string | null {
 }
 
 // ---------------------------------------------------------------------------
-// repairGear — clear a COSMETIC broken state (the CLI prices this ~50 seeds)
+// ESCALATING SINK COSTS (R5 economy P1 — restore save-vs-spend) — pricing is a
+// PURE engine concern so the faucet≫sink rebalance has a single source of truth.
+// Enhance/repair grow with gear level so high-level gear is a deepening seed sink
+// (a flat price let late-game seeds pile up with nowhere to go). Cosmetic-only
+// (ADR-0005); published / inspectable (ADR-0002). The CLI debits these.
+// ---------------------------------------------------------------------------
+
+/** Base seed cost to ATTEMPT an enhance (level 0). */
+export const ENHANCE_COST_BASE = 20
+/** Each gear level adds this many seeds to the next enhance attempt. */
+export const ENHANCE_COST_PER_LEVEL = 8
+/** Base seed cost to repair a broken gear. */
+export const REPAIR_COST_BASE = 50
+/** Each gear level adds this many seeds to a repair. */
+export const REPAIR_COST_PER_LEVEL = 10
+
+/**
+ * Seed cost to attempt enhancing gear currently at `level`. Escalates linearly
+ * so chasing a high +N is a real, deepening sink (was a flat 20). Level is
+ * clamped at 0 so a negative is never charged. PURE.
+ */
+export function enhanceCost(level: number): number {
+  return ENHANCE_COST_BASE + Math.max(0, Math.floor(level)) * ENHANCE_COST_PER_LEVEL
+}
+
+/**
+ * Seed cost to repair a broken gear. Scales with the gear's level — a broken +12
+ * costs far more to restore than a broken +1, so deep gear is a deep sink. PURE.
+ */
+export function repairCost(gear: Gear): number {
+  return REPAIR_COST_BASE + Math.max(0, Math.floor(gear.level)) * REPAIR_COST_PER_LEVEL
+}
+
+// ---------------------------------------------------------------------------
+// repairGear — clear a COSMETIC broken state (the CLI prices this via repairCost)
 // ---------------------------------------------------------------------------
 
 /**

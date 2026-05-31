@@ -148,3 +148,14 @@ anti-burnout / anti-shame / local-first ethos, so it ships ONLY under strict gua
   R3 → adoption → opt-in friend-streaks + share-card → (only then) leagues / global with server-verified outcomes.
 **Why:** User — "进而我们也可以有全球的排行榜." Captured with the guardrails that keep it from becoming the
 dark pattern Grove exists to fight.
+
+## ADR-0012 — Publishable npm name `grovekit` (bin stays `sq`)
+**Status:** accepted · 2026-05-31 (audit R5, strategy P0)
+**Decision:** The npm package name is **`grovekit`** (not `grove`). The global binary is unchanged: **`sq`**.
+`package.json` `name`, the README install command (`npm i -g grovekit` / `npx -p grovekit sq <cmd>`), and the
+declared `bin` (`sq`) are all kept consistent, enforced by `src/cli/packaging.test.ts`.
+**Why:** `grove` is ALREADY TAKEN on npm (a published `grove@0.4.0` by a third party), so the README's
+`npm i -g grove` would have installed a stranger's package — a strategy-P0 install-path mismatch found in the
+re-score② audit. `grove-cli` is also taken (a prototype). `grovekit` is unclaimed, keeps the brand, and is
+unscoped (no scope-ownership / membership prerequisite to publish). The product/brand stays "Grove"; only the
+distribution identifier disambiguates. The binary `sq` is short and memorable and the whole README/UX drives it.

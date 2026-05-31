@@ -5,6 +5,14 @@ export interface PlayerState {
   level: number
   /** in-game cosmetic currency ("seeds") — the ONLY thing risk mechanics may gamble */
   currency: number
+  /**
+   * Dup-conversion sink (R5 dup tail). A duplicate pull accrues cosmetic
+   * "shards" scaled by rarity; SHARDS_PER_CRAFT shards craft a chosen missing
+   * card, so a completed collection still has a horizon. Optional/defaulted so
+   * legacy states and existing PlayerState literals stay valid; read as `?? 0`.
+   * Cosmetic-only (ADR-0005) — never code/commits/docs.
+   */
+  shards?: number
 }
 
 export interface PityState {
@@ -131,7 +139,7 @@ export interface WorkMeterState {
 export function initialState(): GameState {
   return {
     version: 1,
-    player: { xp: 0, level: 1, currency: 0 },
+    player: { xp: 0, level: 1, currency: 0, shards: 0 },
     cards: [],
     gear: [],
     pity: { sinceLegendary: 0 },

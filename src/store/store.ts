@@ -2,7 +2,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { z } from 'zod'
 import { initialState } from '../core/state'
-import type { GameState } from '../core/state'
+import type { GameState, EnergyState, WorkMeterState } from '../core/state'
 import { parseEvent } from '../core/events'
 import type { GroveEvent } from '../core/events'
 
@@ -234,17 +234,88 @@ function backupCorrupt(file: string, raw: string): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// ACCOUNT-GLOBAL energy/work store (AI-eng P1) — quota/energy is account-WIDE,
+// not per-repo: the 5h/7d usage windows are shared by every repo you work in. So
+// energy + the token-milestone work meter live in ONE shared file next to all
+// the per-repo state dirs (`<home>/_global/global.json`, where <home> is the dir
+// containing every `<home>/<repoKey>`), while each repo's state.json keeps its
+// own COSMETIC progress (cards/gear/xp/level/currency/pity/quests/buffs).
+//
+// loadState transparently MERGES the global energy/work over the per-repo state;
+// saveState SPLITS energy/work back out to the global file. reduce/cli stay
+// unchanged — they keep reading/writing state.energy / state.work as before.
+// ---------------------------------------------------------------------------
+
+/** Schema for the shared global energy/work file. */
+const GlobalSchema = z.object({
+  energy: z.object({ known: z.boolean() }).passthrough(),
+  work: z.object({
+    workMeter: z.number(),
+    lastCostUsd: z.number(),
+    windowKey: z.number(),
+    milestonesInWindow: z.number(),
+  }),
+})
+
+/** The shared-global file path for a per-repo state `dir` (sibling `_global` dir). */
+function globalFile(dir: string): string {
+  return path.join(path.dirname(dir), '_global', 'global.json')
+}
+
 /**
- * Read `${dir}/state.json` and return a valid, current-shape GameState.
- *  - Absent file → initialState().
+ * Read the shared global energy/work, or null when absent/unreadable. A missing
+ * or corrupt global file is non-fatal: the per-repo state's own energy/work (or
+ * the initialState default) is used instead.
+ */
+function readGlobal(dir: string): { energy: EnergyState; work: WorkMeterState } | null {
+  const file = globalFile(dir)
+  if (!fs.existsSync(file)) return null
+  try {
+    const parsed: unknown = JSON.parse(fs.readFileSync(file, 'utf8'))
+    if (!GlobalSchema.safeParse(parsed).success) return null
+    const g = parsed as { energy: EnergyState; work: WorkMeterState }
+    return { energy: g.energy, work: g.work }
+  } catch {
+    return null
+  }
+}
+
+/** Atomically write the shared global energy/work (tmp-then-rename). */
+function writeGlobal(dir: string, state: GameState): void {
+  const file = globalFile(dir)
+  const gdir = path.dirname(file)
+  fs.mkdirSync(gdir, { recursive: true })
+  const tmp = `${file}.tmp`
+  fs.writeFileSync(tmp, JSON.stringify({ energy: state.energy, work: state.work }), 'utf8')
+  fs.renameSync(tmp, file)
+}
+
+/**
+ * Read `${dir}/state.json` and return a valid, current-shape GameState, with the
+ * shared account-global energy/work MERGED in (when a global file exists).
+ *  - Absent file → initialState() (still merged with any global energy/work).
  *  - Valid current state → returned as-is.
  *  - Legacy/partial state (missing energy/quests/eventCount/buffs/…) → migrated
  *    with defaults filled (no throw).
  *  - Unrecoverable corruption (unparseable JSON, or missing/ill-typed core
  *    fields like player.xp) → back up the bad file as state.json.corrupt.<ts>
  *    and return initialState() rather than throwing.
+ *
+ * The global merge is transparent: reduce/cli still read `state.energy` /
+ * `state.work` exactly as before — they just now reflect the account-wide value.
  */
 export function loadState(dir: string): GameState {
+  const base = loadStateLocal(dir)
+  const global = readGlobal(dir)
+  // Global energy/work OVERRIDE the per-repo copy (account-wide is the truth).
+  // When no global file exists yet, the per-repo / default values stand.
+  if (global === null) return base
+  return { ...base, energy: global.energy, work: global.work }
+}
+
+/** The per-repo state read, WITHOUT the global merge (the legacy behavior). */
+function loadStateLocal(dir: string): GameState {
   const file = path.join(dir, 'state.json')
   if (!fs.existsSync(file)) {
     return initialState()
@@ -276,13 +347,23 @@ export function loadState(dir: string): GameState {
   return initialState()
 }
 
-/** Atomically write state to `${dir}/state.json` (tmp-then-rename). */
+/**
+ * Atomically write state to `${dir}/state.json` (tmp-then-rename), and SPLIT the
+ * account-global energy/work out to the shared `<home>/_global/global.json`.
+ *
+ * The per-repo file still carries its own energy/work copy (so a per-repo read
+ * with no global file present round-trips correctly); the shared global file is
+ * the authoritative account-wide source that loadState merges back in.
+ */
 export function saveState(dir: string, state: GameState): void {
   fs.mkdirSync(dir, { recursive: true })
   const file = path.join(dir, 'state.json')
   const tmp = path.join(dir, 'state.json.tmp')
   fs.writeFileSync(tmp, JSON.stringify(state), 'utf8')
   fs.renameSync(tmp, file)
+
+  // Split energy/work out to the shared global store (account-wide).
+  writeGlobal(dir, state)
 }
 
 /** Append a single event as a JSON line to `${dir}/events.jsonl`. */

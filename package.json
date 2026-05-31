@@ -1,5 +1,5 @@
 {
-  "name": "grove",
+  "name": "grovekit",
   "version": "0.1.0",
   "description": "A local-first, tool-agnostic game layer that makes AI-assisted coding fun and nudges good engineering habits.",
   "type": "module",

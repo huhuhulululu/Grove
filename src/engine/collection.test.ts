@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import type { Card } from '../core/rewards'
-import { cardIdsInSet } from '../core/cards'
-import { addCard } from './collection'
+import type { Card, Rarity } from '../core/rewards'
+import { cardIdsInSet, ALL_CARD_DEFS } from '../core/cards'
+import {
+  addCard,
+  shardsForDuplicate,
+  SHARDS_BY_RARITY,
+  SHARDS_PER_CRAFT,
+  missingCardIds,
+  craftableCardId,
+} from './collection'
 
 // Helper: build a Card from a known card id in a set.
 // Accepts `string | undefined` so call sites can index the id arrays directly under
@@ -181,5 +188,88 @@ describe('addCard', () => {
     const result = addCard(owned, [], makeCard(forestIds[0], 'forest'))
     expect(result.duplicate).toBe(true)
     expect(result.newlyCompleted).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// DUP TAIL — duplicates accrue SHARDS, a craftable sink so a completed
+// collection still has a horizon (R5 ENGINE depth, dup-conversion sink).
+// ---------------------------------------------------------------------------
+
+describe('shardsForDuplicate', () => {
+  it('grants shards scaled by rarity (rarer dupe → more shards)', () => {
+    expect(shardsForDuplicate('common')).toBe(SHARDS_BY_RARITY.common)
+    expect(shardsForDuplicate('legendary')).toBe(SHARDS_BY_RARITY.legendary)
+  })
+
+  it('is escalating: a higher rarity never grants fewer shards than a lower one', () => {
+    const order: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'shiny']
+    for (let i = 1; i < order.length; i++) {
+      expect(shardsForDuplicate(order[i]!)).toBeGreaterThanOrEqual(shardsForDuplicate(order[i - 1]!))
+    }
+  })
+
+  it('every rarity grants a positive shard count (a dup is never worthless)', () => {
+    const order: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'shiny']
+    for (const r of order) expect(shardsForDuplicate(r)).toBeGreaterThan(0)
+  })
+
+  it('SHARDS_PER_CRAFT is a published, positive integer cost', () => {
+    expect(Number.isInteger(SHARDS_PER_CRAFT)).toBe(true)
+    expect(SHARDS_PER_CRAFT).toBeGreaterThan(0)
+  })
+})
+
+describe('missingCardIds', () => {
+  it('returns every card id not yet owned, within the given unlocked sets', () => {
+    const owned: Card[] = []
+    const missing = missingCardIds(owned, ['forest'])
+    expect(missing.sort()).toEqual(cardIdsInSet('forest').sort())
+  })
+
+  it('excludes ids the player already owns', () => {
+    const owned = [makeCard(forestIds[0], 'forest')]
+    const missing = missingCardIds(owned, ['forest'])
+    expect(missing).not.toContain(forestIds[0])
+    expect(missing).toContain(forestIds[1])
+  })
+
+  it('returns empty when the player owns every card in the unlocked sets', () => {
+    const owned = forestIds.map((id) => makeCard(id, 'forest'))
+    expect(missingCardIds(owned, ['forest'])).toEqual([])
+  })
+
+  it('only considers cards in the supplied sets (a locked set is not "missing")', () => {
+    const owned: Card[] = []
+    const missing = missingCardIds(owned, ['forest'])
+    // tools cards are not in the supplied unlocked-set list → not reported missing
+    for (const id of cardIdsInSet('tools')) expect(missing).not.toContain(id)
+  })
+})
+
+describe('craftableCardId', () => {
+  it('picks a missing card id when enough shards are banked', () => {
+    const owned: Card[] = []
+    const id = craftableCardId(owned, ['forest'], SHARDS_PER_CRAFT)
+    expect(id).not.toBeNull()
+    expect(cardIdsInSet('forest')).toContain(id!)
+  })
+
+  it('returns null when shards are insufficient', () => {
+    const owned: Card[] = []
+    expect(craftableCardId(owned, ['forest'], SHARDS_PER_CRAFT - 1)).toBeNull()
+  })
+
+  it('returns null when there is nothing left to craft (collection complete)', () => {
+    const allOwned = ALL_CARD_DEFS.map((d) => ({ id: d.id, name: d.name, rarity: d.rarity, set: d.set }))
+    const allSets = [...new Set(ALL_CARD_DEFS.map((d) => d.set))]
+    expect(craftableCardId(allOwned, allSets, SHARDS_PER_CRAFT * 99)).toBeNull()
+  })
+
+  it('is deterministic for the same inputs (picks the first missing id)', () => {
+    const owned: Card[] = []
+    const a = craftableCardId(owned, ['forest'], SHARDS_PER_CRAFT)
+    const b = craftableCardId(owned, ['forest'], SHARDS_PER_CRAFT)
+    expect(a).toBe(b)
   })
 })

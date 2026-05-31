@@ -450,6 +450,132 @@ describe('applyQuests — set completion grants a real bonus', () => {
 })
 
 // ---------------------------------------------------------------------------
+// REVIEW-LOOP quest (review_confirmed → a freshness buff the engine reads)
+// ---------------------------------------------------------------------------
+
+describe('applyQuests — review_confirmed / review-loop', () => {
+  it('grants a freshness buff, marks the quest done, and yields a reward', () => {
+    const s0 = initialState()
+    const rewards: Reward[] = []
+    const next = applyQuests(s0, ev({ type: 'review_confirmed' }), mulberry32(1), rewards)
+
+    const b = buff(next, 'buff:review-loop')
+    expect(b).toBeDefined()
+    expect(b!.kind).toBe('freshness')
+    expect(next.quests.find((q) => q.id === 'review-loop')!.status).toBe('done')
+    expect(rewards.some((r) => r.kind === 'buff')).toBe(true)
+  })
+
+  it('first completion pushes the extra achievement, a later one does not', () => {
+    let state = initialState()
+    const r1: Reward[] = []
+    state = applyQuests(state, ev({ type: 'review_confirmed' }), mulberry32(1), r1)
+    const r2: Reward[] = []
+    state = applyQuests(state, ev({ type: 'review_confirmed' }), mulberry32(1), r2)
+    expect(r1.length).toBeGreaterThan(r2.length)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// CLEAN-BUILD quest (lint_clean → a small permanent seed aura)
+// ---------------------------------------------------------------------------
+
+describe('applyQuests — lint_clean / clean-build', () => {
+  it('grants a permanent aura the engine reads as a seed bonus', () => {
+    const s0 = initialState()
+    const before = activeSeedBonus(s0)
+    const rewards: Reward[] = []
+    const next = applyQuests(s0, ev({ type: 'lint_clean' }), mulberry32(1), rewards)
+
+    expect(buff(next, 'aura:clean-build')).toBeDefined()
+    expect(buff(next, 'aura:clean-build')!.kind).toBe('aura')
+    expect(activeSeedBonus(next)).toBeGreaterThan(before)
+    expect(quest(next, 'clean-build')!.status).toBe('done')
+  })
+
+  it('does not duplicate the aura on repeat (anti-overjustification)', () => {
+    let state = initialState()
+    state = applyQuests(state, ev({ type: 'lint_clean' }), mulberry32(1), [])
+    const r2: Reward[] = []
+    state = applyQuests(state, ev({ type: 'lint_clean' }), mulberry32(1), r2)
+    expect(state.buffs.filter((b) => b.id === 'aura:clean-build').length).toBe(1)
+    expect(r2.length).toBe(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// MERGE-MASTER quest (pr_merged → a short Momentum buff + achievement; the
+// guaranteed pull/gear belong to reduce, so this layer adds NO second pull)
+// ---------------------------------------------------------------------------
+
+describe('applyQuests — pr_merged / merge-master', () => {
+  it('adds a Momentum freshness buff and advances merge-master WITHOUT a second pull', () => {
+    const s0 = initialState()
+    const rewards: Reward[] = []
+    const next = applyQuests(s0, ev({ type: 'pr_merged' }), mulberry32(7), rewards)
+
+    // no card pulled by THIS layer (reduce owns the guaranteed merge pull)
+    expect(next.cards.length).toBe(0)
+    expect(buff(next, 'buff:merge-momentum')).toBeDefined()
+    expect(buff(next, 'buff:merge-momentum')!.kind).toBe('freshness')
+    expect(quest(next, 'merge-master')!.completions).toBeGreaterThanOrEqual(1)
+  })
+
+  it('first completion pushes the achievement; a later one does not', () => {
+    let state = initialState()
+    const r1: Reward[] = []
+    state = applyQuests(state, ev({ type: 'pr_merged' }), mulberry32(7), r1)
+    const r2: Reward[] = []
+    state = applyQuests(state, ev({ type: 'pr_merged' }), mulberry32(8), r2)
+    expect(r1.length).toBeGreaterThan(r2.length)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// DOC-STREAK — the RENEWABLE, tiered weekly doc-freshness quest. Stays `active`
+// (refreshes) rather than going static; the tier escalates as the streak grows.
+// ---------------------------------------------------------------------------
+
+describe('applyQuests — doc-streak (renewable, tiered)', () => {
+  it('a synced doc_updated advances the streak and keeps the quest ACTIVE (renewable, never static-done)', () => {
+    const s0 = initialState()
+    const next = applyQuests(s0, ev({ type: 'doc_updated', meta: {} }), mulberry32(1), [])
+    const q = quest(next, 'doc-streak')
+    expect(q).toBeDefined()
+    expect(q!.status).toBe('active') // renewable: it refreshes, it does not retire
+    expect(q!.completions).toBe(1)
+  })
+
+  it('consecutive synced docs escalate the streak completions (the board refreshes)', () => {
+    let state = initialState()
+    state = applyQuests(state, ev({ type: 'doc_updated', meta: {} }), mulberry32(1), [])
+    state = applyQuests(state, ev({ type: 'doc_updated', meta: {} }), mulberry32(2), [])
+    state = applyQuests(state, ev({ type: 'doc_updated', meta: {} }), mulberry32(3), [])
+    expect(quest(state, 'doc-streak')!.completions).toBe(3)
+    expect(quest(state, 'doc-streak')!.status).toBe('active')
+  })
+
+  it('a drift doc_updated does NOT advance the streak (outcome-gated, ADR-0005)', () => {
+    let state = initialState()
+    state = applyQuests(state, ev({ type: 'doc_updated', meta: {} }), mulberry32(1), [])
+    state = applyQuests(state, ev({ type: 'doc_updated', meta: { drift: true } }), mulberry32(2), [])
+    expect(quest(state, 'doc-streak')!.completions).toBe(1) // drift did not count
+  })
+
+  it('reaching a higher tier grants a celebratory (non-shaming) reward', () => {
+    let state = initialState()
+    const messages: string[] = []
+    for (let i = 0; i < 6; i++) {
+      const r: Reward[] = []
+      state = applyQuests(state, ev({ type: 'doc_updated', meta: {} }), mulberry32(i + 1), r)
+      for (const rew of r) messages.push(rew.message)
+    }
+    // at least one streak-tier reward surfaced and none of them shame
+    for (const m of messages) expect(m).not.toMatch(/\bfail\b|lazy|shame|nag/i)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // No-shame guarantee across the board
 // ---------------------------------------------------------------------------
 
@@ -460,6 +586,9 @@ describe('applyQuests — never shaming', () => {
       ev({ type: 'spec_written' }),
       ev({ type: 'doc_updated', meta: {} }),
       ev({ type: 'test_added' }),
+      ev({ type: 'review_confirmed' }),
+      ev({ type: 'lint_clean' }),
+      ev({ type: 'pr_merged' }),
     ]
     for (const e of types) {
       const rewards: Reward[] = []

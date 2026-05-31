@@ -6,6 +6,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { renderDashboard } from './dashboard'
+import { displayWidth } from './width'
 import { initialState } from '../core/state'
 import type { GameState } from '../core/state'
 
@@ -350,6 +351,56 @@ describe('renderDashboard — layout', () => {
     const out = renderDashboard(initialState())
     // Must contain at least one box-drawing char (│ or ─ or ╔ or ╗ etc.)
     expect(out).toMatch(/[│─╔╗╚╝╠╣╦╩╬┌┐└┘├┤┬┴┼]/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Display-width alignment (wide/emoji chars) — pad by terminal CELLS, not .length
+// ---------------------------------------------------------------------------
+
+describe('renderDashboard — display-width alignment (emoji/CJK)', () => {
+  // A state stuffed with WIDE chars in box content: a gear name with an emoji,
+  // an emoji-bearing buff label, and CJK copy. With .length-based padding the
+  // right border (│) drifts; with displayWidth-based padding every bordered row
+  // is the SAME cell width and the borders line up.
+  const wideState: GameState = {
+    ...initialState(),
+    player: { xp: 0, level: 1, currency: 1234 },
+    gear: [
+      { id: 'g.1', name: '🌰 Seed Hammer ⚔️', level: 7, rarity: 'rare', broken: false },
+    ],
+    buffs: [{ id: 'b1', label: '🌿 暴击 aura' }],
+    cards: [{ id: 'forest.sapling', name: 'Sapling', rarity: 'common', set: 'forest' }],
+  }
+
+  function borderedRows(out: string): string[] {
+    // Every full box row starts and ends with a vertical border.
+    return out.split('\n').filter((l) => l.startsWith('│') && l.endsWith('│'))
+  }
+
+  it('every bordered row has the SAME display width as the box width', () => {
+    const width = 60
+    const out = renderDashboard(wideState, { width })
+    const rows = borderedRows(out)
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) {
+      expect(displayWidth(row)).toBe(width)
+    }
+  })
+
+  it('the closing │ border aligns across rows even with emoji content', () => {
+    const out = renderDashboard(wideState, { width: 60 })
+    const rows = borderedRows(out)
+    // All right borders sit at the same cell column ⇒ all rows are equal cell width.
+    const widths = new Set(rows.map((r) => displayWidth(r)))
+    expect(widths.size).toBe(1)
+  })
+
+  it('no bordered row OVERFLOWS the box cell width (truncation, not spill)', () => {
+    const out = renderDashboard(wideState, { width: 60 })
+    for (const row of borderedRows(out)) {
+      expect(displayWidth(row)).toBeLessThanOrEqual(60)
+    }
   })
 })
 

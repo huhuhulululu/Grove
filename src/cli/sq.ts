@@ -59,7 +59,15 @@ interface ParsedArgs {
 /**
  * Parse a flat argv array into positional args and named flags.
  * Supports both `--flag value` and `--flag=value` forms.
+ *
+ * Boolean flags (never consume the next token as a value, even when that token
+ * does not start with `--`). This prevents `sq --zen wrap -- cmd` from
+ * treating `wrap` as the value of `--zen`.
  */
+// Flags that carry NO value (boolean-only). A flag in this set is set to
+// 'true' unconditionally, never consuming the following positional token.
+const BOOL_FLAGS = new Set(['zen', 'no-clear'])
+
 function parseArgs(argv: string[]): ParsedArgs {
   const positional: string[] = []
   const flags: Record<string, string> = {}
@@ -76,10 +84,12 @@ function parseArgs(argv: string[]): ParsedArgs {
         flags[key] = value
         i++
       } else {
-        // --flag value (next item)
+        // --flag value (next item) — UNLESS the flag is a known boolean flag,
+        // in which case it never has a value: --zen wrap means zen=true + wrap
+        // is the positional subcommand, not zen=wrap.
         const key = arg.slice(2)
         const next = argv[i + 1]
-        if (next !== undefined && !next.startsWith('--')) {
+        if (!BOOL_FLAGS.has(key) && next !== undefined && !next.startsWith('--')) {
           flags[key] = next
           i += 2
         } else {
@@ -106,6 +116,121 @@ function parseArgs(argv: string[]): ParsedArgs {
   }
 
   return { positional, flags }
+}
+
+/**
+ * Parse a flag value as an integer, falling back to `fallback` when it is
+ * absent, empty, or non-numeric (NaN). Prevents a bad `--magnitude abc` /
+ * `--seed xyz` from poisoning downstream arithmetic with NaN.
+ */
+function parseIntFlag(value: string | undefined, fallback: number): number {
+  if (value === undefined || value === '') return fallback
+  const n = parseInt(value, 10)
+  return Number.isNaN(n) ? fallback : n
+}
+
+/** Like parseIntFlag but clamps to a minimum of 1 (for magnitudes / counts). */
+function parsePositiveIntFlag(value: string | undefined, fallback: number): number {
+  const n = parseIntFlag(value, fallback)
+  return n < 1 ? fallback : n
+}
+
+// ---------------------------------------------------------------------------
+// Subcommand registry + "did you mean?" suggestion
+// ---------------------------------------------------------------------------
+
+/** Every top-level subcommand sq accepts (drives did-you-mean suggestions). */
+const SUBCOMMANDS = [
+  'event', 'status', 'recap', 'scan', 'quests', 'pull', 'enhance', 'repair',
+  'protect', 'dashboard', 'statusline-ingest', 'statusline', 'init', 'uninstall',
+  'commit-hook', 'suggest-commit', 'checkpoint', 'wrap', 'help',
+] as const
+
+/** Classic Levenshtein edit distance (pure). */
+function editDistance(a: string, b: string): number {
+  const m = a.length
+  const n = b.length
+  if (m === 0) return n
+  if (n === 0) return m
+  // Single rolling row keeps it O(n) memory.
+  let prev = Array.from({ length: n + 1 }, (_, j) => j)
+  for (let i = 1; i <= m; i++) {
+    const curr = [i]
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      curr[j] = Math.min(
+        (curr[j - 1] as number) + 1, // insertion
+        (prev[j] as number) + 1, // deletion
+        (prev[j - 1] as number) + cost, // substitution
+      )
+    }
+    prev = curr
+  }
+  return prev[n] as number
+}
+
+/**
+ * Suggest the closest known subcommand for a mistyped token, or null when
+ * nothing is close enough. Threshold scales with the input length so short
+ * tokens need a tight match and long ones tolerate a typo or two — keeping a
+ * far-off string ("zzzzzzzzzz") from matching anything.
+ */
+export function suggestSubcommand(input: string): string | null {
+  if (input === '') return null
+  let best: string | null = null
+  let bestDist = Infinity
+  for (const cmd of SUBCOMMANDS) {
+    const d = editDistance(input, cmd)
+    if (d < bestDist) {
+      bestDist = d
+      best = cmd
+    }
+  }
+  // Accept only a genuinely-close match: at most ~40% of the longer length.
+  const limit = Math.max(2, Math.floor(Math.max(input.length, (best ?? '').length) * 0.4))
+  return best !== null && bestDist <= limit ? best : null
+}
+
+// ---------------------------------------------------------------------------
+// AI-CLI detection (onboarding) — PATH probe, injectable for tests
+// ---------------------------------------------------------------------------
+
+/** Known AI-coding CLIs Grove can ride alongside (ADR-0001, tool-agnostic). */
+const KNOWN_AI_CLIS = ['claude', 'cursor', 'aider', 'codex', 'copilot', 'gemini'] as const
+
+export interface DetectAiOpts {
+  /** Probe whether `bin` resolves on PATH. Defaults to a real PATH scan. */
+  onPath?: (bin: string) => boolean
+}
+
+/** Return the subset of KNOWN_AI_CLIS resolvable on PATH (pure given onPath). */
+export function detectAiClis(opts: DetectAiOpts = {}): string[] {
+  const probe = opts.onPath ?? binOnPath
+  return KNOWN_AI_CLIS.filter((bin) => probe(bin))
+}
+
+/**
+ * True if an executable named `bin` is resolvable on PATH. Portable (honors
+ * PATHEXT on Windows), side-effect-light (no spawn) — mirrors defaultSqOnPath.
+ */
+function binOnPath(bin: string): boolean {
+  const PATH = process.env['PATH'] ?? ''
+  if (PATH === '') return false
+  const exts =
+    process.platform === 'win32'
+      ? (process.env['PATHEXT'] ?? '.EXE;.CMD;.BAT;.COM').split(';')
+      : ['']
+  for (const d of PATH.split(path.delimiter)) {
+    if (d === '') continue
+    for (const ext of exts) {
+      try {
+        if (fs.statSync(path.join(d, `${bin}${ext}`)).isFile()) return true
+      } catch {
+        // not here — keep scanning
+      }
+    }
+  }
+  return false
 }
 
 // ---------------------------------------------------------------------------
@@ -337,7 +462,9 @@ function handleEvent(
     return 2
   }
 
-  const magnitude = flags['magnitude'] !== undefined ? parseInt(flags['magnitude'], 10) : 1
+  // Guard NaN: a non-numeric / empty --magnitude (e.g. `--magnitude abc`, `--magnitude=`)
+  // would poison every downstream reward calc with NaN — default to 1 instead.
+  const magnitude = parsePositiveIntFlag(flags['magnitude'], 1)
   const successFlag = flags['success']
   const success = successFlag !== 'false'
   const source = flags['source'] ?? 'cli'
@@ -464,7 +591,36 @@ function handleQuests(dir: string): number {
   return 0
 }
 
-function handleInit(flags: Record<string, string>): number {
+/** Starter seeds granted ONCE on first `sq init` so the dashboard isn't empty. */
+const STARTER_SEEDS = 40
+
+/**
+ * Grant the first-run starter exactly once. Idempotency is tracked by an
+ * `.onboarded` marker file in the grove state dir (the impure shell) — so a
+ * second `init` never re-grants, and the engine state shape is untouched. The
+ * grant is COSMETIC seeds only (ADR-0005). Returns true if it granted this call.
+ */
+function grantStarterOnce(dir: string): boolean {
+  const marker = path.join(dir, '.onboarded')
+  return withStateLock(dir, () => {
+    if (fs.existsSync(marker)) return false
+    const state = loadState(dir)
+    saveState(dir, {
+      ...state,
+      player: { ...state.player, currency: state.player.currency + STARTER_SEEDS },
+    })
+    try {
+      fs.mkdirSync(dir, { recursive: true })
+      fs.writeFileSync(marker, new Date().toISOString() + '\n', 'utf8')
+    } catch {
+      // Non-fatal: if the marker can't be written, worst case is a re-grant on
+      // the next init — never a crash, never a blocked install.
+    }
+    return true
+  })
+}
+
+function handleInit(flags: Record<string, string>, dir: string): number {
   const repo = flags['repo'] ?? process.cwd()
   const res = installPostCommit(repo, groveInvocation())
 
@@ -477,9 +633,27 @@ function handleInit(flags: Record<string, string>): number {
     message = `Grove hook already installed (no change).`
   }
 
-  console.log(`  ${message}`)
+  console.log(`  🌳 ${message}`)
   console.log(`  Hook path: ${res.hookPath}`)
   console.log(`  Grove failures never block commits — the hook is fail-open by design.`)
+
+  // First-run starter: a brand-new player gets seeds so the dashboard has loot
+  // to show before their first commit lands (avoids the empty-board first-aha).
+  const granted = grantStarterOnce(dir)
+  if (granted) {
+    console.log(`  🪙 starter grant · +${STARTER_SEEDS} 🌰 seeds — your board isn't empty.`)
+  }
+
+  // Detect the AI CLIs the user already runs (tool-agnostic — ADR-0001).
+  const clis = detectAiClis()
+  if (clis.length > 0) {
+    console.log(`  Detected: ${clis.join(', ')} — Grove rides alongside, doesn't replace.`)
+  } else {
+    console.log(`  Works with any AI-coding tool (Claude Code, Cursor, Aider, Codex…) — tool-agnostic.`)
+  }
+
+  // Clear next-step CTA (the first-aha): one concrete command to run next.
+  console.log(`  Next: git commit like normal, then \`sq dashboard\` to see your loot.`)
   return 0
 }
 
@@ -505,6 +679,7 @@ function handleEnhance(
   positional: string[],
   flags: Record<string, string>,
   dir: string,
+  zen: boolean,
 ): number {
   const ref = positional[0]
 
@@ -536,7 +711,14 @@ function handleEnhance(
   const outcome = withStateLock(dir, () => {
     const fresh = loadState(dir)
     const idx = resolveGearRef(fresh.gear, ref)
-    const cur = fresh.gear[idx] ?? before
+
+    // BOUNDS GUARD inside the lock: the pre-lock check ran against a possibly
+    // stale snapshot; a concurrent writer may have removed/reordered gear so the
+    // ref no longer resolves. Re-validate against fresh state before any debit.
+    if (idx < 0 || idx >= fresh.gear.length || fresh.gear[idx] === undefined) {
+      return { kind: 'badref' as const, count: fresh.gear.length }
+    }
+    const cur = fresh.gear[idx]!
 
     // CONSISTENCY (audit re-score①): enhance now COSTS seeds, like repair/protect.
     // Refuse calmly when broke — no roll, no debit, no state change.
@@ -549,11 +731,11 @@ function handleEnhance(
     // downgrade when protect=true; ADR-0005 — cosmetic only).
     const isProtected = fresh.protectedGear.includes(cur.id)
 
-    // RNG: time-seeded for variety, or a fixed --seed for tests.
+    // RNG: time-seeded for variety, or a fixed --seed for tests (NaN-guarded).
     const seedFlag = flags['seed']
     const seed =
       seedFlag !== undefined
-        ? parseInt(seedFlag, 10)
+        ? parseIntFlag(seedFlag, 0)
         : hashStringToSeed(cur.id + ':' + String(cur.level) + ':' + String(Date.now()))
     const rng = mulberry32(seed)
 
@@ -572,9 +754,21 @@ function handleEnhance(
     return { kind: 'enhanced' as const, after: enhanced, result: res }
   })
 
+  if (outcome.kind === 'badref') {
+    // Lost the race: the gear vanished between the pre-lock check and the lock.
+    console.error(`Error: no gear at ref "${ref}". You have ${outcome.count} piece(s).`)
+    return 2
+  }
+
   if (outcome.kind === 'broke') {
     console.log(`  not enough 🌰 — enhance costs ${ENHANCE_COST}, have ${outcome.have}.`)
     console.log('  earn more 🌰 by shipping — commits, green tests, merges, docs.')
+    return 0
+  }
+
+  if (zen) {
+    // Calm: the attempt ran & persisted; suppress the odds + juicy result reveal.
+    calmConfirm(`enhance ${before.name} · attempt recorded`)
     return 0
   }
 
@@ -599,19 +793,29 @@ const PROTECT_COST = 40
 const ENHANCE_COST = 20
 
 /**
+ * Sleep `ms` milliseconds WITHOUT a CPU-burning busy-loop, in a synchronous
+ * context. `Atomics.wait` parks the thread on a private SharedArrayBuffer that
+ * is never signalled, so it blocks for the timeout without spinning a core
+ * (unlike `while (Date.now() < until) {}`). Used only for the TTY reveal cadence.
+ */
+function sleepSync(ms: number): void {
+  if (ms <= 0) return
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+}
+
+/**
  * Play a short in-place pack-opening suspense animation, THEN clear the line.
- * TTY-only: in pipes / tests (non-TTY) it is a no-op so output stays clean and
- * deterministic. Writes to process.stdout directly (never console.log) so the
- * frames don't pollute scriptable reward lines.
+ * TTY-only: in pipes / tests (non-TTY) it is SKIPPED ENTIRELY so output stays
+ * clean and deterministic AND there is no delay at all. The per-frame pause uses
+ * a non-blocking `sleepSync` (parks the thread, never busy-spins the CPU).
+ * Writes to process.stdout directly (never console.log) so the frames don't
+ * pollute scriptable reward lines.
  */
 function playReveal(frames: string[]): void {
   if (!process.stdout.isTTY) return
   for (const frame of frames) {
     process.stdout.write(`\r  ${frame}   `)
-    // Busy-free tiny spin: a sync sleep keeps the impure shell simple and avoids
-    // async plumbing in the CLI. ~120ms per frame.
-    const until = Date.now() + 120
-    while (Date.now() < until) { /* spin */ }
+    sleepSync(120) // ~120ms per frame, non-busy
   }
   process.stdout.write('\r\x1b[K') // carriage-return + clear-to-EOL
 }
@@ -631,7 +835,7 @@ function handlePull(flags: Record<string, string>, dir: string, zen: boolean): n
     const seedFlag = flags['seed']
     const seed =
       seedFlag !== undefined
-        ? parseInt(seedFlag, 10)
+        ? parseIntFlag(seedFlag, 0)
         : hashStringToSeed(`pull:${state.eventCount}:${String(Date.now())}`)
     const rng = mulberry32(seed)
 
@@ -684,7 +888,7 @@ function resolveGearRef(gear: { id: string }[], ref: string): number {
  * `sq repair <ref>` — spend REPAIR_COST seeds to un-break a cosmetic gear
  * (level preserved). Refuses calmly when broke. Cosmetic only (ADR-0005).
  */
-function handleRepair(positional: string[], flags: Record<string, string>, dir: string): number {
+function handleRepair(positional: string[], flags: Record<string, string>, dir: string, zen: boolean): number {
   const ref = positional[0]
   if (!ref) {
     console.error('Error: gear ref is required. Use a gear id, 1-based index, or "first".')
@@ -728,7 +932,11 @@ function handleRepair(positional: string[], flags: Record<string, string>, dir: 
       console.log('  earn more 🌰 by shipping — commits, green tests, merges, docs.')
       return 0
     case 'repaired':
-      console.log(`  🔧 REPAIRED · ${outcome.gear.name} +${outcome.gear.level} · -${REPAIR_COST} 🌰`)
+      if (zen) {
+        calmConfirm(`repaired ${outcome.gear.name} +${outcome.gear.level}`)
+      } else {
+        console.log(`  🔧 REPAIRED · ${outcome.gear.name} +${outcome.gear.level} · -${REPAIR_COST} 🌰`)
+      }
       return 0
   }
 }
@@ -738,7 +946,7 @@ function handleRepair(positional: string[], flags: Record<string, string>, dir: 
  * a gear: the next enhance turns a would-be cosmetic break into a downgrade.
  * Refuses calmly when broke. Cosmetic risk-management only (ADR-0005).
  */
-function handleProtect(positional: string[], flags: Record<string, string>, dir: string): number {
+function handleProtect(positional: string[], flags: Record<string, string>, dir: string, zen: boolean): number {
   const ref = positional[0]
   if (!ref) {
     console.error('Error: gear ref is required. Use a gear id, 1-based index, or "first".')
@@ -781,7 +989,11 @@ function handleProtect(positional: string[], flags: Record<string, string>, dir:
       console.log('  earn more 🌰 by shipping — commits, green tests, merges, docs.')
       return 0
     case 'armed':
-      console.log(`  🛡 PROTECTED · ${outcome.gear.name} +${outcome.gear.level} · -${PROTECT_COST} 🌰 (one enhance)`)
+      if (zen) {
+        calmConfirm(`protected ${outcome.gear.name} +${outcome.gear.level} (one enhance)`)
+      } else {
+        console.log(`  🛡 PROTECTED · ${outcome.gear.name} +${outcome.gear.level} · -${PROTECT_COST} 🌰 (one enhance)`)
+      }
       return 0
   }
 }
@@ -1221,31 +1433,34 @@ function handleCommitHook(flags: Record<string, string>, dir: string, zen: boole
  * @returns     Process exit code (0 = success, 2 = usage error).
  */
 export function run(argv: string[]): number {
-  // `wrap` is special: everything after the FIRST `--` is the verbatim command
-  // to run, and MUST NOT be touched by the generic flag parser (a wrapped
-  // `--magnitude`, `-c`, etc. belongs to the inner command, not to sq). Split
-  // the raw argv at `--` first; parse ONLY the sq-side flags before it.
-  if (argv[0] === 'wrap') {
-    const sepIdx = argv.indexOf('--')
-    const sqSide = sepIdx === -1 ? argv.slice(1) : argv.slice(1, sepIdx)
-    const command = sepIdx === -1 ? [] : argv.slice(sepIdx + 1)
-    const { flags: wrapFlags } = parseArgs(sqSide)
-    const home = wrapFlags['home']
-    const dir = home ? stateDir(home) : stateDir()
-    return handleWrap(command, wrapFlags['as'], dir, isZen(wrapFlags))
-  }
+  // The `--` separator marks a verbatim inner command (used by `wrap`): EVERYTHING
+  // after the FIRST `--` is the wrapped command and MUST NOT be touched by sq's
+  // flag parser (a wrapped `--magnitude`, `-c`, `--zen` belongs to the inner
+  // command). Split the raw argv at `--` first, then parse ONLY the sq-side
+  // tokens before it. Parsing the sq-side generically (not gating on argv[0])
+  // lets GLOBAL FLAGS (--zen / --home) compose with `wrap` in ANY position:
+  // `sq --zen wrap -- cmd`, `sq wrap --home X -- cmd`, etc. all work.
+  const sepIdx = argv.indexOf('--')
+  const sqSide = sepIdx === -1 ? argv : argv.slice(0, sepIdx)
+  const command = sepIdx === -1 ? [] : argv.slice(sepIdx + 1)
 
-  const { positional, flags } = parseArgs(argv)
+  const { positional, flags } = parseArgs(sqSide)
 
   // Resolve the grove home directory
   const home = flags['home']
   const dir = home ? stateDir(home) : stateDir()
 
-  // Calm mode (ADR-0005): --zen flag OR env GROVE_ZEN truthy.
+  // Calm mode (ADR-0005): --zen flag OR env GROVE_ZEN truthy. Parsed from the
+  // sq-side, so it applies whether placed before or after the subcommand.
   const zen = isZen(flags)
 
   const subcommand = positional[0]
   const rest = positional.slice(1)
+
+  // `wrap` consumes the verbatim command after `--`; global flags already parsed.
+  if (subcommand === 'wrap') {
+    return handleWrap(command, flags['as'], dir, zen)
+  }
 
   switch (subcommand) {
     case 'event':
@@ -1267,13 +1482,13 @@ export function run(argv: string[]): number {
       return handlePull(flags, dir, zen)
 
     case 'enhance':
-      return handleEnhance(rest, flags, dir)
+      return handleEnhance(rest, flags, dir, zen)
 
     case 'repair':
-      return handleRepair(rest, flags, dir)
+      return handleRepair(rest, flags, dir, zen)
 
     case 'protect':
-      return handleProtect(rest, flags, dir)
+      return handleProtect(rest, flags, dir, zen)
 
     case 'dashboard':
       return handleDashboard(flags, dir)
@@ -1295,7 +1510,7 @@ export function run(argv: string[]): number {
     }
 
     case 'init':
-      return handleInit(flags)
+      return handleInit(flags, dir)
 
     case 'uninstall':
       return handleUninstall(flags)
@@ -1314,18 +1529,38 @@ export function run(argv: string[]): number {
       console.log(USAGE)
       return 0
 
-    default:
-      console.log(USAGE)
-      console.error(`Error: unknown subcommand "${subcommand}"`)
+    default: {
+      // Terse correction over the full USAGE wall: offer the closest match if
+      // there is one, else point at `sq help` — don't dump every subcommand.
+      const guess = suggestSubcommand(subcommand ?? '')
+      if (guess !== null) {
+        console.error(`Unknown subcommand "${subcommand}". Did you mean \`sq ${guess}\`?`)
+      } else {
+        console.error(`Unknown subcommand "${subcommand}". Run \`sq help\` for the full list.`)
+      }
       return 2
+    }
   }
 }
 
 // ---------------------------------------------------------------------------
-// Run-as-script guard — allows `tsx src/cli/sq.ts ...` to work directly
+// Run-as-script guard — allows `sq …`, `node dist/cli/sq.js …`, and
+// `tsx src/cli/sq.ts …` to execute directly while staying inert on import.
 // ---------------------------------------------------------------------------
 
-if (process.argv[1] && process.argv[1].includes('sq')) {
+/**
+ * True when this module is the program's entry point. Matches on the BASENAME
+ * of argv[1] (`sq`, `sq.js`, `sq.ts`) rather than a fragile substring of the
+ * whole path — so a repo path that merely *contains* "sq" (e.g.
+ * /home/user/sqlbox/other.js) no longer falsely trips the guard.
+ */
+export function isRunAsScript(argv1: string | undefined): boolean {
+  if (argv1 === undefined || argv1 === '') return false
+  const base = path.basename(argv1)
+  return base === 'sq' || base === 'sq.js' || base === 'sq.ts'
+}
+
+if (isRunAsScript(process.argv[1])) {
   const exitCode = run(process.argv.slice(2))
   process.exit(exitCode)
 }

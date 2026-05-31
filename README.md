@@ -11,18 +11,21 @@ penalized by any game outcome — the engine is a pure function and rewards are 
 ## 60-second quickstart
 
 ```sh
-# 1. Install (global bin: `sq`)
-npm i -g grove          # or run ad-hoc: npx grove <cmd>  ·  alias: npx -p grove sq <cmd>
+# 1. Install (package: grovekit · global bin: `sq`)
+npm i -g grovekit       # or run ad-hoc without installing: npx -p grovekit sq <cmd>
 
 # 2. Wire Grove into a repo you already work in (chains your existing hooks — never clobbers)
 cd my-project
-sq init                 # installs a fail-open post-commit hook; Grove never blocks a commit
+sq init                 # installs a fail-open post-commit hook + grants a starter; never blocks a commit
+#   🌳 Grove post-commit hook installed.
+#   🪙 starter grant · +40 🌰 seeds — your board isn't empty.
+#   Next: git commit like normal, then `sq dashboard` to see your loot.
 
-# 3. Commit like normal — Grove scores it automatically
-git commit -m "feat: thing"
+# 3. Commit like normal — Grove scores good-practice signals in the commit (ADR-0003)
+git commit -m "docs: write CLAUDE.md"
 #   🌳 grove
-#   ✨ +10 XP · commit (10)
-#   🪙 +5 🌰 seeds · commit
+#   🌿 CLAUDE.md written · permanent aura
+#   🃏 Compiler · uncommon          ← a card drops the first time a habit signal lands
 
 # 4. See it all in one place (in-place panel, not a scrolling log)
 sq dashboard            # XP bar · seeds · gear · quests · buffs · energy
@@ -39,7 +42,7 @@ sq statusline install
 Prefer not to install globally? Every command works through `npx`:
 
 ```sh
-npx -p grove sq dashboard
+npx -p grovekit sq dashboard
 ```
 
 ## What it is

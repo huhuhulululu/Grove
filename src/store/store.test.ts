@@ -6,21 +6,27 @@ import { initialState } from '../core/state'
 import type { GameState } from '../core/state'
 import { loadState, saveState, appendEvent, readEvents, withStateLock } from './store'
 
-// Each test gets its own fresh temp dir to ensure full isolation.
-const tempDirs: string[] = []
+// Each test gets its own fresh temp HOME with an isolated per-repo state dir
+// nested under it (`<home>/repo`). Nesting matters: the account-global energy/
+// work file lives at `<home>/_global/global.json` (a sibling of the repo dir),
+// so giving every test its own home keeps that shared file isolated per test and
+// out of the system tmp root. This models real usage (`<groveHome>/<repoKey>`).
+const tempHomes: string[] = []
 
 function makeTmpDir(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'grove-'))
-  tempDirs.push(dir)
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'grove-'))
+  tempHomes.push(home)
+  const dir = path.join(home, 'repo')
+  fs.mkdirSync(dir, { recursive: true })
   return dir
 }
 
 afterEach(() => {
-  // Clean up all temp dirs created during this test.
-  for (const d of tempDirs) {
-    fs.rmSync(d, { recursive: true, force: true })
+  // Clean up all temp homes (and their nested repo + _global dirs).
+  for (const h of tempHomes) {
+    fs.rmSync(h, { recursive: true, force: true })
   }
-  tempDirs.length = 0
+  tempHomes.length = 0
 })
 
 // ---------------------------------------------------------------------------

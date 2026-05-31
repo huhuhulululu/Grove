@@ -21,9 +21,10 @@ import type { GroveEvent } from '../core/events'
 import type { Reward } from '../core/rewards'
 import type { Rng } from '../core/rng'
 
-import { GRIMOIRE_FILES, GRIMOIRE_LEAN_MAX_LINES } from '../core/quests'
+import { GRIMOIRE_FILES, GRIMOIRE_LEAN_MAX_LINES, DOC_STREAK_TIERS, docStreakTier } from '../core/quests'
 import { pull, makeCard } from './gacha'
-import { addCard } from './collection'
+import { addCard, shardsForDuplicate } from './collection'
+import type { Rarity } from '../core/rewards'
 
 // ---------------------------------------------------------------------------
 // R3 tunables — auras / streaks / dup-comp / set bonus are now REAL effects.
@@ -44,6 +45,9 @@ export const STREAK_CAP = 1.0
 
 /** Compensation seeds granted when a pull yields an already-owned (duplicate) card. */
 export const DUP_COMP_SEEDS = 10
+
+/** Permanent +seeds aura the Clean Build quest (lint_clean) confers. */
+export const CLEAN_BUILD_SEED_BONUS = 0.05
 
 // ---------------------------------------------------------------------------
 // Active-buff selectors (used by reduce to scale XP / seeds / crit)
@@ -130,16 +134,27 @@ function setQuest(
 }
 
 /**
- * Grant compensation seeds for a duplicate pull. Returns a NEW state and pushes
- * a terse, non-shaming 'currency' reward. Dupes never feel worthless (audit P1).
+ * Compensate a duplicate pull (audit P1 + R5 dup tail). A dupe is never worthless:
+ *  - DUP_COMP_SEEDS seeds (flat, immediate), and
+ *  - rarity-scaled SHARDS banked toward crafting a chosen missing card (the
+ *    endgame horizon — a completed collection still advances).
+ * Returns a NEW state and pushes one terse, non-shaming 'currency' reward. PURE.
  */
-function grantDupComp(state: GameState, rewards: Reward[]): GameState {
+function grantDupComp(state: GameState, rarity: Rarity, rewards: Reward[]): GameState {
+  const shards = shardsForDuplicate(rarity)
   rewards.push({
     kind: 'currency',
     amount: DUP_COMP_SEEDS,
-    message: `+${DUP_COMP_SEEDS} 🌰 dupe`,
+    message: `+${DUP_COMP_SEEDS} 🌰 · +${shards} shards · dupe`,
   })
-  return { ...state, player: { ...state.player, currency: state.player.currency + DUP_COMP_SEEDS } }
+  return {
+    ...state,
+    player: {
+      ...state.player,
+      currency: state.player.currency + DUP_COMP_SEEDS,
+      shards: (state.player.shards ?? 0) + shards,
+    },
+  }
 }
 
 /**
@@ -165,8 +180,8 @@ function grantSetBonus(state: GameState, set: string, rng: Rng, rewards: Reward[
     message: `✦ set ${set} complete · +${Math.round(SET_BONUS_SEED * 100)}% 🌰 (permanent)`,
   })
 
-  // 2. Guaranteed legendary pull.
-  const card = makeCard('legendary', rng)
+  // 2. Guaranteed legendary pull (drawn from the player's unlocked sets).
+  const card = makeCard('legendary', rng, state.player.level)
   const { cards, completedSets, duplicate } = addCard(state.cards, state.completedSets, card)
   rewards.push({
     kind: 'card',
@@ -176,7 +191,7 @@ function grantSetBonus(state: GameState, set: string, rng: Rng, rewards: Reward[
   })
 
   let next: GameState = { ...state, buffs, cards, completedSets }
-  if (duplicate) next = grantDupComp(next, rewards)
+  if (duplicate) next = grantDupComp(next, 'legendary', rewards)
   return next
 }
 
@@ -188,7 +203,7 @@ function grantSetBonus(state: GameState, set: string, rng: Rng, rewards: Reward[
  */
 function grantPull(state: GameState, rng: Rng, rewards: Reward[]): GameState {
   const { rarity, pity } = pull(state.pity, rng)
-  const card = makeCard(rarity, rng)
+  const card = makeCard(rarity, rng, state.player.level)
   const { cards, completedSets, newlyCompleted, duplicate } = addCard(
     state.cards,
     state.completedSets,
@@ -204,7 +219,7 @@ function grantPull(state: GameState, rng: Rng, rewards: Reward[]): GameState {
 
   let next: GameState = { ...state, cards, completedSets, pity }
 
-  if (duplicate) next = grantDupComp(next, rewards)
+  if (duplicate) next = grantDupComp(next, rarity, rewards)
 
   if (newlyCompleted) next = grantSetBonus(next, newlyCompleted, rng, rewards)
 
@@ -331,7 +346,19 @@ export function applyQuests(
         })
       }
 
-      return { ...state, buffs, quests: setQuest(state.quests, 'living-map', 'done', completions) }
+      let synced: GameState = {
+        ...state,
+        buffs,
+        quests: setQuest(state.quests, 'living-map', 'done', completions),
+      }
+
+      // RENEWABLE Doc Streak (R5): each synced doc advances a tiered weekly
+      // streak. The quest stays `active` (it refreshes, it never retires), so the
+      // board keeps a living goal. Crossing a tier grants a celebratory seed
+      // bonus the engine reads. Forgiving: a lapsed streak is never shamed.
+      synced = advanceDocStreak(synced, rewards)
+
+      return synced
     }
 
     // ---- Test Warden (guaranteed loot) -------------------------------------
@@ -363,7 +390,99 @@ export function applyQuests(
       return { ...afterPull, buffs, quests: setQuest(afterPull.quests, 'test-warden', 'done', completions) }
     }
 
+    // ---- Close the Review (a short Fresh Eyes freshness buff) --------------
+    case 'review_confirmed': {
+      const buffs = upsertBuff(state.buffs, {
+        id: 'buff:review-loop',
+        label: 'Fresh Eyes',
+        kind: 'freshness',
+        factor: 0.1,
+        expiresAtCount: state.eventCount + 8,
+      })
+      rewards.push({ kind: 'buff', buff: 'buff:review-loop', message: 'review done · Fresh Eyes' })
+
+      const q = findQuest(state.quests, 'review-loop')
+      const completions = (q?.completions ?? 0) + 1
+      if (completions === 1) {
+        rewards.push({ kind: 'buff', buff: 'review-loop', message: 'Close the Review unlocked' })
+      }
+      return { ...state, buffs, quests: setQuest(state.quests, 'review-loop', 'done', completions) }
+    }
+
+    // ---- Keep It Clean (a permanent small +seeds aura) --------------------
+    case 'lint_clean': {
+      const buffs = upsertBuff(state.buffs, {
+        id: 'aura:clean-build',
+        label: 'Clean Build',
+        kind: 'aura',
+        factor: CLEAN_BUILD_SEED_BONUS,
+      })
+
+      const q = findQuest(state.quests, 'clean-build')
+      const completions = q?.completions ?? 0
+      if (completions === 0) {
+        // First-time achievement: heavy reward, then fade (anti-overjustification).
+        rewards.push({ kind: 'buff', buff: 'aura:clean-build', message: 'lint clean · +seeds aura (permanent)' })
+        return { ...state, buffs, quests: setQuest(state.quests, 'clean-build', 'done', 1) }
+      }
+      // Already earned: keep the aura present, push NOTHING.
+      return { ...state, buffs }
+    }
+
+    // ---- Merge the PR (tracks the merge milestone + a short Momentum buff) -
+    // reduce already grants the guaranteed pull + gear for a merge; this quest
+    // layers a brief Momentum freshness buff and the first-time achievement only
+    // (no SECOND pull — that would double the loot and inflate the economy).
+    case 'pr_merged': {
+      const buffs = upsertBuff(state.buffs, {
+        id: 'buff:merge-momentum',
+        label: 'Momentum',
+        kind: 'freshness',
+        factor: 0.1,
+        expiresAtCount: state.eventCount + 6,
+      })
+      rewards.push({ kind: 'buff', buff: 'buff:merge-momentum', message: 'PR merged · Momentum' })
+
+      const q = findQuest(state.quests, 'merge-master')
+      const completions = (q?.completions ?? 0) + 1
+      if (completions === 1) {
+        rewards.push({ kind: 'buff', buff: 'merge-master', message: 'Merge the PR unlocked' })
+      }
+      return { ...state, buffs, quests: setQuest(state.quests, 'merge-master', 'done', completions) }
+    }
+
     default:
       return state
   }
+}
+
+/**
+ * Advance the RENEWABLE Doc Streak by one synced doc. The quest progress's
+ * `completions` IS the streak length; the quest stays `active` so the board keeps
+ * a living goal (never retires to a static `done`). Crossing into a higher tier
+ * grants a celebratory seed bonus the engine reads. Pure & immutable.
+ */
+function advanceDocStreak(state: GameState, rewards: Reward[]): GameState {
+  const prev = findQuest(state.quests, 'doc-streak')
+  const prevStreak = prev?.completions ?? 0
+  const nextStreak = prevStreak + 1
+
+  const prevTier = docStreakTier(prevStreak)
+  const nextTier = docStreakTier(nextStreak)
+
+  let next: GameState = state
+  if (nextTier > prevTier) {
+    const seeds = DOC_STREAK_TIERS[nextTier]?.seeds ?? 0
+    if (seeds > 0) {
+      rewards.push({
+        kind: 'currency',
+        amount: seeds,
+        message: `🔥 Doc Streak ×${nextStreak} · +${seeds} 🌰`,
+      })
+      next = { ...state, player: { ...state.player, currency: state.player.currency + seeds } }
+    }
+  }
+
+  // Renewable: stays 'active' and keeps the streak count climbing.
+  return { ...next, quests: setQuest(next.quests, 'doc-streak', 'active', nextStreak) }
 }

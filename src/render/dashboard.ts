@@ -14,6 +14,7 @@ import { QUESTS } from '../core/quests'
 import { xpForLevel } from '../engine/xp'
 import { gearEffectText } from '../engine/gear'
 import { WORK_MILESTONE } from '../engine/reduce'
+import { displayWidth, padToWidth, truncateToWidth } from './width'
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -75,15 +76,17 @@ function boxDivider(width: number): string {
 }
 
 /**
- * A row padded to exactly `width` chars with side borders: │ content │
- * The content is left-aligned and truncated/padded within (width - 4) chars,
- * giving 1 space gutter on each side.
+ * A row padded to exactly `width` terminal CELLS with side borders: │ content │
+ * The content is left-aligned and padded/truncated within (width - 4) CELLS,
+ * giving a 1-space gutter on each side. Padding uses displayWidth (not .length)
+ * so a wide CJK char or emoji (🌰 🎁 ⚔️ …) — which is 2 cells but 1-2 UTF-16
+ * units — doesn't drift the right border out of alignment.
  */
 function boxRow(content: string, width: number): string {
   const inner = width - 4 // 2 border chars + 2 gutter spaces
-  const padded = content.length <= inner
-    ? content + ' '.repeat(inner - content.length)
-    : content.slice(0, inner)
+  // Truncate by cells first (never split a wide glyph), then pad by cells.
+  const fitted = displayWidth(content) <= inner ? content : truncateToWidth(content, inner)
+  const padded = padToWidth(fitted, inner)
   return '│ ' + padded + ' │'
 }
 
@@ -91,9 +94,9 @@ function boxRow(content: string, width: number): string {
 function boxTitle(title: string, width: number): string {
   const inner = width - 4
   const label = `▌ ${title} `
-  const dashes = inner - label.length
+  const dashes = inner - displayWidth(label)
   const content = label + '─'.repeat(Math.max(0, dashes))
-  return boxRow(content.slice(0, inner), width)
+  return boxRow(truncateToWidth(content, inner), width)
 }
 
 // ---------------------------------------------------------------------------
@@ -172,7 +175,8 @@ function renderEnergy(state: GameState, width: number, nowEpoch?: number): strin
     // "⚡ Vigor " + bar + " " + pctStr
     const prefix = `${icon} ${label} `
     const suffix = ` ${pctStr}`
-    const barLen = Math.max(4, inner - prefix.length - suffix.length)
+    // Size the bar by CELLS (the icon is a 2-cell emoji) so the row fits exactly.
+    const barLen = Math.max(4, inner - displayWidth(prefix) - displayWidth(suffix))
     const bar = xpBar(remaining, 100, barLen)
     return prefix + bar + suffix
   }
@@ -260,7 +264,8 @@ function renderWork(state: GameState, width: number): string {
   // "no invented numbers" invariant. The bar alone conveys progress neutrally.
   const inner = width - 4
   const prefix = '🎁 next chest '
-  const barLen = Math.max(4, inner - prefix.length)
+  // Size by CELLS — the 🎁 emoji is 2 cells wide (1 .length unit would mis-size).
+  const barLen = Math.max(4, inner - displayWidth(prefix))
   const bar = xpBar(into, WORK_MILESTONE, barLen)
 
   return [

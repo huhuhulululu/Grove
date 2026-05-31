@@ -62,3 +62,22 @@ backup rotation · stdin bounds · dev-dep audit (vitest GHSA) · e2e tests that
   nothing; realized rarity still ~3x off published; near-free-pull inflation; thin endgame gear depth;
   + code-review nits (dedup grantPull/dupComp/setBonus; serendipity overwrites real pity; `sq enhance` free
   while repair costs seeds). → **R5 target.**
+
+## Re-score ② (after R4) — 4/10 at B+
+| Lens | R1 | ① | ② | | Lens | R1 | ① | ② |
+|---|---|---|---|---|---|---|---|---|
+| Architecture | B- | B+ | **A-** ✅ | | AI-coding eng | C | C+ | B |
+| Ethics | B | B+ | **A-** ✅ | | Product/UX | C | C+ | B |
+| Security | C | B | **B+** ✅ | | Code review | B- | B | B |
+| QA | B- | B | **B+** ✅ | | Game design | C | B | B |
+| Strategy | B | B | B | | Game economy | C | C+ | **C+** (laggard) |
+
+**R5 targets — two file-disjoint clusters (run in parallel):**
+- **ENGINE/ECONOMY DEPTH** (engine+core+store): leveling must DO something (gate/scale/unlock; level is dead);
+  content depth (15→more cards/sets + remaining 4 quests + dup-conversion/prestige tail = kill the cliff);
+  faucet≫sink rebalance (restore save-vs-spend); honest odds (realized 3.14% vs published 1.7% → reconcile);
+  endgame seed sink; account-global energy store (AI-eng P1). → game-design/economy/AI-eng.
+- **CLI/UX/DOCS/NAMING** (cli+render+docs+package): strategy **P0** package name vs README install mismatch;
+  wrap can't combine with --zen/--home; first-aha onboarding (`sq init`) + "did you mean?" typo help; dashboard
+  wide-emoji alignment; code-review nits (enhance bounds-guard, enhance/repair/protect honor zen, magnitude NaN
+  guard, sturdier run-as-script guard, playReveal non-busy-loop). → UX/strategy/code-review.

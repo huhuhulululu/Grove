@@ -10,6 +10,8 @@ import type { Reward } from '../core/rewards'
 import type { GameState } from '../core/state'
 import type { QuestDef } from '../core/quests'
 import { prestigeRank, PRESTIGE_BUFF_ID } from '../engine/reduce'
+import type { Locale } from '../i18n/types'
+import { t } from '../i18n/t'
 
 // ---------------------------------------------------------------------------
 // RecapData — view-model for the "what you shipped" recap block.
@@ -52,12 +54,17 @@ const KIND_EMOJI: Record<string, string> = {
 
 /**
  * Return a single celebratory line for a Reward.
- * Always starts with the kind's emoji, always includes r.message.
+ * Always starts with the kind's emoji, always includes r.message (or its
+ * locale-translated equivalent when msgKey is present).
  * When amount, card name/rarity, or gear info is present, it is appended
  * for extra context.
  */
-export function formatReward(r: Reward): string {
+export function formatReward(r: Reward, locale: Locale = 'en'): string {
   const emoji = KIND_EMOJI[r.kind] ?? '•'
+
+  // Use the locale-translated message when available; fall back to the
+  // English message field so existing callers (no msgKey) continue to work.
+  const message = r.msgKey ? t(locale, r.msgKey, r.msgArgs) : r.message
 
   const extras: string[] = []
 
@@ -72,7 +79,7 @@ export function formatReward(r: Reward): string {
   // "Sapling · common", "✦ Refactor Blade · legendary", "🛠 crafted · …"). Only
   // append "[name]" when the message does NOT already carry it — otherwise the
   // loot line double-prints the name ("🃏 Sapling · common [Sapling]").
-  if (r.card && !r.message.includes(r.card.name)) {
+  if (r.card && !message.includes(r.card.name)) {
     extras.push(`[${r.card.name}]`)
   }
 
@@ -86,7 +93,7 @@ export function formatReward(r: Reward): string {
   }
 
   const suffix = extras.length > 0 ? ` ${extras.join(' ')}` : ''
-  return `${emoji} ${r.message}${suffix}`
+  return `${emoji} ${message}${suffix}`
 }
 
 // ---------------------------------------------------------------------------
@@ -97,7 +104,7 @@ export function formatReward(r: Reward): string {
  * Return a multi-line summary block of the current GameState.
  * Mirrors the spirit of the FINAL SUMMARY in src/demo.ts.
  */
-export function formatStatus(state: GameState): string {
+export function formatStatus(state: GameState, locale: Locale = 'en'): string {
   const { player, cards, completedSets, buffs, pity } = state
 
   // Rarity breakdown
@@ -109,9 +116,9 @@ export function formatStatus(state: GameState): string {
   const rarityLine =
     Object.entries(byRarity)
       .map(([r, n]) => `${r}×${n}`)
-      .join(', ') || '(none)'
+      .join(', ') || t(locale, 'ui.status.none')
 
-  const setsLine = completedSets.length ? completedSets.join(', ') : '(none yet)'
+  const setsLine = completedSets.length ? completedSets.join(', ') : t(locale, 'ui.status.none_yet')
 
   // R7 STATUS PARITY (product P2): the plain scriptable surface must AGREE with the
   // dashboard — show Shards next to Currency + the prestige rank, and collapse the
@@ -119,28 +126,28 @@ export function formatStatus(state: GameState): string {
   const rank = prestigeRank(state)
   const otherBuffs = buffs.filter((b) => !b.id.startsWith(PRESTIGE_BUFF_ID))
   const buffLabels = [
-    ...(rank > 0 ? [`✦ Prestige ×${rank}`] : []),
+    ...(rank > 0 ? [t(locale, 'ui.status.prestige_badge', { rank })] : []),
     ...otherBuffs.map((b) => b.label),
   ]
-  const buffsLine = buffLabels.length ? buffLabels.join(', ') : '(none)'
+  const buffsLine = buffLabels.length ? buffLabels.join(', ') : t(locale, 'ui.status.none')
 
   // shards is optional on legacy states → read as 0 (never fabricate a number).
   const shards = player.shards ?? 0
 
   return [
     '─'.repeat(52),
-    '  GROVE STATUS',
+    t(locale, 'ui.status.title'),
     '─'.repeat(52),
-    `  Level .............. ${player.level}`,
-    `  XP (into level) .... ${player.xp}`,
-    `  Currency ........... ${player.currency}`,
-    `  Shards ............. ${shards}`,
-    `  Prestige rank ...... ${prestigeRank(state)}`,
-    `  Cards collected .... ${cards.length}`,
-    `  Card breakdown ..... ${rarityLine}`,
-    `  Completed sets ..... ${setsLine}`,
-    `  Active buffs ....... ${buffsLine}`,
-    `  Pity (since leg.) .. ${pity.sinceLegendary}`,
+    t(locale, 'ui.status.level', { level: player.level }),
+    t(locale, 'ui.status.xp', { xp: player.xp }),
+    t(locale, 'ui.status.currency', { currency: player.currency }),
+    t(locale, 'ui.status.shards', { shards }),
+    t(locale, 'ui.status.prestige', { rank: prestigeRank(state) }),
+    t(locale, 'ui.status.cards', { cards: cards.length }),
+    t(locale, 'ui.status.breakdown', { breakdown: rarityLine }),
+    t(locale, 'ui.status.sets', { sets: setsLine }),
+    t(locale, 'ui.status.buffs', { buffs: buffsLine }),
+    t(locale, 'ui.status.pity', { pity: pity.sinceLegendary }),
     '─'.repeat(52),
   ].join('\n')
 }
@@ -158,12 +165,12 @@ export function formatStatus(state: GameState): string {
  *
  * For each QuestDef in `quests` shows:
  *  - a status glyph derived from state.quests (✓ done / ◆ active / · not yet)
- *  - the quest title
- *  - the quest description
+ *  - the quest title (translated via quest.<id>.title)
+ *  - the quest description (translated via quest.<id>.desc)
  *
  * Also lists active buffs (auras / freshness / multipliers).
  */
-export function formatQuests(quests: QuestDef[], state: GameState): string {
+export function formatQuests(quests: QuestDef[], state: GameState, locale: Locale = 'en'): string {
   const questLines = quests.map((def) => {
     const progress = state.quests.find((q) => q.id === def.id)
     let glyph: string
@@ -174,21 +181,29 @@ export function formatQuests(quests: QuestDef[], state: GameState): string {
     } else {
       glyph = '·'
     }
-    return `  ${glyph} ${def.title}\n      ${def.description}`
+    // Translate title/desc via i18n keys; fall back to def fields for callers
+    // that pass custom QuestDef objects without matching catalog keys.
+    const title = t(locale, `quest.${def.id}.title`) !== `quest.${def.id}.title`
+      ? t(locale, `quest.${def.id}.title`)
+      : def.title
+    const desc = t(locale, `quest.${def.id}.desc`) !== `quest.${def.id}.desc`
+      ? t(locale, `quest.${def.id}.desc`)
+      : def.description
+    return `  ${glyph} ${title}\n      ${desc}`
   })
 
   const buffsLine =
     state.buffs.length > 0
       ? state.buffs.map((b) => `    ${b.label}${b.kind ? ` (${b.kind})` : ''}`).join('\n')
-      : '    (none)'
+      : t(locale, 'ui.quests.none')
 
   return [
     '─'.repeat(52),
-    '  QUEST BOARD',
+    t(locale, 'ui.quests.title'),
     '─'.repeat(52),
     ...questLines,
     '─'.repeat(52),
-    '  Active Buffs:',
+    t(locale, 'ui.quests.active_buffs'),
     buffsLine,
     '─'.repeat(52),
   ].join('\n')
@@ -203,7 +218,7 @@ export function formatQuests(quests: QuestDef[], state: GameState): string {
  * Includes the window label, total events, per-type counts, highlights, and
  * current level/cards.
  */
-export function formatRecap(recap: RecapData): string {
+export function formatRecap(recap: RecapData, locale: Locale = 'en'): string {
   const { window, total, byType, level, cards, completedSets, highlights } = recap
 
   const typeLines =
@@ -211,29 +226,29 @@ export function formatRecap(recap: RecapData): string {
       ? Object.entries(byType)
           .map(([type, count]) => `    ${type}: ${count}`)
           .join('\n')
-      : '    (no events)'
+      : t(locale, 'ui.recap.no_events')
 
-  const setsLine = completedSets.length ? completedSets.join(', ') : '(none)'
+  const setsLine = completedSets.length ? completedSets.join(', ') : t(locale, 'ui.status.none')
 
   const highlightLines =
     highlights.length > 0
       ? highlights.map((h) => `  ✦ ${h}`).join('\n')
-      : '  (no highlights)'
+      : t(locale, 'ui.recap.no_highlights')
 
   return [
     '─'.repeat(52),
-    `  RECAP · ${window}`,
+    t(locale, 'ui.recap.title', { window }),
     '─'.repeat(52),
-    `  Total events ....... ${total}`,
+    t(locale, 'ui.recap.total', { total }),
     '',
-    '  By type:',
+    t(locale, 'ui.recap.by_type'),
     typeLines,
     '',
-    `  Level .............. ${level}`,
-    `  Cards collected .... ${cards}`,
-    `  Completed sets ..... ${setsLine}`,
+    t(locale, 'ui.recap.level', { level }),
+    t(locale, 'ui.recap.cards', { cards }),
+    t(locale, 'ui.recap.sets', { sets: setsLine }),
     '',
-    '  Highlights:',
+    t(locale, 'ui.recap.highlights'),
     highlightLines,
     '─'.repeat(52),
   ].join('\n')

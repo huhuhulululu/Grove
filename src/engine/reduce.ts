@@ -16,6 +16,7 @@ import type { GroveEvent } from '../core/events'
 import type { Reward } from '../core/rewards'
 import { rarityRank } from '../core/rewards'
 import type { Rng } from '../core/rng'
+import { msg } from '../i18n/t'
 
 import { applyXp, levelUpSeedBonus } from './xp'
 import {
@@ -296,7 +297,7 @@ function pushSetUnlockRewards(oldLevel: number, newLevel: number, rewards: Rewar
     rewards.push({
       kind: 'buff',
       buff: `set:unlocked:${set}`,
-      message: `🔓 ${set} set unlocked · L${lvl}`,
+      ...msg('reward.set_unlocked', { set, lvl }),
     })
   }
 }
@@ -339,12 +340,12 @@ function grantXp(
         kind: 'xp',
         amount,
         crit: true,
-        message: `+${amount} XP · ${flavour} 💥 CRIT ×${critMult}`,
+        ...msg('reward.xp_crit', { amount, flavour, critMult }),
       }
     : {
         kind: 'xp',
         amount,
-        message: `+${amount} XP · ${flavour}`,
+        ...msg('reward.xp', { amount, flavour }),
       }
   rewards.push(xpReward)
 
@@ -353,7 +354,7 @@ function grantXp(
     rewards.push({
       kind: 'levelup',
       amount: oldLevel + i + 1,
-      message: `Level ${oldLevel + i + 1}`,
+      ...msg('reward.levelup', { level: oldLevel + i + 1 }),
     })
   }
 
@@ -374,7 +375,7 @@ function grantXp(
     rewards.push({
       kind: 'currency',
       amount: seeds,
-      message: `+${seeds} 🌰 · level up ×${levelUps}`,
+      ...msg('reward.levelup_seeds', { seeds, levelUps }),
     })
   }
 
@@ -396,7 +397,7 @@ function applyPulledCard(
   state: GameState,
   card: ReturnType<typeof makeCard>,
   rarity: ReturnType<typeof pull_>['rarity'],
-  message: string,
+  msgFields: Pick<Reward, 'message' | 'msgKey' | 'msgArgs'>,
   rng: Rng,
   rewards: Reward[],
 ): GameState {
@@ -405,7 +406,7 @@ function applyPulledCard(
     state.completedSets,
     card,
   )
-  rewards.push({ kind: 'card', card, rarity, message })
+  rewards.push({ kind: 'card', card, rarity, ...msgFields })
 
   let next: GameState = { ...state, cards, completedSets }
   if (duplicate) next = grantDupComp(next, rarity, rewards)
@@ -435,7 +436,7 @@ function grantSetBonus(state: GameState, set: string, rng: Rng, rewards: Reward[
   rewards.push({
     kind: 'buff',
     buff: buffId,
-    message: `✦ set ${set} complete · +${Math.round(SET_BONUS_SEED * 100)}% 🌰 (permanent)`,
+    ...msg('reward.set_complete', { set, pct: Math.round(SET_BONUS_SEED * 100) }),
   })
 
   const card = makeCard('legendary', rng, state.player.level)
@@ -448,7 +449,7 @@ function grantSetBonus(state: GameState, set: string, rng: Rng, rewards: Reward[
     kind: 'card',
     card,
     rarity: 'legendary',
-    message: `✦ ${card.name} · legendary`,
+    ...msg('reward.legendary', { name: card.name }),
   })
 
   let next: GameState = { ...state, buffs, cards, completedSets }
@@ -480,7 +481,7 @@ function grantPull(
     { ...state, pity },
     card,
     rarity,
-    `${rarityMark(rarity)}${card.name} · ${rarity}`,
+    msg('reward.card', { mark: rarityMark(rarity), name: card.name, rarity }),
     rng,
     rewards,
   )
@@ -510,11 +511,16 @@ function grantBuff(
   label: string,
   rewards: Reward[],
   kind?: BuffKind,
+  msgKey?: string,
+  msgArgs?: import('../i18n/types').MsgArgs,
 ): GameState {
+  const msgFields = msgKey !== undefined
+    ? msg(msgKey, msgArgs)
+    : { message: label }
   rewards.push({
     kind: 'buff',
     buff: id,
-    message: `${label}`,
+    ...msgFields,
   })
   const buff: Buff = kind !== undefined ? { id, label, kind } : { id, label }
   const base =
@@ -534,7 +540,7 @@ function grantGear(state: GameState, rng: Rng, rewards: Reward[]): GameState {
     kind: 'gear',
     gear,
     rarity: gear.rarity,
-    message: `${gear.name} +${gear.level}`,
+    ...msg('reward.gear', { name: gear.name, level: gear.level }),
   })
   return { ...state, gear: [...state.gear, gear] }
 }
@@ -558,7 +564,7 @@ function grantCurrency(
   rewards.push({
     kind: 'currency',
     amount,
-    message: `+${amount} 🌰 seeds · ${XP_FLAVOUR[type] ?? 'work'}`,
+    ...msg('reward.currency_seeds', { amount, flavour: XP_FLAVOUR[type] ?? 'work' }),
   })
   return { ...state, player: { ...state.player, currency: state.player.currency + amount } }
 }
@@ -600,7 +606,7 @@ function rollSerendipity(state: GameState, rng: Rng, rewards: Reward[]): GameSta
       { ...state, pity: realPity },
       card,
       rarity,
-      `✨ lucky drop · ${rarityMark(rarity)}${card.name} · ${rarity}`,
+      msg('reward.lucky_drop', { mark: rarityMark(rarity), name: card.name, rarity }),
       rng,
       rewards,
     )
@@ -609,7 +615,7 @@ function rollSerendipity(state: GameState, rng: Rng, rewards: Reward[]): GameSta
   rewards.push({
     kind: 'currency',
     amount: SERENDIPITY_SEED_WINDFALL,
-    message: `✨ windfall · +${SERENDIPITY_SEED_WINDFALL} 🌰`,
+    ...msg('reward.windfall', { amount: SERENDIPITY_SEED_WINDFALL }),
   })
   return {
     ...state,
@@ -642,7 +648,7 @@ export function pull(
     rewards.push({
       kind: 'currency',
       amount: state.player.currency,
-      message: `not enough 🌰 · need ${PULL_COST}, have ${state.player.currency}`,
+      ...msg('reward.not_enough_pull', { cost: PULL_COST, have: state.player.currency }),
     })
     return { state: { ...state, player: { ...state.player } }, rewards }
   }
@@ -651,7 +657,7 @@ export function pull(
   rewards.push({
     kind: 'currency',
     amount: -PULL_COST,
-    message: `-${PULL_COST} 🌰 · pull`,
+    ...msg('reward.pull_spend', { cost: PULL_COST }),
   })
 
   const { rarity, pity } = pull_(state.pity, rng)
@@ -660,7 +666,7 @@ export function pull(
     { ...state, player: { ...state.player, currency: spent }, pity },
     card,
     rarity,
-    `${rarityMark(rarity)}${card.name} · ${rarity}`,
+    msg('reward.card', { mark: rarityMark(rarity), name: card.name, rarity }),
     rng,
     rewards,
   )
@@ -686,7 +692,7 @@ export function pullPremium(
     rewards.push({
       kind: 'currency',
       amount: state.player.currency,
-      message: `not enough 🌰 · premium needs ${PREMIUM_PULL_COST}, have ${state.player.currency}`,
+      ...msg('reward.not_enough_premium', { cost: PREMIUM_PULL_COST, have: state.player.currency }),
     })
     return { state: { ...state, player: { ...state.player } }, rewards }
   }
@@ -695,7 +701,7 @@ export function pullPremium(
   rewards.push({
     kind: 'currency',
     amount: -PREMIUM_PULL_COST,
-    message: `-${PREMIUM_PULL_COST} 🌰 · premium pull`,
+    ...msg('reward.premium_spend', { cost: PREMIUM_PULL_COST }),
   })
 
   // --- R8 SPARK: a chosen target the premium banner GUARANTEES after enough misses.
@@ -712,7 +718,7 @@ export function pullPremium(
       { ...state, player: { ...state.player, currency: spent }, spark: 0 },
       card,
       def.rarity,
-      `✦ SPARK guarantee · ${rarityMark(def.rarity)}${card.name} · ${def.rarity}`,
+      msg('reward.spark_guarantee', { mark: rarityMark(def.rarity), name: card.name, rarity: def.rarity }),
       rng,
       rewards,
     )
@@ -726,7 +732,7 @@ export function pullPremium(
       rewards.push({
         kind: 'card',
         rarity: def.rarity,
-        message: `✦ FOIL finish · ${card.name} arrives foiled (spark)`,
+        ...msg('reward.spark_foil', { name: card.name }),
       })
       next = { ...next, foiled: nextFoiled }
       // a foil-finish that closes a set fires the same fully-foiled capstone.
@@ -747,7 +753,7 @@ export function pullPremium(
     { ...state, player: { ...state.player, currency: spent }, pity, spark: nextSpark },
     card,
     rarity,
-    `✦ premium · ${rarityMark(rarity)}${card.name} · ${rarity}`,
+    msg('reward.card_premium', { mark: rarityMark(rarity), name: card.name, rarity }),
     rng,
     rewards,
   )
@@ -800,17 +806,18 @@ export function craftCard(
   // Nothing craftable: distinguish "can't craft THIS id" from "nothing left at all".
   if (targetId === null) {
     if (cardId !== undefined && !missing.includes(cardId)) {
-      const reason = setUnlockLevel(defSet(cardId)) > Math.max(1, state.player.level)
-        ? `🔒 ${cardId} is in a locked set — can't craft yet`
-        : `can't craft ${cardId} — already owned or not craftable`
-      rewards.push({ kind: 'currency', amount: haveShards, message: reason })
+      const isLocked = setUnlockLevel(defSet(cardId)) > Math.max(1, state.player.level)
+      const craftMsg = isLocked
+        ? msg('reward.craft_locked', { cardId })
+        : msg('reward.craft_unavailable', { cardId })
+      rewards.push({ kind: 'currency', amount: haveShards, ...craftMsg })
       return { state: { ...state, player: { ...state.player } }, rewards }
     }
     if (haveShards < SHARDS_PER_CRAFT) {
       rewards.push({
         kind: 'currency',
         amount: haveShards,
-        message: `not enough shards — craft needs ${SHARDS_PER_CRAFT}, have ${haveShards}`,
+        ...msg('reward.craft_need_shards', { cost: SHARDS_PER_CRAFT, have: haveShards }),
       })
       return { state: { ...state, player: { ...state.player } }, rewards }
     }
@@ -818,7 +825,7 @@ export function craftCard(
     rewards.push({
       kind: 'currency',
       amount: haveShards,
-      message: 'nothing left to craft — collection complete',
+      ...msg('reward.craft_complete'),
     })
     return { state: { ...state, player: { ...state.player } }, rewards }
   }
@@ -829,7 +836,7 @@ export function craftCard(
     rewards.push({
       kind: 'currency',
       amount: haveShards,
-      message: `not enough shards — craft needs ${SHARDS_PER_CRAFT}, have ${haveShards}`,
+      ...msg('reward.craft_need_shards', { cost: SHARDS_PER_CRAFT, have: haveShards }),
     })
     return { state: { ...state, player: { ...state.player } }, rewards }
   }
@@ -841,14 +848,14 @@ export function craftCard(
   rewards.push({
     kind: 'currency',
     amount: -SHARDS_PER_CRAFT,
-    message: `-${SHARDS_PER_CRAFT} shards · craft`,
+    ...msg('reward.craft_spend', { cost: SHARDS_PER_CRAFT }),
   })
 
   const next = applyPulledCard(
     { ...state, player: { ...state.player, shards: spentShards } },
     card,
     def.rarity,
-    `🛠 crafted · ${rarityMark(def.rarity)}${card.name} · ${def.rarity}`,
+    msg('reward.crafted', { mark: rarityMark(def.rarity), name: card.name, rarity: def.rarity }),
     rng,
     rewards,
   )
@@ -897,7 +904,7 @@ function grantFoiledSetCapstone(
   rewards.push({
     kind: 'buff',
     buff: buffId,
-    message: `✦✦ ${set} set fully foiled · capstone unlocked (cosmetic)`,
+    ...msg('reward.foiled_capstone', { set }),
   })
   return { ...state, buffs: [...state.buffs, buff] }
 }
@@ -967,7 +974,7 @@ export function buyPrestige(
     rewards.push({
       kind: 'currency',
       amount: state.player.currency,
-      message: `not enough 🌰 — prestige ${rank + 1} costs ${cost}, have ${state.player.currency}`,
+      ...msg('reward.not_enough_prestige', { rank: rank + 1, cost, have: state.player.currency }),
     })
     return { state: { ...state, player: { ...state.player } }, rewards }
   }
@@ -979,12 +986,12 @@ export function buyPrestige(
   rewards.push({
     kind: 'currency',
     amount: -cost,
-    message: `-${cost} 🌰 · prestige ${nextRank}`,
+    ...msg('reward.prestige_spend', { cost, rank: nextRank }),
   })
   rewards.push({
     kind: 'buff',
     buff: buffId,
-    message: `✦ Prestige ${nextRank} earned (permanent cosmetic)`,
+    ...msg('reward.prestige_earned', { rank: nextRank }),
   })
 
   // kind:'rest' is purely cosmetic — NOT read by any XP/seed/crit selector — so
@@ -1047,7 +1054,7 @@ export function foilCard(
     rewards.push({
       kind: 'currency',
       amount: haveShards,
-      message: `can't foil ${cardId} — you don't own it`,
+      ...msg('reward.foil_not_owned', { cardId }),
     })
     return { state: cloneState(state), rewards }
   } else if (foiledSet.has(cardId)) {
@@ -1055,7 +1062,7 @@ export function foilCard(
     rewards.push({
       kind: 'currency',
       amount: haveShards,
-      message: `${cardId} is already foiled`,
+      ...msg('reward.foil_already', { cardId }),
     })
     return { state: cloneState(state), rewards }
   } else {
@@ -1064,13 +1071,13 @@ export function foilCard(
 
   // Nothing left to foil (owns nothing, or every owned card already foiled).
   if (targetId === null) {
+    const foilNothingMsg = ownedIds.length === 0
+      ? msg('reward.foil_nothing_owned')
+      : msg('reward.foil_all_foiled')
     rewards.push({
       kind: 'currency',
       amount: haveShards,
-      message:
-        ownedIds.length === 0
-          ? 'nothing to foil — no cards owned yet'
-          : 'nothing left to foil — all owned cards are foiled',
+      ...foilNothingMsg,
     })
     return { state: cloneState(state), rewards }
   }
@@ -1086,7 +1093,7 @@ export function foilCard(
     rewards.push({
       kind: 'currency',
       amount: haveShards,
-      message: `not enough shards — foil ${name} needs ${cost}, have ${haveShards}`,
+      ...msg('reward.foil_need_shards', { name, cost, have: haveShards }),
     })
     return { state: cloneState(state), rewards }
   }
@@ -1096,12 +1103,12 @@ export function foilCard(
   rewards.push({
     kind: 'currency',
     amount: -cost,
-    message: `-${cost} shards · foil ${rarity}`,
+    ...msg('reward.foil_spend', { cost, rarity }),
   })
   rewards.push({
     kind: 'card',
     rarity: def?.rarity,
-    message: `✦ FOIL · ${name} now shimmers (cosmetic)`,
+    ...msg('reward.foil_shimmer', { name }),
   })
 
   let next: GameState = {
@@ -1247,7 +1254,7 @@ function applyWorkMeter(state: GameState, event: GroveEvent, rng: Rng, rewards: 
       rewards.push({
         kind: 'currency',
         amount: MILESTONE_BONUS_SEEDS,
-        message: `🎁 milestone chest · +${MILESTONE_BONUS_SEEDS} 🌰 (work tracked)`,
+        ...msg('reward.milestone_chest', { seeds: MILESTONE_BONUS_SEEDS }),
       })
     }
     // else: at cap → meter still drained, but no chest (can't be farmed).
@@ -1327,6 +1334,7 @@ function applyQuota(state: GameState, event: GroveEvent, rng: Rng, rewards: Rewa
       'Second Wind',
       rewards,
       'rest',
+      'reward.buff.second_wind',
     )
   }
 
@@ -1424,7 +1432,7 @@ export function reduce(
     case 'checkpoint': {
       // kind:'rest' for consistency with energy rest beats. Unlike a clock tick,
       // a checkpoint is a real user action/outcome → it keeps its gift pull.
-      next = grantBuff(next, 'refreshed', 'Refreshed', rewards, 'rest')
+      next = grantBuff(next, 'refreshed', 'Refreshed', rewards, 'rest', 'reward.buff.refreshed')
       next = grantPull(next, rng, rewards) // a gentle gift for resting
       break
     }

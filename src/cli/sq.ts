@@ -41,6 +41,7 @@ import {
 import { SHARDS_PER_CRAFT, SHARD_TO_SEED } from '../engine/collection'
 
 import { isZen, groveInvocation, detectAiClis, maybePush } from './commands/shared'
+import { resolveLocale } from '../i18n/locale'
 import {
   handlePull,
   handleEnhance,
@@ -446,56 +447,61 @@ export function run(argv: string[]): number {
   // sq-side, so it applies whether placed before or after the subcommand.
   const zen = isZen(flags)
 
+  // Locale: resolved once from env (GROVE_LANG / LC_ALL / LANG) and threaded
+  // down to every player-facing handler. CLI entry is the single impure boundary;
+  // all handlers receive Locale, never read env themselves.
+  const locale = resolveLocale()
+
   const subcommand = positional[0]
   const rest = positional.slice(1)
 
   // `wrap` consumes the verbatim command after `--`; global flags already parsed.
   if (subcommand === 'wrap') {
-    return handleWrap(command, flags['as'], dir, zen)
+    return handleWrap(command, flags['as'], dir, zen, locale)
   }
 
   switch (subcommand) {
     case 'event':
-      return handleEvent(rest, flags, dir, zen)
+      return handleEvent(rest, flags, dir, zen, locale)
 
     case 'status':
-      return handleStatus(dir, zen)
+      return handleStatus(dir, zen, locale)
 
     case 'recap':
-      return handleRecap(flags, dir)
+      return handleRecap(flags, dir, locale)
 
     case 'scan':
-      return handleScan(rest, dir, zen)
+      return handleScan(rest, dir, zen, locale)
 
     case 'quests':
-      return handleQuests(dir)
+      return handleQuests(dir, locale)
 
     case 'pull':
-      return handlePull(flags, dir, zen)
+      return handlePull(flags, dir, zen, locale)
 
     case 'enhance':
-      return handleEnhance(rest, flags, dir, zen)
+      return handleEnhance(rest, flags, dir, zen, locale)
 
     case 'repair':
-      return handleRepair(rest, flags, dir, zen)
+      return handleRepair(rest, flags, dir, zen, locale)
 
     case 'protect':
-      return handleProtect(rest, flags, dir, zen)
+      return handleProtect(rest, flags, dir, zen, locale)
 
     case 'craft':
-      return handleCraft(rest, flags, dir, zen)
+      return handleCraft(rest, flags, dir, zen, locale)
 
     case 'foil':
-      return handleFoil(rest, dir, zen)
+      return handleFoil(rest, dir, zen, locale)
 
     case 'prestige':
-      return handlePrestige(flags, dir, zen)
+      return handlePrestige(flags, dir, zen, locale)
 
     case 'convert':
-      return handleConvert(rest, dir, zen)
+      return handleConvert(rest, dir, zen, locale)
 
     case 'dashboard':
-      return handleDashboard(flags, dir)
+      return handleDashboard(flags, dir, locale)
 
     case 'statusline-ingest':
       return handleStatuslineIngest(flags, dir)
@@ -521,19 +527,19 @@ export function run(argv: string[]): number {
       return handleUninstall(flags)
 
     case 'commit-hook':
-      return handleCommitHook(flags, dir, zen)
+      return handleCommitHook(flags, dir, zen, locale)
 
     case 'suggest-commit':
-      return handleSuggestCommit(flags)
+      return handleSuggestCommit(flags, locale)
 
     case 'checkpoint':
-      return handleCheckpoint(flags, dir, zen)
+      return handleCheckpoint(flags, dir, zen, locale)
 
     case 'share':
       return handleShare(flags, dir)
 
     case 'ntfy':
-      return handleNtfy(rest, dir)
+      return handleNtfy(rest, dir, locale)
 
     case 'help':
     case undefined:

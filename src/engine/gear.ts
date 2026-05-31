@@ -10,6 +10,7 @@ import type { Gear, Rarity } from '../core/rewards'
 import type { GameState } from '../core/state'
 import type { Rng } from '../core/rng'
 import { weightedPick } from '../core/rng'
+import { t } from '../i18n/t'
 
 // ---------------------------------------------------------------------------
 // Gear name pool
@@ -204,11 +205,11 @@ export function gearEffectText(gear: Gear): string | null {
   const n = Math.round(value * 10) / 10
   switch (effect.field) {
     case 'currencyPct':
-      return `+${n}% commit seeds`
+      return t('en', 'ui.gear.effect.seeds', { n })
     case 'xpPct':
-      return `+${n}% XP`
+      return t('en', 'ui.gear.effect.xp', { n })
     case 'critPct':
-      return `+${n}pp crit`
+      return t('en', 'ui.gear.effect.crit', { n })
   }
 }
 

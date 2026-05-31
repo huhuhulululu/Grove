@@ -43,4 +43,14 @@ export interface Reward {
   crit?: boolean
   /** human-facing, celebratory (never shaming) one-liner */
   message: string
+  /**
+   * OPTIONAL i18n key for `message` (additive — never breaks an unkeyed Reward).
+   * When set, a locale-aware renderer can re-translate the line via `t(locale,
+   * msgKey, msgArgs)`; `message` itself stays the byte-identical English fallback
+   * (so existing tests + copy-lint + any locale-unaware caller keep working). The
+   * engine populates this via the pure `msg()` helper (src/i18n/t.ts) — see ADR-0005.
+   */
+  msgKey?: string
+  /** OPTIONAL interpolation args for `msgKey` (numbers stringified at render). */
+  msgArgs?: import('../i18n/types').MsgArgs
 }

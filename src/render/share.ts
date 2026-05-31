@@ -11,6 +11,8 @@ import type { GameState } from '../core/state'
 import type { Rarity } from '../core/rewards'
 import { ALL_CARD_DEFS } from '../core/cards'
 import { prestigeRank } from '../engine/reduce'
+import type { Locale } from '../i18n/types'
+import { t } from '../i18n/t'
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -29,21 +31,21 @@ function collectionPct(owned: number): number {
 }
 
 /** One-line flex copy that varies by context. Never includes em-dash or deny-list copy. */
-function flexLine(state: GameState, recentRarity?: Rarity): string {
-  if (recentRarity === 'shiny') return '✦ shiny drop'
-  if (recentRarity === 'legendary') return '✦ legendary drop'
-  if (recentRarity === 'epic') return '🃏 epic drop'
+function flexLine(state: GameState, recentRarity?: Rarity, locale: Locale = 'en'): string {
+  if (recentRarity === 'shiny') return t(locale, 'ui.share.flex.shiny')
+  if (recentRarity === 'legendary') return t(locale, 'ui.share.flex.legendary')
+  if (recentRarity === 'epic') return t(locale, 'ui.share.flex.epic')
 
   const rank = prestigeRank(state)
-  if (rank > 0) return `✦ Prestige ×${rank}`
+  if (rank > 0) return t(locale, 'ui.share.flex.prestige', { rank })
 
   const pct = collectionPct(uniqueOwnedCount(state))
-  if (pct === 100) return '🏆 collection complete'
-  if (pct >= 75) return `📦 ${pct}% collected`
+  if (pct === 100) return t(locale, 'ui.share.flex.complete')
+  if (pct >= 75) return t(locale, 'ui.share.flex.collected', { pct })
 
   const lvl = state.player.level
-  if (lvl >= 10) return `⚡ Lv${lvl} grinder`
-  return `🌿 Lv${lvl} in the groove`
+  if (lvl >= 10) return t(locale, 'ui.share.flex.grinder', { level: lvl })
+  return t(locale, 'ui.share.flex.groove', { level: lvl })
 }
 
 // ---------------------------------------------------------------------------
@@ -53,6 +55,8 @@ function flexLine(state: GameState, recentRarity?: Rarity): string {
 export interface ShareCardOptions {
   /** Most recently obtained card rarity, used to boost the flex line. */
   recentRarity?: Rarity
+  /** Locale for UI copy. Default "en". */
+  locale?: Locale
 }
 
 /**
@@ -72,20 +76,21 @@ export interface ShareCardOptions {
  * @param opts  - Optional context (recentRarity boosts the flex line).
  */
 export function renderShareCard(state: GameState, opts: ShareCardOptions = {}): string {
+  const locale: Locale = opts.locale ?? 'en'
   const owned = uniqueOwnedCount(state)
   const pct = collectionPct(owned)
   const rank = prestigeRank(state)
 
   const lines: string[] = [
-    `Grove · Lv${state.player.level}`,
-    `📦 ${owned}/${TOTAL_CARDS} cards (${pct}%)`,
+    t(locale, 'ui.share.line1', { level: state.player.level }),
+    t(locale, 'ui.share.cards', { owned, total: TOTAL_CARDS, pct }),
   ]
 
   if (rank > 0) {
-    lines.push(`✦ Prestige ×${rank}`)
+    lines.push(t(locale, 'ui.share.prestige', { rank }))
   }
 
-  lines.push(flexLine(state, opts.recentRarity))
+  lines.push(flexLine(state, opts.recentRarity, locale))
 
   return lines.join('\n')
 }

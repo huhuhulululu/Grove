@@ -345,3 +345,49 @@ describe('renderEnhanceFrames — rarity-scaled escalation', () => {
     expect(dotOnly).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// zh-CN locale rendering
+// ---------------------------------------------------------------------------
+
+describe('zh-CN locale — renderEnhanceOdds', () => {
+  it('renders zh-CN outcome labels', () => {
+    const gear = makeGear({ level: 7 })
+    const output = renderEnhanceOdds(gear, 'zh-CN')
+    expect(output).toMatch(/成功/)
+    expect(output).toMatch(/降级/)
+    expect(output).toMatch(/损坏/)
+  })
+
+  it('still includes the gear name and level transition', () => {
+    const gear = makeGear({ level: 7, name: 'Debug Lantern' })
+    const output = renderEnhanceOdds(gear, 'zh-CN')
+    expect(output).toContain('Debug Lantern')
+    expect(output).toMatch(/\+7.*\+8/)
+  })
+})
+
+describe('zh-CN locale — renderEnhanceResult', () => {
+  it('success renders zh-CN text', () => {
+    const before = makeGear({ level: 7 })
+    const after: Gear = { ...before, level: 8 }
+    const output = renderEnhanceResult(before, after, 'success', 'zh-CN')
+    expect(output).toContain('强化')
+    expect(output).toMatch(/成功/)
+  })
+
+  it('break renders zh-CN text with cosmetic reassurance', () => {
+    const before = makeGear({ level: 7 })
+    const after: Gear = { ...before, broken: true }
+    const output = renderEnhanceResult(before, after, 'break', 'zh-CN')
+    expect(output).toContain('强化')
+    expect(output).toMatch(/碎裂|代码/)
+  })
+
+  it('stay renders zh-CN broken label', () => {
+    const before = makeGear({ level: 7, broken: true })
+    const after: Gear = { ...before }
+    const output = renderEnhanceResult(before, after, 'stay', 'zh-CN')
+    expect(output).toMatch(/已损/)
+  })
+})

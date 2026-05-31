@@ -16,6 +16,8 @@ import { loadState } from '../../store/store'
 import { ingestEvent } from '../../app/ingest'
 import { ntfyTopic } from '../../adapters/ntfy'
 import { renderShareCard, renderReadmeBadge } from '../../render/share'
+import { t } from '../../i18n/t'
+import type { Locale } from '../../i18n/types'
 import { printContextualOffers, maybePush, printRewards } from './shared'
 
 // ---------------------------------------------------------------------------
@@ -67,7 +69,7 @@ function inferWrapType(argv: string[]): WrapEventType {
  * @param dir      The grove state dir.
  * @returns        The wrapped command's exit code (for transparent passthrough).
  */
-export function handleWrap(command: string[], asType: string | undefined, dir: string, zen: boolean): number {
+export function handleWrap(command: string[], asType: string | undefined, dir: string, zen: boolean, locale: Locale = 'en'): number {
   if (command.length === 0) {
     console.error('Error: no command to wrap. Usage: sq wrap [--as <type>] -- <cmd...>')
     return 2
@@ -114,8 +116,8 @@ export function handleWrap(command: string[], asType: string | undefined, dir: s
     maybePush(rewards)
 
     if (!zen) {
-      printRewards(rewards)
-      printContextualOffers(rewards, dir)
+      printRewards(rewards, locale)
+      printContextualOffers(rewards, dir, locale)
     }
     // Calm: the engine ran on the real exit code & persisted; no loot line. The
     // wrapped command's own output already streamed transparently · stay quiet.
@@ -173,7 +175,7 @@ function ntfyConfigPath(): string {
  * DEFAULT OFF: nothing is sent until the user runs this with a topic (ADR-0011).
  * Cosmetic-only, privacy-minimal · the topic is the only thing stored.
  */
-export function handleNtfy(positional: string[], _dir: string): number {
+export function handleNtfy(positional: string[], _dir: string, locale: Locale = 'en'): number {
   const arg = positional[0]
   const configPath = ntfyConfigPath()
 
@@ -181,10 +183,10 @@ export function handleNtfy(positional: string[], _dir: string): number {
     // Status only · persist nothing.
     const current = ntfyTopic()
     if (current === null) {
-      console.log('  🔕 ntfy push is OFF · run `sq ntfy <topic>` to opt in.')
+      console.log(t(locale, 'cli.ntfy.off'))
     } else {
-      console.log(`  🔔 ntfy push ON · topic: ${current}`)
-      console.log('  Run `sq ntfy off` to disable.')
+      console.log(t(locale, 'cli.ntfy.on', { topic: current }))
+      console.log(t(locale, 'cli.ntfy.disable_hint'))
     }
     return 0
   }
@@ -195,7 +197,7 @@ export function handleNtfy(positional: string[], _dir: string): number {
     } catch {
       // Non-fatal · worst case it was already gone.
     }
-    console.log('  🔕 ntfy push disabled.')
+    console.log(t(locale, 'cli.ntfy.disabled'))
     return 0
   }
 
@@ -205,11 +207,11 @@ export function handleNtfy(positional: string[], _dir: string): number {
     fs.mkdirSync(groveHome(), { recursive: true })
     fs.writeFileSync(configPath, arg + '\n', 'utf8')
   } catch {
-    console.error('  could not save the ntfy topic · check your GROVE_HOME permissions.')
+    console.error(t(locale, 'cli.ntfy.save_failed'))
     return 1
   }
-  console.log(`  🔔 ntfy push ON · topic: ${arg}`)
-  console.log('  Install the ntfy app and subscribe to that topic to get big-moment alerts.')
-  console.log('  Big moments only (level-ups, legendaries, chests). Run `sq ntfy off` anytime.')
+  console.log(t(locale, 'cli.ntfy.on', { topic: arg }))
+  console.log(t(locale, 'cli.ntfy.subscribe'))
+  console.log(t(locale, 'cli.ntfy.big_moments'))
   return 0
 }

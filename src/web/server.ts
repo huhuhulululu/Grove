@@ -20,6 +20,7 @@ import * as fs from 'node:fs'
 import { loadState } from '../store/store'
 import type { GameState } from '../core/state'
 import { renderPage } from './page'
+import { resolveLocale, normalizeLocale } from '../i18n/locale'
 
 export interface WebServerOptions {
   /** the per-repo Grove state dir to read (contains state.json) */
@@ -136,7 +137,11 @@ export function startWebServer(opts: WebServerOptions): WebServerHandle {
     }
 
     if (pathname === '/' || pathname === '/index.html') {
-      const html = renderPage(loadState(dir))
+      // Resolve locale: env first, then ?lang= query override.
+      const envLocale = resolveLocale()
+      const langParam = url.searchParams.get('lang') ?? undefined
+      const locale = langParam !== undefined ? normalizeLocale(langParam) : envLocale
+      const html = renderPage(loadState(dir), locale)
       send(res, 200, 'text/html; charset=utf-8', html)
       return
     }

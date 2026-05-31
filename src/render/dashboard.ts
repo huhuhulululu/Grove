@@ -35,6 +35,8 @@ import {
 } from '../engine/reduce'
 import { craftableCardId } from '../engine/collection'
 import { displayWidth, padToWidth, truncateToWidth } from './width'
+import type { Locale } from '../i18n/types'
+import { t } from '../i18n/t'
 
 /** True when a buff is one of the prestige-rank flair buffs (rolled-up, not per-row). */
 function isPrestigeBuff(buff: GameState['buffs'][number]): boolean {
@@ -59,6 +61,11 @@ export interface DashboardOptions {
    * lines are omitted (keeping the renderer side-effect-free).
    */
   nowEpoch?: number
+  /**
+   * Locale for UI chrome translation. Default: "en". Existing callers that
+   * omit this field continue to receive English output unchanged.
+   */
+  locale?: Locale
 }
 
 /**
@@ -72,16 +79,17 @@ export interface DashboardOptions {
  */
 export function renderDashboard(state: GameState, opts: DashboardOptions = {}): string {
   const width = opts.width ?? 60
+  const locale: Locale = opts.locale ?? 'en'
 
   const sections: string[] = [
-    renderHeader(state, width),
-    renderEnergy(state, width, opts.nowEpoch),
-    renderWork(state, width),
-    renderOdds(state, width),
-    renderCollection(state, width),
-    renderGear(state, width),
-    renderQuests(state, width),
-    renderBuffs(state, width),
+    renderHeader(state, width, locale),
+    renderEnergy(state, width, opts.nowEpoch, locale),
+    renderWork(state, width, locale),
+    renderOdds(state, width, locale),
+    renderCollection(state, width, locale),
+    renderGear(state, width, locale),
+    renderQuests(state, width, locale),
+    renderBuffs(state, width, locale),
   ]
 
   return sections.join('\n')
@@ -136,10 +144,10 @@ function boxTitle(title: string, width: number): string {
 
 /**
  * Format a millisecond duration into a compact "Xh Ym" string.
- * Negative durations (already reset) return "soon".
+ * Negative durations (already reset) return the locale's "soon" string.
  */
-function formatEta(ms: number): string {
-  if (ms <= 0) return 'soon'
+function formatEta(ms: number, locale: Locale = 'en'): string {
+  if (ms <= 0) return t(locale, 'ui.eta.soon')
   const totalMinutes = Math.floor(ms / 60_000)
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
@@ -180,16 +188,16 @@ function xpBar(current: number, max: number, barLen: number): string {
  *   - Low energy is a rest cue, never an alarm or shame.
  *   - nowEpoch must be injected (PURE — never read from the clock here).
  */
-function renderEnergy(state: GameState, width: number, nowEpoch?: number): string {
+function renderEnergy(state: GameState, width: number, nowEpoch?: number, locale: Locale = 'en'): string {
   const { energy } = state
 
   // ---- Wellspring mode: unmetered user — hide the bar, fabricate nothing ----
   if (!energy.known) {
     return [
       boxTop(width),
-      boxTitle('ENERGY', width),
+      boxTitle(t(locale, 'ui.panel.energy'), width),
       boxDivider(width),
-      boxRow('Wellspring · unmetered', width),
+      boxRow(t(locale, 'ui.energy.wellspring'), width),
       boxBottom(width),
     ].join('\n')
   }
@@ -215,17 +223,17 @@ function renderEnergy(state: GameState, width: number, nowEpoch?: number): strin
   // Only render bars for windows actually present in the frame (vigor/sap may be
   // undefined when the corresponding quota window was absent — never fabricate).
   const vigorBarRows: string[] = energy.vigor !== undefined
-    ? [boxRow(energyBarRow('⚡', 'Vigor', energy.vigor), width)]
+    ? [boxRow(energyBarRow('⚡', t(locale, 'ui.energy.vigor'), energy.vigor), width)]
     : []
   const sapBarRows: string[] = energy.sap !== undefined
-    ? [boxRow(energyBarRow('🌿', 'Weekly', energy.sap), width)]
+    ? [boxRow(energyBarRow('🌿', t(locale, 'ui.energy.weekly'), energy.sap), width)]
     : []
 
   // Optional "resets in" ETA line — only when both nowEpoch and vigorResetsAt present.
   const etaRows: string[] = []
   if (nowEpoch !== undefined && energy.vigorResetsAt !== undefined) {
-    const eta = formatEta(energy.vigorResetsAt - nowEpoch)
-    etaRows.push(boxRow(`  resets in ${eta}`, width))
+    const eta = formatEta(energy.vigorResetsAt - nowEpoch, locale)
+    etaRows.push(boxRow(t(locale, 'ui.energy.resets_in', { eta }), width))
   }
 
   // Low-energy rest cue (calm, never shaming). Threshold: either present bar < 20%.
@@ -234,12 +242,12 @@ function renderEnergy(state: GameState, width: number, nowEpoch?: number): strin
     (energy.vigor !== undefined && energy.vigor < 20) ||
     (energy.sap !== undefined && energy.sap < 20)
   ) {
-    restRows.push(boxRow('  good stopping point', width))
+    restRows.push(boxRow(t(locale, 'ui.energy.stopping_point'), width))
   }
 
   return [
     boxTop(width),
-    boxTitle('ENERGY', width),
+    boxTitle(t(locale, 'ui.panel.energy'), width),
     boxDivider(width),
     ...vigorBarRows,
     ...sapBarRows,
@@ -249,7 +257,7 @@ function renderEnergy(state: GameState, width: number, nowEpoch?: number): strin
   ].join('\n')
 }
 
-function renderHeader(state: GameState, width: number): string {
+function renderHeader(state: GameState, width: number, locale: Locale = 'en'): string {
   const { level, xp } = state.player
   const needed = xpForLevel(level)
 
@@ -264,10 +272,10 @@ function renderHeader(state: GameState, width: number): string {
   const bar = xpBar(xp, needed, barLen)
   const xpLine = `XP [${bar}] ${xpNums}`
 
-  const titleContent = `GROVE  Level ${level}`
+  const titleContent = t(locale, 'ui.header.title', { level })
 
   // R3 economy: surface the seeds balance — the currency a pull spends.
-  const seedsLine = `🌰 ${state.player.currency} seeds`
+  const seedsLine = t(locale, 'ui.header.seeds', { seeds: state.player.currency })
 
   // R6 P1: the dup-tail shards were invisible at the surface. Surface the balance
   // and — when enough to craft — the craft target (the endgame horizon).
@@ -275,24 +283,24 @@ function renderHeader(state: GameState, width: number): string {
   const shards = state.player.shards ?? 0
   const craftTarget = craftableCardId(state.cards, unlockedSets(level), shards)
   const shardsLine = craftTarget !== null
-    ? `🔧 ${shards} shards · craftable: ${cardName(craftTarget)} (sq craft)`
-    : `🔧 ${shards} shards`
+    ? t(locale, 'ui.header.shards_craftable', { shards, name: cardName(craftTarget) })
+    : t(locale, 'ui.header.shards', { shards })
 
   // R7 economy/product P2: surface the ENDGAME prestige rank + the NEXT rank's
   // cost so the late-game sink is visible (was buried). e.g. "Prestige 3 · next 1250 🌰".
   const rank = prestigeRank(state)
-  const prestigeLine = `✦ Prestige ${rank} · next ${prestigeCost(rank)} 🌰`
+  const prestigeLine = t(locale, 'ui.header.prestige', { rank, cost: prestigeCost(rank) })
 
   // R6 P1: the next-set unlock horizon — a forward goal so leveling reads as
   // progress toward richer pulls (omitted once everything is unlocked).
   const horizon = nextSetUnlock(level)
   const horizonRows = horizon !== null
-    ? [boxRow(`next set: ${horizon.set} @ L${horizon.level}`, width)]
+    ? [boxRow(t(locale, 'ui.header.next_set', { set: horizon.set, level: horizon.level }), width)]
     : []
 
   // R7 product P1: an affordable-action CTA — endgame is reachable but wasn't
   // discoverable, so surface what THIS balance affords (the way the craft hint does).
-  const cta = affordableCta(state)
+  const cta = affordableCta(state, locale)
   const ctaRows = cta !== null ? [boxRow(cta, width)] : []
 
   return [
@@ -314,17 +322,17 @@ function renderHeader(state: GameState, width: number): string {
  * null when nothing is affordable (so the line is omitted rather than empty).
  * PURE: reads only the balance + prestige rank; no I/O.
  */
-function affordableCta(state: GameState): string | null {
+function affordableCta(state: GameState, locale: Locale = 'en'): string | null {
   const seeds = state.player.currency
   const parts: string[] = []
 
-  if (seeds >= PULL_COST) parts.push(`pull (${PULL_COST})`)
-  if (seeds >= PREMIUM_PULL_COST) parts.push(`premium (${PREMIUM_PULL_COST})`)
+  if (seeds >= PULL_COST) parts.push(t(locale, 'ui.can.pull', { cost: PULL_COST }))
+  if (seeds >= PREMIUM_PULL_COST) parts.push(t(locale, 'ui.can.premium', { cost: PREMIUM_PULL_COST }))
 
   const nextPrestige = prestigeCost(prestigeRank(state))
-  if (seeds >= nextPrestige) parts.push(`prestige (next ${nextPrestige})`)
+  if (seeds >= nextPrestige) parts.push(t(locale, 'ui.can.prestige', { cost: nextPrestige }))
 
-  return parts.length > 0 ? `can: ${parts.join(' · ')}` : null
+  return parts.length > 0 ? t(locale, 'ui.header.can', { actions: parts.join(' · ') }) : null
 }
 
 /**
@@ -335,7 +343,7 @@ function affordableCta(state: GameState): string | null {
  * tokens" — the meter is capped & diminishing per window in the engine, so this
  * is a fair floor, not a grind incentive. PURE: reads state.work only.
  */
-function renderWork(state: GameState, width: number): string {
+function renderWork(state: GameState, width: number, locale: Locale = 'en'): string {
   const { workMeter } = state.work
   // Progress within the CURRENT milestone (the meter is drained on each crossing).
   const into = ((workMeter % WORK_MILESTONE) + WORK_MILESTONE) % WORK_MILESTONE
@@ -343,14 +351,14 @@ function renderWork(state: GameState, width: number): string {
   // No percentage suffix here: a bare "0%" would collide with the Wellspring
   // "no invented numbers" invariant. The bar alone conveys progress neutrally.
   const inner = width - 4
-  const prefix = '🎁 next chest '
+  const prefix = t(locale, 'ui.work.next_chest')
   // Size by CELLS — the 🎁 emoji is 2 cells wide (1 .length unit would mis-size).
   const barLen = Math.max(4, inner - displayWidth(prefix))
   const bar = xpBar(into, WORK_MILESTONE, barLen)
 
   return [
     boxTop(width),
-    boxTitle('WORK', width),
+    boxTitle(t(locale, 'ui.panel.work'), width),
     boxDivider(width),
     boxRow(prefix + bar, width),
     boxBottom(width),
@@ -367,7 +375,7 @@ function renderWork(state: GameState, width: number): string {
  * reason about WHEN to pull / save / spark / craft / foil without leaving the board.
  * PURE: reads state + published engine constants only (ADR-0002 transparency).
  */
-function renderOdds(state: GameState, width: number): string {
+function renderOdds(state: GameState, width: number, locale: Locale = 'en'): string {
   const pity = pityProgress(state)
   const spark = sparkProgress(state)
   const missing = missingCardIdsForPlayer(state).length
@@ -378,29 +386,38 @@ function renderOdds(state: GameState, width: number): string {
 
   // Pity: raw counter toward the HARD guarantee + soft-pity status.
   const pityStatus = pity.softActive
-    ? (pity.hardNext ? '· hard NEXT' : '· soft on')
-    : `· ${pity.pullsToHard} to hard`
-  const pityLine = `🎯 pity ${pity.sinceLegendary}/${pity.hardPity} ${pityStatus}`
+    ? (pity.hardNext ? t(locale, 'ui.odds.pity_hard_next') : t(locale, 'ui.odds.pity_soft_on'))
+    : t(locale, 'ui.odds.pity_to_hard', { n: pity.pullsToHard })
+  const pityLine = t(locale, 'ui.odds.pity', {
+    since: pity.sinceLegendary,
+    hard: pity.hardPity,
+    status: pityStatus,
+  })
 
   // Published HONEST long-run odds (pity-inclusive) — never hide the real rate.
-  const oddsLine = `legendary+shiny ~${realizedPer100} per 100 pulls`
+  const oddsLine = t(locale, 'ui.odds.rate', { per100: realizedPer100 })
 
   // Spark: the targeted premium guarantee progress (saving 225 = choosing a target).
   const sparkLine = spark.guaranteedNext
-    ? `✦ spark ${spark.spark}/${spark.threshold} · guarantee ARMED`
-    : `✦ spark ${spark.spark}/${spark.threshold}`
+    ? t(locale, 'ui.odds.spark_armed', { spark: spark.spark, threshold: spark.threshold })
+    : t(locale, 'ui.odds.spark', { spark: spark.spark, threshold: spark.threshold })
 
   // How much is left to collect within the unlocked sets (the pull/craft goal).
-  const leftLine = missing > 0 ? `${missing} cards left to collect` : 'collection complete'
+  const leftLine = missing > 0
+    ? t(locale, 'ui.odds.cards_left', { n: missing })
+    : t(locale, 'ui.odds.complete')
 
   // The foil shard sink — a completed collection still has a renewable target.
   // Cost scales with the card's rarity (commons cheap, shiny dearest), so surface
   // the CURVE, not just the floor — kept short so the (sq foil) CTA fits the box (R10).
-  const foilLine = `✨ foil owned card · ${FOIL_COST_BY_RARITY.common}-${FOIL_COST_BY_RARITY.shiny} shards by rarity (sq foil)`
+  const foilLine = t(locale, 'ui.odds.foil', {
+    min: FOIL_COST_BY_RARITY.common,
+    max: FOIL_COST_BY_RARITY.shiny,
+  })
 
   return [
     boxTop(width),
-    boxTitle('ODDS', width),
+    boxTitle(t(locale, 'ui.panel.odds'), width),
     boxDivider(width),
     boxRow(pityLine, width),
     boxRow(oddsLine, width),
@@ -411,7 +428,7 @@ function renderOdds(state: GameState, width: number): string {
   ].join('\n')
 }
 
-function renderCollection(state: GameState, width: number): string {
+function renderCollection(state: GameState, width: number, locale: Locale = 'en'): string {
   // Count distinct owned card ids per set
   const ownedIds = new Set(state.cards.map((c) => c.id))
   const level = state.player.level
@@ -422,53 +439,59 @@ function renderCollection(state: GameState, width: number): string {
     // with its unlock level (🔒) instead of a misleading "relics 0/6" that reads
     // like it can be filled now.
     if (unlockLevel > Math.max(1, level)) {
-      return boxRow(`${setName}  🔒 L${unlockLevel}`, width)
+      return boxRow(t(locale, 'ui.collection.locked', { set: setName, level: unlockLevel }), width)
     }
     const allIds = cardIdsInSet(setName)
     const owned = allIds.filter((id) => ownedIds.has(id)).length
     const total = allIds.length
     // ✓ marks a fully-completed set (set-completion progress).
-    const done = total > 0 && owned === total ? '  ✓' : ''
-    return boxRow(`${setName}  ${owned}/${total}${done}`, width)
+    const done = total > 0 && owned === total ? t(locale, 'ui.collection.done') : ''
+    return boxRow(t(locale, 'ui.collection.row', { set: setName, owned, total, done }), width)
   })
 
   return [
     boxTop(width),
-    boxTitle('COLLECTION', width),
+    boxTitle(t(locale, 'ui.panel.collection'), width),
     boxDivider(width),
     ...rows,
     boxBottom(width),
   ].join('\n')
 }
 
-function renderGear(state: GameState, width: number): string {
+function renderGear(state: GameState, width: number, locale: Locale = 'en'): string {
   let gearRows: string[]
 
   if (state.gear.length === 0) {
-    gearRows = [boxRow('(no gear yet · merge a PR to drop some)', width)]
+    gearRows = [boxRow(t(locale, 'ui.gear.none'), width)]
   } else {
     const protectedSet = new Set(state.protectedGear)
     gearRows = state.gear.map((g) => {
-      const broken = g.broken ? '  BROKEN' : ''
+      const broken = g.broken ? t(locale, 'ui.gear.broken') : ''
       // ADR-0008: gear level confers a real workflow effect — show it inline.
       const effect = gearEffectText(g)
       const effectStr = effect ? ` · ${effect}` : ''
       // One-shot enhance protection armed via `sq protect`.
-      const protectedStr = protectedSet.has(g.id) ? '  PROTECTED' : ''
-      return boxRow(`${g.name} +${g.level}${broken}${protectedStr}${effectStr}`, width)
+      const protectedStr = protectedSet.has(g.id) ? t(locale, 'ui.gear.protected') : ''
+      return boxRow(t(locale, 'ui.gear.row', {
+        name: g.name,
+        level: g.level,
+        broken,
+        protected: protectedStr,
+        effect: effectStr,
+      }), width)
     })
   }
 
   return [
     boxTop(width),
-    boxTitle('GEAR', width),
+    boxTitle(t(locale, 'ui.panel.gear'), width),
     boxDivider(width),
     ...gearRows,
     boxBottom(width),
   ].join('\n')
 }
 
-function renderQuests(state: GameState, width: number): string {
+function renderQuests(state: GameState, width: number, locale: Locale = 'en'): string {
   const rows = QUESTS.map((def) => {
     const progress = state.quests.find((q) => q.id === def.id)
     let glyph: string
@@ -479,36 +502,39 @@ function renderQuests(state: GameState, width: number): string {
     } else {
       glyph = '·'
     }
-    return boxRow(`${glyph} ${def.title}`, width)
+    // Translate quest title via i18n key; fall back to def.title if key missing.
+    const titleKey = `quest.${def.id}.title`
+    const title = t(locale, titleKey) !== titleKey ? t(locale, titleKey) : def.title
+    return boxRow(`${glyph} ${title}`, width)
   })
 
   return [
     boxTop(width),
-    boxTitle('QUESTS', width),
+    boxTitle(t(locale, 'ui.panel.quests'), width),
     boxDivider(width),
     ...rows,
     boxBottom(width),
   ].join('\n')
 }
 
-function renderBuffs(state: GameState, width: number): string {
+function renderBuffs(state: GameState, width: number, locale: Locale = 'en'): string {
   // R7 product/code: the per-rank prestige buffs are pure cosmetic flair and were
   // cluttering the panel with N near-identical rows. Collapse them into a SINGLE
   // rollup badge "✦ Prestige ×N"; render every other buff as its own row.
   const rank = prestigeRank(state)
   const otherBuffs = state.buffs.filter((b) => !isPrestigeBuff(b))
 
-  const rollupRows = rank > 0 ? [boxRow(`✦ Prestige ×${rank}`, width)] : []
+  const rollupRows = rank > 0 ? [boxRow(t(locale, 'ui.buffs.prestige_rollup', { rank }), width)] : []
   const otherRows = otherBuffs.map((b) => boxRow(b.label, width))
 
   const bodyRows =
     rollupRows.length === 0 && otherRows.length === 0
-      ? [boxRow('none', width)]
+      ? [boxRow(t(locale, 'ui.buffs.none'), width)]
       : [...rollupRows, ...otherRows]
 
   return [
     boxTop(width),
-    boxTitle('BUFFS', width),
+    boxTitle(t(locale, 'ui.panel.buffs'), width),
     boxDivider(width),
     ...bodyRows,
     boxBottom(width),

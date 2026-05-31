@@ -18,6 +18,8 @@ import { ntfyTopic, sendNtfy } from '../../adapters/ntfy'
 import type { NtfyNotification } from '../../adapters/ntfy'
 import { pushWorthy } from '../../adapters/ntfy'
 import type { Reward } from '../../core/rewards'
+import { t } from '../../i18n/t'
+import type { Locale } from '../../i18n/types'
 
 // ---------------------------------------------------------------------------
 // Numeric flag parsing
@@ -60,8 +62,8 @@ export function isZen(flags: Record<string, string>): boolean {
  * spectacle (loot/crit/serendipity/milestone/offers/reveals) · the engine still
  * ran and persisted state; this line is the only thing the user sees.
  */
-export function calmConfirm(message: string): void {
-  console.log(`  ✓ ${message}`)
+export function calmConfirm(message: string, locale: Locale = 'en'): void {
+  console.log(t(locale, 'cli.confirm', { message }))
 }
 
 // ---------------------------------------------------------------------------
@@ -126,16 +128,17 @@ export function resolveGearRef(gear: { id: string }[], ref: string): number {
 export function printContextualOffers(
   rewards: ReturnType<typeof ingestEvent>['rewards'],
   dir: string,
+  locale: Locale = 'en',
 ): void {
   const hasCrit = rewards.some((r) => r.crit === true)
   if (hasCrit) {
-    console.log('  💥 CRIT · free draft: sq suggest-commit')
+    console.log(t(locale, 'cli.offer.crit'))
   }
 
   try {
     const state = loadState(dir)
     if (state.energy.known && typeof state.energy.vigor === 'number' && state.energy.vigor < 20) {
-      console.log(`  ⚡ low · good stopping point: sq checkpoint`)
+      console.log(t(locale, 'cli.offer.low_energy'))
     }
   } catch {
     // Non-fatal
@@ -147,9 +150,12 @@ export function printContextualOffers(
 // ---------------------------------------------------------------------------
 
 /** Print each reward's formatted line (the scriptable loot output). */
-export function printRewards(rewards: Reward[]): void {
+export function printRewards(rewards: Reward[], locale: Locale = 'en'): void {
   for (const reward of rewards) {
-    console.log(formatReward(reward))
+    const line = reward.msgKey
+      ? t(locale, reward.msgKey, reward.msgArgs)
+      : formatReward(reward)
+    console.log(line)
   }
 }
 

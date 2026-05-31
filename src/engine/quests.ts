@@ -24,6 +24,7 @@ import type { Rng } from '../core/rng'
 import { GRIMOIRE_FILES, GRIMOIRE_LEAN_MAX_LINES, DOC_STREAK_TIERS, docStreakTier } from '../core/quests'
 import { pull, makeCard } from './gacha'
 import { addCard, grantDupComp, DUP_COMP_SEEDS } from './collection'
+import { msg } from '../i18n/t'
 
 /**
  * Compensation seeds for a duplicate pull. Re-exported from collection.ts (the
@@ -149,14 +150,14 @@ function grantSetBonus(state: GameState, set: string, rng: Rng, rewards: Reward[
   const buffId = `set:bonus:${set}`
   const buffs = upsertBuff(state.buffs, {
     id: buffId,
-    label: `${set} set`,
+    label: msg('reward.buff.set', { set }).message,
     kind: 'aura',
     factor: SET_BONUS_SEED,
   })
   rewards.push({
     kind: 'buff',
     buff: buffId,
-    message: `✦ set ${set} complete · +${Math.round(SET_BONUS_SEED * 100)}% 🌰 (permanent)`,
+    ...msg('reward.set_complete', { set, pct: Math.round(SET_BONUS_SEED * 100) }),
   })
 
   // 2. Guaranteed legendary pull (drawn from the player's unlocked sets).
@@ -166,7 +167,7 @@ function grantSetBonus(state: GameState, set: string, rng: Rng, rewards: Reward[
     kind: 'card',
     card,
     rarity: 'legendary',
-    message: `✦ ${card.name} · legendary`,
+    ...msg('reward.legendary', { name: card.name }),
   })
 
   let next: GameState = { ...state, buffs, cards, completedSets }
@@ -193,7 +194,7 @@ function grantPull(state: GameState, rng: Rng, rewards: Reward[]): GameState {
     kind: 'card',
     card,
     rarity,
-    message: `${rarityMark(rarity)}${card.name} · ${rarity}`,
+    ...msg('reward.card', { mark: rarityMark(rarity), name: card.name, rarity }),
   })
 
   let next: GameState = { ...state, cards, completedSets, pity }
@@ -240,7 +241,7 @@ export function applyQuests(
       // present && lean → grant the permanent aura.
       const buffs = upsertBuff(state.buffs, {
         id: 'aura:grimoire',
-        label: 'Grimoire Aura',
+        label: msg('reward.buff.grimoire_aura').message,
         kind: 'aura',
       })
 
@@ -252,7 +253,7 @@ export function applyQuests(
         rewards.push({
           kind: 'buff',
           buff: 'aura:grimoire',
-          message: 'CLAUDE.md written · permanent aura',
+          ...msg('reward.quest.grimoire_aura'),
         })
         const afterPull = grantPull({ ...state, buffs }, rng, rewards)
         return { ...afterPull, quests: setQuest(state.quests, 'grimoire', 'done', 1) }
@@ -266,7 +267,7 @@ export function applyQuests(
     case 'spec_written': {
       const buffs = upsertBuff(state.buffs, {
         id: 'mult:precast',
-        label: 'Pre-cast x2',
+        label: msg('reward.buff.precast').message,
         kind: 'multiplier',
         factor: 2,
         expiresAtCount: state.eventCount + 6,
@@ -275,7 +276,7 @@ export function applyQuests(
       rewards.push({
         kind: 'buff',
         buff: 'mult:precast',
-        message: 'spec first · x2 armed',
+        ...msg('reward.quest.precast_armed'),
       })
 
       const q = findQuest(state.quests, 'precast-spec')
@@ -284,7 +285,7 @@ export function applyQuests(
         rewards.push({
           kind: 'buff',
           buff: 'precast-spec',
-          message: 'Spec First unlocked',
+          ...msg('reward.quest.precast_unlocked'),
         })
       }
 
@@ -303,7 +304,7 @@ export function applyQuests(
       // Synced: grant the renewable freshness buff.
       const buffs = upsertBuff(state.buffs, {
         id: 'buff:living-map',
-        label: 'Fresh Architecture',
+        label: msg('reward.buff.fresh_architecture').message,
         kind: 'freshness',
         factor: 0.15,
         expiresAtCount: state.eventCount + 10,
@@ -312,7 +313,7 @@ export function applyQuests(
       rewards.push({
         kind: 'buff',
         buff: 'buff:living-map',
-        message: 'docs synced · Fresh Architecture',
+        ...msg('reward.quest.living_map_buff'),
       })
 
       const q = findQuest(state.quests, 'living-map')
@@ -321,7 +322,7 @@ export function applyQuests(
         rewards.push({
           kind: 'buff',
           buff: 'living-map',
-          message: 'Sync the Docs unlocked',
+          ...msg('reward.quest.living_map_unlocked'),
         })
       }
 
@@ -351,7 +352,7 @@ export function applyQuests(
       const nextFactor = Math.min(STREAK_CAP, (prevStreak?.factor ?? 0) + STREAK_STEP)
       const buffs = upsertBuff(afterPull.buffs, {
         id: 'streak:tests',
-        label: 'Test Streak',
+        label: msg('reward.buff.test_streak').message,
         kind: 'streak',
         factor: nextFactor,
       })
@@ -362,7 +363,7 @@ export function applyQuests(
         rewards.push({
           kind: 'buff',
           buff: 'test-warden',
-          message: 'test added',
+          ...msg('reward.quest.test_warden_first'),
         })
       }
 
@@ -373,17 +374,17 @@ export function applyQuests(
     case 'review_confirmed': {
       const buffs = upsertBuff(state.buffs, {
         id: 'buff:review-loop',
-        label: 'Fresh Eyes',
+        label: msg('reward.buff.fresh_eyes').message,
         kind: 'freshness',
         factor: 0.1,
         expiresAtCount: state.eventCount + 8,
       })
-      rewards.push({ kind: 'buff', buff: 'buff:review-loop', message: 'review done · Fresh Eyes' })
+      rewards.push({ kind: 'buff', buff: 'buff:review-loop', ...msg('reward.quest.review_buff') })
 
       const q = findQuest(state.quests, 'review-loop')
       const completions = (q?.completions ?? 0) + 1
       if (completions === 1) {
-        rewards.push({ kind: 'buff', buff: 'review-loop', message: 'Close the Review unlocked' })
+        rewards.push({ kind: 'buff', buff: 'review-loop', ...msg('reward.quest.review_unlocked') })
       }
       return { ...state, buffs, quests: setQuest(state.quests, 'review-loop', 'done', completions) }
     }
@@ -392,7 +393,7 @@ export function applyQuests(
     case 'lint_clean': {
       const buffs = upsertBuff(state.buffs, {
         id: 'aura:clean-build',
-        label: 'Clean Build',
+        label: msg('reward.buff.clean_build').message,
         kind: 'aura',
         factor: CLEAN_BUILD_SEED_BONUS,
       })
@@ -401,7 +402,7 @@ export function applyQuests(
       const completions = q?.completions ?? 0
       if (completions === 0) {
         // First-time achievement: heavy reward, then fade (anti-overjustification).
-        rewards.push({ kind: 'buff', buff: 'aura:clean-build', message: 'lint clean · +seeds aura (permanent)' })
+        rewards.push({ kind: 'buff', buff: 'aura:clean-build', ...msg('reward.quest.clean_build_aura') })
         return { ...state, buffs, quests: setQuest(state.quests, 'clean-build', 'done', 1) }
       }
       // Already earned: keep the aura present, push NOTHING.
@@ -415,17 +416,17 @@ export function applyQuests(
     case 'pr_merged': {
       const buffs = upsertBuff(state.buffs, {
         id: 'buff:merge-momentum',
-        label: 'Momentum',
+        label: msg('reward.buff.momentum').message,
         kind: 'freshness',
         factor: 0.1,
         expiresAtCount: state.eventCount + 6,
       })
-      rewards.push({ kind: 'buff', buff: 'buff:merge-momentum', message: 'PR merged · Momentum' })
+      rewards.push({ kind: 'buff', buff: 'buff:merge-momentum', ...msg('reward.quest.merge_buff') })
 
       const q = findQuest(state.quests, 'merge-master')
       const completions = (q?.completions ?? 0) + 1
       if (completions === 1) {
-        rewards.push({ kind: 'buff', buff: 'merge-master', message: 'Merge the PR unlocked' })
+        rewards.push({ kind: 'buff', buff: 'merge-master', ...msg('reward.quest.merge_unlocked') })
       }
       return { ...state, buffs, quests: setQuest(state.quests, 'merge-master', 'done', completions) }
     }
@@ -456,7 +457,7 @@ function advanceDocStreak(state: GameState, rewards: Reward[]): GameState {
       rewards.push({
         kind: 'currency',
         amount: seeds,
-        message: `🔥 Doc Streak ×${nextStreak} · +${seeds} 🌰`,
+        ...msg('reward.doc_streak', { streak: nextStreak, seeds }),
       })
       next = { ...state, player: { ...state.player, currency: state.player.currency + seeds } }
     }

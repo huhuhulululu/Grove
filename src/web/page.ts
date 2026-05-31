@@ -30,6 +30,8 @@ import {
   realizedLegendaryShinyRate,
 } from '../engine/reduce'
 import { SOFT_PITY, HARD_PITY } from '../engine/gacha'
+import type { Locale } from '../i18n/types'
+import { t } from '../i18n/t'
 
 // ---------------------------------------------------------------------------
 // Small pure helpers
@@ -54,7 +56,7 @@ function pct(n: number): number {
 // Section builders — each returns an HTML fragment string from the state.
 // ---------------------------------------------------------------------------
 
-function headerSection(state: GameState): string {
+function headerSection(state: GameState, _locale: Locale): string {
   const { level, xp, currency } = state.player
   const shards = state.player.shards ?? 0
   const needed = xpForLevel(level)
@@ -76,39 +78,37 @@ function headerSection(state: GameState): string {
   </header>`
 }
 
-function energySection(state: GameState): string {
+function energySection(state: GameState, locale: Locale): string {
   const { energy } = state
   if (!energy.known) {
-    return section('⚡ Energy', `<div class="muted">Wellspring · unmetered</div>`)
+    return section(t(locale, 'ui.web.energy'), `<div class="muted">${esc(t(locale, 'ui.energy.wellspring'))}</div>`)
   }
   const rows: string[] = []
   if (energy.vigor !== undefined) {
     const v = pct(energy.vigor)
-    rows.push(energyRow('⚡', 'Vigor', v))
+    rows.push(energyRow('⚡', t(locale, 'ui.energy.vigor'), 'vigor', v))
   }
   if (energy.sap !== undefined) {
     const s = pct(energy.sap)
-    rows.push(energyRow('🌿', 'Weekly', s))
+    rows.push(energyRow('🌿', t(locale, 'ui.energy.weekly'), 'sap', s))
   }
   const low =
     (energy.vigor !== undefined && energy.vigor < 20) ||
     (energy.sap !== undefined && energy.sap < 20)
-  const cue = low ? `<div class="muted">good stopping point</div>` : ''
-  return section('⚡ Energy', rows.join('') + cue)
+  const cue = low ? `<div class="muted">${esc(t(locale, 'ui.energy.stopping_point').trim())}</div>` : ''
+  return section(t(locale, 'ui.web.energy'), rows.join('') + cue)
 }
 
-function energyRow(icon: string, label: string, value: number): string {
-  // data-bind keys are the lower-cased label (vigor / weekly→sap handled by caller).
-  const key = label.toLowerCase() === 'vigor' ? 'vigor' : 'sap'
+function energyRow(icon: string, label: string, bindKey: 'vigor' | 'sap', value: number): string {
   return `
     <div class="erow">
       <span class="elabel">${icon} ${esc(label)}</span>
-      <span class="bar"><span class="fill" data-bind-style="${key}" style="width:${value}%"></span></span>
-      <span class="epct"><span data-bind="${key}Pct">${value}</span>%</span>
+      <span class="bar"><span class="fill" data-bind-style="${bindKey}" style="width:${value}%"></span></span>
+      <span class="epct"><span data-bind="${bindKey}Pct">${value}</span>%</span>
     </div>`
 }
 
-function collectionSection(state: GameState): string {
+function collectionSection(state: GameState, locale: Locale): string {
   const ownedIds = new Set(state.cards.map((c) => c.id))
   const level = Math.max(1, state.player.level)
   const rows = Object.keys(CARD_SETS).map((setName) => {
@@ -122,12 +122,12 @@ function collectionSection(state: GameState): string {
     const done = total > 0 && owned === total ? ' <span class="tag done">✓</span>' : ''
     return `<li>${esc(setName)} <span class="count">${owned}/${total}</span>${done}</li>`
   })
-  return section('🃏 Collection', `<ul class="list">${rows.join('')}</ul>`)
+  return section(t(locale, 'ui.web.collection'), `<ul class="list">${rows.join('')}</ul>`)
 }
 
-function gearSection(state: GameState): string {
+function gearSection(state: GameState, locale: Locale): string {
   if (state.gear.length === 0) {
-    return section('⚔️ Gear', `<div class="muted">(no gear yet · merge a PR to drop some)</div>`)
+    return section(t(locale, 'ui.web.gear'), `<div class="muted">${esc(t(locale, 'ui.gear.none'))}</div>`)
   }
   const protectedSet = new Set(state.protectedGear)
   const rows = state.gear.map((g) => {
@@ -137,10 +137,10 @@ function gearSection(state: GameState): string {
     const prot = protectedSet.has(g.id) ? ` <span class="tag">PROTECTED</span>` : ''
     return `<li>${esc(g.name)} <span class="lvl">+${g.level}</span>${broken}${prot}${effectStr}</li>`
   })
-  return section('⚔️ Gear', `<ul class="list">${rows.join('')}</ul>`)
+  return section(t(locale, 'ui.web.gear'), `<ul class="list">${rows.join('')}</ul>`)
 }
 
-function questsSection(state: GameState): string {
+function questsSection(state: GameState, locale: Locale): string {
   const rows = QUESTS.map((def) => {
     const progress = state.quests.find((q) => q.id === def.id)
     let glyph = '·'
@@ -152,25 +152,29 @@ function questsSection(state: GameState): string {
       glyph = '◆'
       cls = 'active'
     }
-    return `<li class="${cls}"><span class="glyph">${glyph}</span> ${esc(def.title)}</li>`
+    const title = t(locale, `quest.${def.id}.title`)
+    return `<li class="${cls}"><span class="glyph">${glyph}</span> ${esc(title)}</li>`
   })
-  return section('🎯 Quests', `<ul class="list">${rows.join('')}</ul>`)
+  return section(t(locale, 'ui.web.quests'), `<ul class="list">${rows.join('')}</ul>`)
 }
 
-function economySection(state: GameState): string {
+function economySection(state: GameState, locale: Locale): string {
   const seeds = state.player.currency
   const rank = prestigeRank(state)
   const nextPrestige = prestigeCost(rank)
   const can: string[] = []
-  if (seeds >= PULL_COST) can.push(`pull (${PULL_COST})`)
-  if (seeds >= PREMIUM_PULL_COST) can.push(`premium (${PREMIUM_PULL_COST})`)
-  if (seeds >= nextPrestige) can.push(`prestige (${nextPrestige})`)
-  const cta = can.length > 0 ? `can: ${esc(can.join(' · '))}` : 'keep shipping for seeds'
+  if (seeds >= PULL_COST) can.push(t(locale, 'ui.can.pull', { cost: PULL_COST }))
+  if (seeds >= PREMIUM_PULL_COST) can.push(t(locale, 'ui.can.premium', { cost: PREMIUM_PULL_COST }))
+  if (seeds >= nextPrestige) can.push(t(locale, 'ui.can.prestige', { cost: nextPrestige }))
+  const cta =
+    can.length > 0
+      ? esc(t(locale, 'ui.header.can', { actions: can.join(' · ') }))
+      : 'keep shipping for seeds'
   const body = `
     <div class="econrow"><span>🌰 ${seeds} seeds</span></div>
     <div class="econrow"><span>pull ${PULL_COST} · premium ${PREMIUM_PULL_COST} · prestige ${nextPrestige}</span></div>
     <div class="cta">${cta}</div>`
-  return section('💰 Economy', body)
+  return section(t(locale, 'ui.web.economy'), body)
 }
 
 /**
@@ -179,27 +183,42 @@ function economySection(state: GameState): string {
  * spark progress for the targeted premium guarantee, how many cards are left, and
  * the foil shard-sink option. So a web viewer sees WHY a pull/save matters too.
  */
-function oddsSection(state: GameState): string {
+function oddsSection(state: GameState, locale: Locale): string {
   const pity = pityProgress(state)
   const spark = sparkProgress(state)
   const missing = missingCardIdsForPlayer(state).length
   const realizedPer100 = (realizedLegendaryShinyRate() * 100).toFixed(1)
 
-  const pityStatus = pity.softActive
+  const pityStatusSuffix = pity.softActive
     ? pity.hardNext
-      ? 'hard NEXT'
-      : 'soft on'
-    : `${pity.pullsToHard} to hard`
-  const sparkStatus = spark.guaranteedNext ? ' · guarantee armed' : ''
-  const leftStr = missing > 0 ? `${missing} cards left to collect` : 'collection complete'
+      ? t(locale, 'ui.odds.pity_hard_next')
+      : t(locale, 'ui.odds.pity_soft_on')
+    : t(locale, 'ui.odds.pity_to_hard', { n: pity.pullsToHard })
+  const pityLine = t(locale, 'ui.odds.pity', {
+    since: pity.sinceLegendary,
+    hard: pity.hardPity,
+    status: pityStatusSuffix,
+  })
+  const rateLine = t(locale, 'ui.odds.rate', { per100: realizedPer100 })
+  const sparkLine = spark.guaranteedNext
+    ? t(locale, 'ui.odds.spark_armed', { spark: spark.spark, threshold: spark.threshold })
+    : t(locale, 'ui.odds.spark', { spark: spark.spark, threshold: spark.threshold })
+  const leftStr =
+    missing > 0
+      ? t(locale, 'ui.odds.cards_left', { n: missing })
+      : t(locale, 'ui.odds.complete')
+  const foilLine = t(locale, 'ui.odds.foil', {
+    min: FOIL_COST_BY_RARITY.common,
+    max: FOIL_COST_BY_RARITY.shiny,
+  })
 
   const body = `
-    <div class="econrow">🎯 pity <span data-bind="pity">${pity.sinceLegendary}/${pity.hardPity} · ${esc(pityStatus)}</span></div>
-    <div class="econrow">legendary+shiny ~${realizedPer100} per 100 pulls</div>
-    <div class="econrow">✦ spark <span data-bind="spark">${spark.spark}/${spark.threshold}${esc(sparkStatus)}</span></div>
+    <div class="econrow"><span data-bind="pity">${esc(pityLine)}</span></div>
+    <div class="econrow">${esc(rateLine)}</div>
+    <div class="econrow"><span data-bind="spark">${esc(sparkLine)}</span></div>
     <div class="econrow"><span data-bind="cardsLeft">${esc(leftStr)}</span></div>
-    <div class="muted">✨ foil any owned card · ${FOIL_COST_BY_RARITY.common} to ${FOIL_COST_BY_RARITY.shiny} shards by rarity (sq foil)</div>`
-  return section('🎲 Odds', body)
+    <div class="muted">${esc(foilLine)}</div>`
+  return section(t(locale, 'ui.web.odds'), body)
 }
 
 /** Wrap a titled card section. */
@@ -269,11 +288,42 @@ const STYLE = `
  * need the card catalogue (cards-left) change only on a pull and are left to the
  * next natural reconnect; everything a viewer watches second-to-second is patched.
  */
-function buildScript(): string {
+/**
+ * Escape a string for safe embedding as a JS string literal (single-quoted).
+ * We only need to escape backslash, single-quote, and newline for our use-case.
+ */
+function jsStr(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')
+}
+
+function buildScript(locale: Locale): string {
+  // Pre-translate the locale-dependent pity/spark status strings so the live SSE
+  // client can patch them without knowing about the catalog.
+  const txtHardNext = jsStr(t(locale, 'ui.odds.pity_hard_next'))
+  const txtSoftOn = jsStr(t(locale, 'ui.odds.pity_soft_on'))
+  // ui.odds.pity_to_hard uses {n} placeholder — we keep a template and replace in JS.
+  // Simplest: extract the prefix/suffix around {n} by splitting on it.
+  const pityToHardTemplate = t(locale, 'ui.odds.pity_to_hard', { n: '__N__' })
+  const pityToHardParts = pityToHardTemplate.split('__N__')
+  const txtToHardPre = jsStr(pityToHardParts[0] ?? '')
+  const txtToHardSuf = jsStr(pityToHardParts[1] ?? '')
+  // spark armed suffix: extract from the full spark_armed template by comparing to spark template
+  // We pass the spark template with placeholders replaced for a fixed value, then strip the number parts.
+  // Simplest: use the suffix that's present in spark_armed but not spark.
+  const sparkArmedFull = t(locale, 'ui.odds.spark_armed', { spark: '__S__', threshold: '__T__' })
+  const sparkBase = t(locale, 'ui.odds.spark', { spark: '__S__', threshold: '__T__' })
+  // The armed suffix is whatever comes after the base in sparkArmedFull.
+  const txtSparkArmedSuffix = jsStr(sparkArmedFull.replace(sparkBase, ''))
+
   return `
   (function () {
     if (typeof EventSource === 'undefined') return;
     var SOFT = ${SOFT_PITY}, HARD = ${HARD_PITY}, SPARK = ${SPARK_THRESHOLD};
+    var TXT_HARD_NEXT = '${txtHardNext}';
+    var TXT_SOFT_ON = '${txtSoftOn}';
+    var TXT_TO_HARD_PRE = '${txtToHardPre}';
+    var TXT_TO_HARD_SUF = '${txtToHardSuf}';
+    var TXT_SPARK_ARMED_SUFFIX = '${txtSparkArmedSuffix}';
     function xpForLevel(level){ return Math.min(2000, Math.round(50 * Math.pow(Math.max(1, level), 1.5))); }
     function setText(name, value){
       var el = document.querySelector('[data-bind="' + name + '"]');
@@ -302,11 +352,13 @@ function buildScript(): string {
         setText('prestige', rank);
         // pity
         var since = (s.pity && s.pity.sinceLegendary) || 0;
-        var pityStatus = since >= SOFT ? (since + 1 >= HARD ? 'hard NEXT' : 'soft on') : (Math.max(0, HARD - since) + ' to hard');
-        setText('pity', since + '/' + HARD + ' · ' + pityStatus);
+        var pityStatus = since >= SOFT
+          ? (since + 1 >= HARD ? TXT_HARD_NEXT : TXT_SOFT_ON)
+          : (TXT_TO_HARD_PRE + Math.max(0, HARD - since) + TXT_TO_HARD_SUF);
+        setText('pity', since + '/' + HARD + ' ' + pityStatus);
         // spark
         var spark = s.spark || 0;
-        var armed = spark >= SPARK ? ' · guarantee armed' : '';
+        var armed = spark >= SPARK ? TXT_SPARK_ARMED_SUFFIX : '';
         setText('spark', spark + '/' + SPARK + armed);
         // energy
         var en = s.energy || {};
@@ -348,21 +400,21 @@ function buildScript(): string {
  * subscribes to `/events`, patching the live facts into the DOM in place (R8 — no
  * full page reload).
  */
-export function renderPage(state: GameState): string {
+export function renderPage(state: GameState, locale: Locale = 'en'): string {
   const body = [
-    headerSection(state),
+    headerSection(state, locale),
     `<div class="grid">`,
-    energySection(state),
-    oddsSection(state),
-    collectionSection(state),
-    gearSection(state),
-    questsSection(state),
-    economySection(state),
+    energySection(state, locale),
+    oddsSection(state, locale),
+    collectionSection(state, locale),
+    gearSection(state, locale),
+    questsSection(state, locale),
+    economySection(state, locale),
     `</div>`,
   ].join('\n')
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${esc(locale)}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -372,9 +424,9 @@ export function renderPage(state: GameState): string {
 <body>
   <div class="wrap">
     ${body}
-    <footer>live · local-first · read-only</footer>
+    <footer>${esc(t(locale, 'ui.web.footer'))}</footer>
   </div>
-  <script>${buildScript()}</script>
+  <script>${buildScript(locale)}</script>
 </body>
 </html>`
 }

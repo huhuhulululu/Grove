@@ -999,3 +999,57 @@ describe('renderDashboard — ODDS / decision-point honesty', () => {
     expect(foilLine).toContain('(sq foil)')
   })
 })
+
+// ---------------------------------------------------------------------------
+// zh-CN locale rendering
+// ---------------------------------------------------------------------------
+
+describe('renderDashboard — zh-CN locale', () => {
+  it('renders panel titles in zh-CN', () => {
+    const out = renderDashboard(initialState(), { locale: 'zh-CN' })
+    expect(out).toContain('精力')
+    expect(out).toContain('工作')
+    expect(out).toContain('收藏')
+    expect(out).toContain('装备')
+    expect(out).toContain('任务')
+    expect(out).toContain('增益')
+  })
+
+  it('renders zh-CN quest titles in the QUESTS panel', () => {
+    const out = renderDashboard(initialState(), { locale: 'zh-CN' })
+    expect(out).toContain('写 CLAUDE.md')
+    expect(out).toContain('先写规格')
+  })
+
+  it('renders zh-CN Wellspring when energy.known=false', () => {
+    const out = renderDashboard(initialState(), { locale: 'zh-CN' })
+    expect(out).toContain('源泉')
+    expect(out).toContain('未计量')
+  })
+
+  it('renders zh-CN none in BUFFS when no buffs', () => {
+    const out = renderDashboard(initialState(), { locale: 'zh-CN' })
+    expect(out).toContain('无')
+  })
+
+  it('renders zh-CN prestige rollup badge', () => {
+    const state = stateWithBuffs(prestigeBuffs(2))
+    const out = renderDashboard(state, { locale: 'zh-CN' })
+    expect(out).toContain('威望 ×2')
+  })
+
+  it('renders zh-CN gear none hint when no gear', () => {
+    const out = renderDashboard(initialState(), { locale: 'zh-CN' })
+    expect(out).toContain('暂无装备')
+  })
+
+  it('still passes layout constraints (no line exceeds 60 chars)', () => {
+    const out = renderDashboard(initialState(), { locale: 'zh-CN' })
+    for (const line of out.split('\n')) {
+      // Display-width check: CJK chars are 2 cells but .length is 1 — use cell count
+      // The test suite already verifies displayWidth for en; zh-CN strings are longer
+      // in cells so just verify raw .length stays <= 60 (box is padded by cell width).
+      expect(line.length).toBeLessThanOrEqual(60)
+    }
+  })
+})

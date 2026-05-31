@@ -18,6 +18,7 @@ import { runTui } from '../../tui/app'
 import { startWebServer } from '../../web/server'
 import { renderDashboard } from '../../render/dashboard'
 import { stateDir } from '../../store/paths'
+import type { Locale } from '../../i18n/types'
 import {
   parsePositiveIntFlag,
   parseIntFlag,
@@ -32,6 +33,7 @@ export function handleEvent(
   flags: Record<string, string>,
   dir: string,
   zen: boolean,
+  locale: Locale = 'en',
 ): number {
   const type = positional[0]
 
@@ -74,35 +76,35 @@ export function handleEvent(
 
   if (zen) {
     // Calm: engine ran & persisted; suppress all loot/crit/offers · one quiet line.
-    calmConfirm(success ? `${type} recorded` : `${type} recorded (no reward)`)
+    calmConfirm(success ? `${type} recorded` : `${type} recorded (no reward)`, locale)
     return 0
   }
 
   if (rewards.length === 0) {
     console.log('  (no drop)')
   } else {
-    printRewards(rewards)
+    printRewards(rewards, locale)
   }
 
   // Contextual offers
-  printContextualOffers(rewards, dir)
+  printContextualOffers(rewards, dir, locale)
 
   return 0
 }
 
-export function handleStatus(dir: string, zen: boolean): number {
+export function handleStatus(dir: string, zen: boolean, locale: Locale = 'en'): number {
   const state = loadState(dir)
   if (zen) {
     // Quiet status: a single terse line, no banner/box spectacle.
     const { player, cards } = state
-    calmConfirm(`Level ${player.level} · ${player.currency} 🌰 · ${cards.length} cards`)
+    calmConfirm(`Level ${player.level} · ${player.currency} 🌰 · ${cards.length} cards`, locale)
     return 0
   }
-  console.log(formatStatus(state))
+  console.log(formatStatus(state, locale))
   return 0
 }
 
-export function handleRecap(flags: Record<string, string>, dir: string): number {
+export function handleRecap(flags: Record<string, string>, dir: string, locale: Locale = 'en'): number {
   const events = readEvents(dir)
   const state = loadState(dir)
 
@@ -122,11 +124,11 @@ export function handleRecap(flags: Record<string, string>, dir: string): number 
   // 'all' → sinceTs stays undefined
 
   const recap = buildRecap(events, state, sinceTs !== undefined ? { sinceTs } : undefined)
-  console.log(formatRecap(recap))
+  console.log(formatRecap(recap, locale))
   return 0
 }
 
-export function handleScan(positional: string[], dir: string, zen: boolean): number {
+export function handleScan(positional: string[], dir: string, zen: boolean, locale: Locale = 'en'): number {
   const repoDir = positional[0] ?? process.cwd()
 
   const { events, notes } = scanRepo(repoDir)
@@ -144,9 +146,7 @@ export function handleScan(positional: string[], dir: string, zen: boolean): num
     if (rewards.length === 0) {
       console.log('  (nothing new)')
     } else {
-      for (const reward of rewards) {
-        console.log(formatReward(reward))
-      }
+      printRewards(rewards, locale)
     }
   }
 
@@ -162,7 +162,7 @@ export function handleScan(positional: string[], dir: string, zen: boolean): num
   const eventCount = events.length
   if (zen) {
     // Calm: a single terse confirmation, no per-reward loot, no "reward(s)" tally spectacle.
-    calmConfirm(`scan complete · ${eventCount} signal(s)${typeList ? ` (${typeList})` : ''}`)
+    calmConfirm(`scan complete · ${eventCount} signal(s)${typeList ? ` (${typeList})` : ''}`, locale)
     return 0
   }
   console.log(
@@ -172,13 +172,13 @@ export function handleScan(positional: string[], dir: string, zen: boolean): num
   return 0
 }
 
-export function handleQuests(dir: string): number {
+export function handleQuests(dir: string, locale: Locale = 'en'): number {
   const state = loadState(dir)
-  console.log(formatQuests(QUESTS, state))
+  console.log(formatQuests(QUESTS, state, locale))
   return 0
 }
 
-export function handleDashboard(flags: Record<string, string>, dir: string): number {
+export function handleDashboard(flags: Record<string, string>, dir: string, locale: Locale = 'en'): number {
   const noClear = flags['no-clear'] === 'true'
 
   if (!noClear) {
@@ -187,7 +187,7 @@ export function handleDashboard(flags: Record<string, string>, dir: string): num
 
   const state = loadState(dir)
   // Inject wall-clock epoch so energy ETAs render correctly (pure renderer).
-  console.log(renderDashboard(state, { nowEpoch: Date.now() }))
+  console.log(renderDashboard(state, { nowEpoch: Date.now(), locale }))
   return 0
 }
 

@@ -2,6 +2,7 @@ import type { Card, Rarity } from '../core/rewards'
 import type { GameState } from '../core/state'
 import type { Reward } from '../core/rewards'
 import { cardIdsInSet } from '../core/cards'
+import { msg } from '../i18n/t'
 
 // ---------------------------------------------------------------------------
 // DUP TAIL (R5) — a duplicate pull is never worthless: it accrues cosmetic
@@ -75,7 +76,7 @@ export function convertShards(
     rewards.push({
       kind: 'currency',
       amount: haveShards,
-      message: `no shards to convert — have ${haveShards}`,
+      ...msg('reward.no_shards_convert', { have: haveShards }),
     })
     return { state: { ...state, player: { ...state.player } }, rewards }
   }
@@ -84,7 +85,7 @@ export function convertShards(
   rewards.push({
     kind: 'currency',
     amount: seeds,
-    message: `+${seeds} 🌰 · ${convert} shards → seeds`,
+    ...msg('reward.shards_to_seeds', { seeds, convert }),
   })
   return {
     state: {
@@ -117,7 +118,7 @@ export function grantDupComp(state: GameState, rarity: Rarity, rewards: Reward[]
   rewards.push({
     kind: 'currency',
     amount: DUP_COMP_SEEDS,
-    message: `+${DUP_COMP_SEEDS} 🌰 · +${shards} shards · dupe`,
+    ...msg('reward.dupe', { seeds: DUP_COMP_SEEDS, shards }),
   })
   return {
     ...state,

@@ -506,3 +506,69 @@ describe('formatQuests', () => {
     }
   })
 })
+
+// ---------------------------------------------------------------------------
+// zh-CN locale rendering
+// ---------------------------------------------------------------------------
+
+describe('zh-CN locale — formatStatus', () => {
+  it('renders the zh-CN status title', () => {
+    const state = makeState()
+    const result = formatStatus(state, 'zh-CN')
+    expect(result).toContain('GROVE 状态')
+  })
+
+  it('renders zh-CN none-yet for empty completed sets', () => {
+    const state = makeState({ completedSets: [] })
+    const result = formatStatus(state, 'zh-CN')
+    expect(result).toContain('尚无')
+  })
+
+  it('renders zh-CN prestige badge', () => {
+    const state = makeState({
+      buffs: [
+        { id: 'prestige:mark', label: 'Prestige 1', kind: 'rest' },
+        { id: 'prestige:mark:2', label: 'Prestige 2', kind: 'rest' },
+      ],
+    })
+    const result = formatStatus(state, 'zh-CN')
+    expect(result).toContain('威望 ×2')
+  })
+})
+
+describe('zh-CN locale — formatRecap', () => {
+  it('renders zh-CN recap title', () => {
+    const recap = makeRecap({ window: 'last-hour' })
+    const result = formatRecap(recap, 'zh-CN')
+    expect(result).toContain('回顾')
+    expect(result).toContain('last-hour')
+  })
+
+  it('renders zh-CN no-events placeholder', () => {
+    const recap = makeRecap({ byType: {} })
+    const result = formatRecap(recap, 'zh-CN')
+    expect(result).toContain('无事件')
+  })
+})
+
+describe('zh-CN locale — formatQuests', () => {
+  it('renders zh-CN quest board title', () => {
+    const state = makeState({ quests: [] })
+    const result = formatQuests(QUESTS, state, 'zh-CN')
+    expect(result).toContain('任务看板')
+  })
+
+  it('renders zh-CN quest titles', () => {
+    const state = makeState({ quests: [] })
+    const result = formatQuests(QUESTS, state, 'zh-CN')
+    expect(result).toContain('写 CLAUDE.md')
+  })
+
+  it('renders zh-CN active buffs section label', () => {
+    const state = makeState({
+      buffs: [{ id: 'aura:grimoire', label: '魔典光环', kind: 'aura' }],
+    })
+    const result = formatQuests(QUESTS, state, 'zh-CN')
+    expect(result).toContain('活跃增益:')
+  })
+})

@@ -12,6 +12,8 @@ import type { Gear, Rarity } from '../core/rewards'
 import { rarityRank } from '../core/rewards'
 import type { EnhanceResult } from '../engine/gear'
 import { enhanceTable } from '../engine/gear'
+import type { Locale } from '../i18n/types'
+import { t } from '../i18n/t'
 
 // ---------------------------------------------------------------------------
 // renderEnhanceOdds
@@ -24,15 +26,23 @@ import { enhanceTable } from '../engine/gear'
  *   <name> +<level> → +<level+1>
  *   success 70%  downgrade 25%  break 5%
  */
-export function renderEnhanceOdds(gear: Gear): string {
+export function renderEnhanceOdds(gear: Gear, locale: Locale = 'en'): string {
   const table = enhanceTable(gear.level)
 
   const successPct  = Math.round(table.success   * 100)
   const downgradePct = Math.round(table.downgrade * 100)
   const breakPct    = Math.round(table.break      * 100)
 
-  const transition = `${gear.name} +${gear.level} → +${gear.level + 1}`
-  const odds = `success ${successPct}%  downgrade ${downgradePct}%  break ${breakPct}%`
+  const transition = t(locale, 'ui.enhance.odds_transition', {
+    name: gear.name,
+    level: gear.level,
+    next: gear.level + 1,
+  })
+  const odds = t(locale, 'ui.enhance.odds', {
+    success: successPct,
+    downgrade: downgradePct,
+    break: breakPct,
+  })
 
   return `${transition}\n${odds}`
 }
@@ -49,19 +59,19 @@ export function renderEnhanceOdds(gear: Gear): string {
  * - break     → dramatic but MUST reassure cosmetic-only (ADR-0005)
  * - stay      → calm note that nothing happened (already broken)
  */
-export function renderEnhanceResult(before: Gear, after: Gear, result: EnhanceResult): string {
+export function renderEnhanceResult(before: Gear, after: Gear, result: EnhanceResult, locale: Locale = 'en'): string {
   switch (result) {
     case 'success':
-      return `ENHANCE +${before.level}→+${after.level}\n✓ success`
+      return t(locale, 'ui.enhance.success', { before: before.level, after: after.level })
 
     case 'downgrade':
-      return `ENHANCE +${before.level}→+${after.level}\n↓ +${after.level}`
+      return t(locale, 'ui.enhance.downgrade', { before: before.level, after: after.level })
 
     case 'break':
-      return `ENHANCE +${before.level}→+${after.level}\n✗ SHATTERED (code safe)`
+      return t(locale, 'ui.enhance.break', { before: before.level, after: after.level })
 
     case 'stay':
-      return `– broken`
+      return t(locale, 'ui.enhance.stay')
   }
 }
 

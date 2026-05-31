@@ -241,3 +241,43 @@ describe('renderReadmeBadge — markdown badge', () => {
     expect(badge.trim().split('\n')).toHaveLength(1)
   })
 })
+
+// ---------------------------------------------------------------------------
+// zh-CN locale rendering
+// ---------------------------------------------------------------------------
+
+describe('renderShareCard — zh-CN locale', () => {
+  it('renders zh-CN cards line', () => {
+    const state = stateAt({ level: 3, cards: makeCards(5) })
+    const card = renderShareCard(state, { locale: 'zh-CN' })
+    expect(card).toContain('卡牌')
+    expect(card).toContain('5')
+  })
+
+  it('renders zh-CN prestige line when rank > 0', () => {
+    const state = stateAt({
+      level: 8,
+      buffs: [{ id: 'prestige:mark', label: 'Prestige I', kind: 'rest' }],
+    })
+    const card = renderShareCard(state, { locale: 'zh-CN' })
+    expect(card).toContain('威望')
+  })
+
+  it('renders zh-CN legendary flex line', () => {
+    const state = stateAt({ level: 4 })
+    const card = renderShareCard(state, { locale: 'zh-CN', recentRarity: 'legendary' })
+    expect(card).toContain('传说')
+  })
+
+  it('renders zh-CN groove flex line for low-level player', () => {
+    const state = stateAt({ level: 3 })
+    const card = renderShareCard(state, { locale: 'zh-CN' })
+    expect(card).toContain('渐入佳境')
+  })
+
+  it('still includes the level number', () => {
+    const state = stateAt({ level: 7 })
+    const card = renderShareCard(state, { locale: 'zh-CN' })
+    expect(card).toContain('7')
+  })
+})

@@ -30,6 +30,8 @@ import { pickSalientReward, salientRarity } from '../../tui/juice'
 import { mulberry32, hashStringToSeed } from '../../core/rng'
 import type { GameState } from '../../core/state'
 import type { Reward, Rarity } from '../../core/rewards'
+import { t } from '../../i18n/t'
+import type { Locale } from '../../i18n/types'
 import {
   parseIntFlag,
   parsePositiveIntFlag,
@@ -69,7 +71,7 @@ export const PROTECT_COST = 40
  * Time-seeded for variety, or a fixed --seed for tests. When broke, prints a
  * friendly earn-more-by-shipping hint.
  */
-export function handlePull(flags: Record<string, string>, dir: string, zen: boolean): number {
+export function handlePull(flags: Record<string, string>, dir: string, zen: boolean, locale: Locale = 'en'): number {
   const premium = flags['premium'] === 'true'
   const cost = premium ? PREMIUM_PULL_COST : PULL_COST
   // --spark <id>: the missing card a PREMIUM banner builds its guarantee toward
@@ -109,25 +111,25 @@ export function handlePull(flags: Record<string, string>, dir: string, zen: bool
   if (!result.affordable) {
     if (zen) {
       // Calm refusal · no spectacle, no earn-more nudge.
-      calmConfirm(`pull skipped · not enough 🌰 (need ${cost})`)
+      calmConfirm(t(locale, 'cli.confirm.pull_skipped', { cost }), locale)
       return 0
     }
     // The engine already pushed the calm 'not enough' reward; surface it + a hint.
-    printRewards(result.rewards)
-    console.log('  earn more 🌰 by shipping · commits, green tests, merges, docs.')
+    printRewards(result.rewards, locale)
+    console.log(t(locale, 'cli.broke_hint'))
     return 0
   }
 
   if (zen) {
     // Calm: the pull happened & persisted; suppress the reveal + loot line.
-    calmConfirm(premium ? 'premium pull done' : 'pull done')
+    calmConfirm(t(locale, premium ? 'cli.confirm.premium_pull_done' : 'cli.confirm.pull_done'), locale)
     return 0
   }
 
   // Affordable: play the pack-opening suspense (escalating with the salient drop's
   // rarity · a shiny builds longer than a common), then reveal the drop.
   playReveal(renderPullFrames(revealRarityFor(result.rewards)))
-  printRewards(result.rewards)
+  printRewards(result.rewards, locale)
   return 0
 }
 
@@ -143,6 +145,7 @@ export function handleEnhance(
   flags: Record<string, string>,
   dir: string,
   zen: boolean,
+  locale: Locale = 'en',
 ): number {
   const ref = positional[0]
 
@@ -154,7 +157,7 @@ export function handleEnhance(
   const state = loadState(dir)
 
   if (state.gear.length === 0) {
-    console.log('(no gear yet · merge a PR to drop some: sq event pr_merged)')
+    console.log(t(locale, 'cli.gear.none_pull'))
     return 0
   }
 
@@ -228,14 +231,14 @@ export function handleEnhance(
   }
 
   if (outcome.kind === 'broke') {
-    console.log(`  not enough 🌰 · enhance costs ${outcome.cost}, have ${outcome.have}.`)
-    console.log('  earn more 🌰 by shipping · commits, green tests, merges, docs.')
+    console.log(t(locale, 'cli.broke_enhance', { cost: outcome.cost, have: outcome.have }))
+    console.log(t(locale, 'cli.broke_hint'))
     return 0
   }
 
   if (zen) {
     // Calm: the attempt ran & persisted; suppress the odds + juicy result reveal.
-    calmConfirm(`enhance ${before.name} · attempt recorded`)
+    calmConfirm(t(locale, 'cli.confirm.enhance_recorded', { name: before.name }), locale)
     return 0
   }
 
@@ -257,7 +260,7 @@ export function handleEnhance(
  * repairCost) · a broken +12 costs far more than a +1, instead of the old flat
  * 50. Refuses calmly when broke. Cosmetic only (ADR-0005).
  */
-export function handleRepair(positional: string[], _flags: Record<string, string>, dir: string, zen: boolean): number {
+export function handleRepair(positional: string[], _flags: Record<string, string>, dir: string, zen: boolean, locale: Locale = 'en'): number {
   const ref = positional[0]
   if (!ref) {
     console.error('Error: gear ref is required. Use a gear id, 1-based index, or "first".')
@@ -290,23 +293,23 @@ export function handleRepair(positional: string[], _flags: Record<string, string
 
   switch (outcome.kind) {
     case 'nogear':
-      console.log('(no gear yet · nothing to repair)')
+      console.log(t(locale, 'cli.gear.none_repair'))
       return 0
     case 'badref':
       console.error(`Error: no gear at ref "${ref}". You have ${outcome.count} piece(s).`)
       return 2
     case 'notbroken':
-      console.log(`  ${outcome.gear.name} +${outcome.gear.level} isn't broken · nothing to repair.`)
+      console.log(t(locale, 'cli.gear.not_broken', { name: outcome.gear.name, level: outcome.gear.level }))
       return 0
     case 'broke':
-      console.log(`  not enough 🌰 · repair costs ${outcome.cost}, have ${outcome.have}.`)
-      console.log('  earn more 🌰 by shipping · commits, green tests, merges, docs.')
+      console.log(t(locale, 'cli.broke_repair', { cost: outcome.cost, have: outcome.have }))
+      console.log(t(locale, 'cli.broke_hint'))
       return 0
     case 'repaired':
       if (zen) {
-        calmConfirm(`repaired ${outcome.gear.name} +${outcome.gear.level}`)
+        calmConfirm(t(locale, 'cli.confirm.repaired', { name: outcome.gear.name, level: outcome.gear.level }), locale)
       } else {
-        console.log(`  🔧 REPAIRED · ${outcome.gear.name} +${outcome.gear.level} · -${outcome.cost} 🌰`)
+        console.log(t(locale, 'cli.gear.repaired', { name: outcome.gear.name, level: outcome.gear.level, cost: outcome.cost }))
       }
       return 0
   }
@@ -317,7 +320,7 @@ export function handleRepair(positional: string[], _flags: Record<string, string
  * a gear: the next enhance turns a would-be cosmetic break into a downgrade.
  * Refuses calmly when broke. Cosmetic risk-management only (ADR-0005).
  */
-export function handleProtect(positional: string[], _flags: Record<string, string>, dir: string, zen: boolean): number {
+export function handleProtect(positional: string[], _flags: Record<string, string>, dir: string, zen: boolean, locale: Locale = 'en'): number {
   const ref = positional[0]
   if (!ref) {
     console.error('Error: gear ref is required. Use a gear id, 1-based index, or "first".')
@@ -347,23 +350,23 @@ export function handleProtect(positional: string[], _flags: Record<string, strin
 
   switch (outcome.kind) {
     case 'nogear':
-      console.log('(no gear yet · nothing to protect)')
+      console.log(t(locale, 'cli.gear.none_protect'))
       return 0
     case 'badref':
       console.error(`Error: no gear at ref "${ref}". You have ${outcome.count} piece(s).`)
       return 2
     case 'already':
-      console.log(`  ${outcome.gear.name} +${outcome.gear.level} is already protected.`)
+      console.log(t(locale, 'cli.gear.already_protected', { name: outcome.gear.name, level: outcome.gear.level }))
       return 0
     case 'broke':
-      console.log(`  not enough 🌰 · protect costs ${PROTECT_COST}, have ${outcome.have}.`)
-      console.log('  earn more 🌰 by shipping · commits, green tests, merges, docs.')
+      console.log(t(locale, 'cli.broke_protect', { cost: PROTECT_COST, have: outcome.have }))
+      console.log(t(locale, 'cli.broke_hint'))
       return 0
     case 'armed':
       if (zen) {
-        calmConfirm(`protected ${outcome.gear.name} +${outcome.gear.level} (one enhance)`)
+        calmConfirm(t(locale, 'cli.confirm.protected', { name: outcome.gear.name, level: outcome.gear.level }), locale)
       } else {
-        console.log(`  🛡 PROTECTED · ${outcome.gear.name} +${outcome.gear.level} · -${PROTECT_COST} 🌰 (one enhance)`)
+        console.log(t(locale, 'cli.gear.protected', { name: outcome.gear.name, level: outcome.gear.level, cost: PROTECT_COST }))
       }
       return 0
   }
@@ -375,7 +378,7 @@ export function handleProtect(positional: string[], _flags: Record<string, strin
  * lock, runs the PURE engine `craftCard` (debits SHARDS_PER_CRAFT, or refuses when
  * short / nothing left), persists, and renders the rewards. Respects --zen.
  */
-export function handleCraft(positional: string[], flags: Record<string, string>, dir: string, zen: boolean): number {
+export function handleCraft(positional: string[], flags: Record<string, string>, dir: string, zen: boolean, locale: Locale = 'en'): number {
   const cardId = positional[0]
   const seedFlag = flags['seed']
 
@@ -403,11 +406,11 @@ export function handleCraft(positional: string[], flags: Record<string, string>,
 
   if (zen) {
     // Calm: the engine ran & persisted; one quiet line either way.
-    calmConfirm(result.crafted ? 'crafted' : 'craft skipped')
+    calmConfirm(t(locale, result.crafted ? 'cli.confirm.crafted' : 'cli.confirm.craft_skipped'), locale)
     return 0
   }
 
-  printRewards(result.rewards)
+  printRewards(result.rewards, locale)
   return 0
 }
 
@@ -418,7 +421,7 @@ export function handleCraft(positional: string[], flags: Record<string, string>,
  * calmly when short / unowned / already foiled / nothing left), persists ONLY when
  * the foil actually applied (no no-op write), and renders the reward. Respects --zen.
  */
-export function handleFoil(positional: string[], dir: string, zen: boolean): number {
+export function handleFoil(positional: string[], dir: string, zen: boolean, locale: Locale = 'en'): number {
   const cardId = positional[0]
 
   const result = withStateLock(dir, () => {
@@ -435,11 +438,11 @@ export function handleFoil(positional: string[], dir: string, zen: boolean): num
   })
 
   if (zen) {
-    calmConfirm(result.foiled ? 'foiled' : 'foil skipped')
+    calmConfirm(t(locale, result.foiled ? 'cli.confirm.foiled' : 'cli.confirm.foil_skipped'), locale)
     return 0
   }
 
-  printRewards(result.rewards)
+  printRewards(result.rewards, locale)
   return 0
 }
 
@@ -449,7 +452,7 @@ export function handleFoil(positional: string[], dir: string, zen: boolean): num
  * PURE engine `buyPrestige` (debits prestigeCost(rank), or refuses when broke),
  * persists, and renders the rewards. Cosmetic-only (ADR-0005). Respects --zen.
  */
-export function handlePrestige(_flags: Record<string, string>, dir: string, zen: boolean): number {
+export function handlePrestige(_flags: Record<string, string>, dir: string, zen: boolean, locale: Locale = 'en'): number {
   const result = withStateLock(dir, () => {
     const state = loadState(dir)
     const before = state.buffs.length
@@ -465,11 +468,11 @@ export function handlePrestige(_flags: Record<string, string>, dir: string, zen:
 
   if (zen) {
     // Calm: the engine ran & persisted; one quiet line either way.
-    calmConfirm(result.bought ? 'prestige earned' : 'prestige skipped')
+    calmConfirm(t(locale, result.bought ? 'cli.confirm.prestige_earned' : 'cli.confirm.prestige_skipped'), locale)
     return 0
   }
 
-  printRewards(result.rewards)
+  printRewards(result.rewards, locale)
   return 0
 }
 
@@ -480,7 +483,7 @@ export function handlePrestige(_flags: Record<string, string>, dir: string, zen:
  * and renders the reward. With no count, converts ALL banked shards; with `n`,
  * exactly min(n, banked). Cosmetic-only (ADR-0005). Respects --zen.
  */
-export function handleConvert(positional: string[], dir: string, zen: boolean): number {
+export function handleConvert(positional: string[], dir: string, zen: boolean, locale: Locale = 'en'): number {
   // Optional positive count; absent → convert all (undefined). A non-numeric /
   // zero token is NaN-guarded by parsePositiveIntFlag → 0 → engine refuses calmly.
   const countToken = positional[0]
@@ -505,10 +508,11 @@ export function handleConvert(positional: string[], dir: string, zen: boolean): 
       result.converted > 0
         ? `${result.converted} shards → ${result.converted * SHARD_TO_SEED} 🌰`
         : 'convert skipped · no shards',
+      locale,
     )
     return 0
   }
 
-  printRewards(result.rewards)
+  printRewards(result.rewards, locale)
   return 0
 }

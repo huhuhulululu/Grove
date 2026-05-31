@@ -17,6 +17,8 @@ import { installPostCommit, uninstallPostCommit } from '../../adapters/githook'
 import { parseStatuslinePayload } from '../../adapters/statusline'
 import { installStatusline, uninstallStatusline } from '../../adapters/statusline-install'
 import { stagedDiffStat, createStashSnapshot, currentBranch } from '../../adapters/git-utils'
+import { t } from '../../i18n/t'
+import type { Locale } from '../../i18n/types'
 import {
   calmConfirm,
   groveInvocation,
@@ -126,7 +128,7 @@ export function handleUninstall(flags: Record<string, string>): number {
   return 0
 }
 
-export function handleCommitHook(flags: Record<string, string>, dir: string, zen: boolean): number {
+export function handleCommitHook(flags: Record<string, string>, dir: string, zen: boolean, locale: Locale = 'en'): number {
   // Banner first in normal mode (kept for the loot reveal). Calm mode stays quiet
   // until the single confirmation below · no banner, no loot, no offers.
   if (!zen) console.log('  🌳 grove')
@@ -141,7 +143,7 @@ export function handleCommitHook(flags: Record<string, string>, dir: string, zen
       const { rewards } = ingestEvent(dir, event)
       allRewards.push(...rewards)
       if (zen) continue
-      printRewards(rewards)
+      printRewards(rewards, locale)
     }
 
     // Push-on-big-moment for the whole commit's reward batch (opt-in, default
@@ -151,12 +153,12 @@ export function handleCommitHook(flags: Record<string, string>, dir: string, zen
 
     if (zen) {
       // Calm: engine ran & persisted; one quiet line, no banner/loot/offers.
-      calmConfirm(`commit recorded · ${events.length} signal(s)`)
+      calmConfirm(t(locale, 'cli.commit_recorded', { n: events.length }), locale)
       return 0
     }
 
     // Contextual offers after all events are processed
-    printContextualOffers(allRewards, dir)
+    printContextualOffers(allRewards, dir, locale)
   } catch {
     // Never fail a commit · swallow all errors silently
   }
@@ -315,13 +317,13 @@ function inferCommitType(files: string[]): string {
 // suggest-commit handler
 // ---------------------------------------------------------------------------
 
-export function handleSuggestCommit(flags: Record<string, string>): number {
+export function handleSuggestCommit(flags: Record<string, string>, locale: Locale = 'en'): number {
   const repo = flags['repo'] ?? process.cwd()
 
   const diff = stagedDiffStat(repo)
 
   if (diff === null || diff.files.length === 0) {
-    console.log('  nothing staged · `git add` first, then `sq suggest-commit`.')
+    console.log(t(locale, 'cli.suggest.nothing_staged'))
     return 0
   }
 
@@ -340,7 +342,7 @@ export function handleSuggestCommit(flags: Record<string, string>): number {
     `Changed: ${fileList} (${statsLine})`,
   ].join('\n')
 
-  console.log('  📋 Suggested commit (copy it):')
+  console.log(t(locale, 'cli.suggest.header'))
   console.log('  ─'.repeat(26))
   console.log(suggested.split('\n').map((l) => `  ${l}`).join('\n'))
   console.log('  ─'.repeat(26))
@@ -352,7 +354,7 @@ export function handleSuggestCommit(flags: Record<string, string>): number {
 // checkpoint handler
 // ---------------------------------------------------------------------------
 
-export function handleCheckpoint(flags: Record<string, string>, dir: string, zen: boolean): number {
+export function handleCheckpoint(flags: Record<string, string>, dir: string, zen: boolean, locale: Locale = 'en'): number {
   const repo = flags['repo'] ?? process.cwd()
   const message = flags['m'] ?? 'checkpoint'
 
@@ -409,10 +411,10 @@ export function handleCheckpoint(flags: Record<string, string>, dir: string, zen
   // 5. Print checkpoint confirmation (the safety-net purpose · kept even in calm
   //    mode; it is the command's reason for existing, not loot spectacle).
   if (ref !== '') {
-    console.log(`  📍 Checkpoint saved · ${branch}`)
-    console.log(`  Restore: git stash apply ${ref}`)
+    console.log(t(locale, 'cli.checkpoint.saved', { branch }))
+    console.log(t(locale, 'cli.checkpoint.restore', { ref }))
   } else {
-    console.log(`  📍 Checkpoint · nothing to snapshot · ${branch}`)
+    console.log(t(locale, 'cli.checkpoint.nothing', { branch }))
   }
 
   // Push-on-big-moment (opt-in, default OFF, fire-and-forget) · independent of zen.
@@ -424,10 +426,10 @@ export function handleCheckpoint(flags: Record<string, string>, dir: string, zen
   }
 
   // Print rewards
-  printRewards(rewards)
+  printRewards(rewards, locale)
 
   // 6. Contextual offers
-  printContextualOffers(rewards, dir)
+  printContextualOffers(rewards, dir, locale)
 
   return 0
 }

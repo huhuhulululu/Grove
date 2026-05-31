@@ -20,7 +20,7 @@ import * as fs from 'node:fs'
 import { loadState } from '../store/store'
 import type { GameState } from '../core/state'
 import { renderPage } from './page'
-import { resolveLocale, normalizeLocale } from '../i18n/locale'
+import { localeFromAcceptLanguage, normalizeLocale } from '../i18n/locale'
 
 export interface WebServerOptions {
   /** the per-repo Grove state dir to read (contains state.json) */
@@ -137,10 +137,15 @@ export function startWebServer(opts: WebServerOptions): WebServerHandle {
     }
 
     if (pathname === '/' || pathname === '/index.html') {
-      // Resolve locale: env first, then ?lang= query override.
-      const envLocale = resolveLocale()
+      // Per-request locale for a PUBLIC multi-visitor server: an explicit ?lang=
+      // wins, else auto-detect the visitor's browser Accept-Language, else English.
+      // (We do NOT use the server's own env locale here — it must not force one
+      // language on every visitor.)
       const langParam = url.searchParams.get('lang') ?? undefined
-      const locale = langParam !== undefined ? normalizeLocale(langParam) : envLocale
+      const locale =
+        langParam !== undefined && langParam !== ''
+          ? normalizeLocale(langParam)
+          : (localeFromAcceptLanguage(req.headers['accept-language']) ?? 'en')
       const html = renderPage(loadState(dir), locale)
       send(res, 200, 'text/html; charset=utf-8', html)
       return

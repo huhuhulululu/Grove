@@ -79,13 +79,15 @@ describe('cost isolation — work.lastCostUsd never crosses the network (R-safet
   })
 })
 
-// A tiny GET helper returning { status, body, headers }.
+// A tiny GET helper returning { status, body, headers }. Optional request headers
+// (e.g. Accept-Language) for the locale-detection tests.
 function get(
   url: string,
+  reqHeaders?: http.OutgoingHttpHeaders,
 ): Promise<{ status: number; body: string; headers: http.IncomingHttpHeaders }> {
   return new Promise((resolve, reject) => {
     http
-      .get(url, (res) => {
+      .get(url, reqHeaders ? { headers: reqHeaders } : {}, (res) => {
         let body = ''
         res.setEncoding('utf8')
         res.on('data', (c) => (body += c))
@@ -121,6 +123,26 @@ describe('startWebServer', () => {
     for (const section of ['ENERGY', 'COLLECTION', 'GEAR', 'QUESTS']) {
       expect(upper).toContain(section)
     }
+  })
+
+  it('GET / auto-detects the visitor locale from Accept-Language (?lang= overrides)', async () => {
+    const dir = makeStateDir()
+    saveState(dir, seededState())
+    const srv = startWebServer({ dir, port: 0 })
+    servers.push(srv)
+
+    // Chinese browser → Chinese page, with no manual ?lang=.
+    const zh = await get(srv.url, { 'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8' })
+    expect(zh.body).toContain('怎么玩') // tutorial title
+    expect(zh.body).toContain('收藏') // collection heading
+    // Explicit ?lang= wins over the Accept-Language header.
+    const jaOverride = await get(new URL('/?lang=ja', srv.url).toString(), {
+      'accept-language': 'zh-CN',
+    })
+    expect(jaOverride.body).toContain('遊び方')
+    // No Accept-Language and no ?lang= → English default.
+    const en = await get(srv.url)
+    expect(en.body).toContain('How to play')
   })
 
   it('GET /api/state returns the current game-state JSON', async () => {

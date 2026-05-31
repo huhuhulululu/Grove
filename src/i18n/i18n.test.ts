@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { interpolate, t, msg } from './t'
-import { normalizeLocale, resolveLocale } from './locale'
+import { normalizeLocale, resolveLocale, localeFromAcceptLanguage } from './locale'
 import { LOCALES, DEFAULT_LOCALE } from './types'
 import { en } from './catalog/en'
 import { zhCN } from './catalog/zh-CN'
@@ -75,6 +75,25 @@ describe('normalizeLocale / resolveLocale', () => {
     expect(resolveLocale({ LC_ALL: 'ja_JP', LANG: 'en_US' } as NodeJS.ProcessEnv)).toBe('ja')
     expect(resolveLocale({ LANG: 'en_US' } as NodeJS.ProcessEnv)).toBe('en')
     expect(resolveLocale({} as NodeJS.ProcessEnv)).toBe(DEFAULT_LOCALE)
+  })
+})
+
+describe('localeFromAcceptLanguage — auto-detect a visitor browser language', () => {
+  it('picks the top supported tag honoring order + q-weights', () => {
+    expect(localeFromAcceptLanguage('zh-CN,zh;q=0.9,en;q=0.8')).toBe('zh-CN')
+    expect(localeFromAcceptLanguage('ja-JP,ja;q=0.9')).toBe('ja')
+    expect(localeFromAcceptLanguage('en-US,en;q=0.9')).toBe('en')
+  })
+  it('skips UNSUPPORTED top choices and matches a lower-ranked supported one', () => {
+    expect(localeFromAcceptLanguage('fr-FR,fr;q=0.9,zh;q=0.5')).toBe('zh-CN')
+    // q-weight beats list order
+    expect(localeFromAcceptLanguage('en;q=0.3,ja;q=0.9')).toBe('ja')
+  })
+  it('returns null when absent or no supported language is named', () => {
+    expect(localeFromAcceptLanguage(undefined)).toBeNull()
+    expect(localeFromAcceptLanguage('')).toBeNull()
+    expect(localeFromAcceptLanguage('fr-FR,de;q=0.8')).toBeNull()
+    expect(localeFromAcceptLanguage('*')).toBeNull()
   })
 })
 

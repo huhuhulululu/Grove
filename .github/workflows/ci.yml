@@ -1,0 +1,31 @@
+# CI — the verified-outcome gate for Grove + the Commons (ADR-0013 rev.2).
+# Every push to main and every PR must pass typecheck + tests + build before merge.
+# GitHub Actions sandboxes the run, so Grove's own infra never executes contributor code.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22] # engines: node >=20 — test the floor and the dev version
+    name: node ${{ matrix.node }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

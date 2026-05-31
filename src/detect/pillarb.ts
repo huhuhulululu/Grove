@@ -222,18 +222,20 @@ function detectLastCommit(
     else if (kind === 'code') codeFiles.push(f)
   }
 
-  // test_added
+  // test_added · store only the COUNT, never the file paths (ISOLATION · R-safety).
+  // A path is work content (reveals module/feature names); the magnitude — the
+  // reward driver — already encodes the count, and nothing downstream reads paths.
   if (testFiles.length > 0) {
     const magnitude = Math.min(10, testFiles.length) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
     events.push(buildEvent(sessionId, ts, 'test_added', magnitude, true, {
-      files: testFiles,
+      count: testFiles.length,
     }))
   }
 
-  // spec_written
+  // spec_written · count only, no paths (ISOLATION · see above).
   if (specFiles.length > 0) {
     events.push(buildEvent(sessionId, ts, 'spec_written', 1, true, {
-      files: specFiles,
+      count: specFiles.length,
     }))
   }
 

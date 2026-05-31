@@ -1367,6 +1367,28 @@ describe('checkpoint subcommand', () => {
     expect(entry).toHaveProperty('message')
   })
 
+  it('records only the diff SHAPE (counts), never the changed file PATHS (isolation · R-safety)', () => {
+    // Stage a file with a revealing name; its PATH (work content) must NOT land in the record.
+    fs.writeFileSync(path.join(tmpRepo, 'secret-billing-tokenizer.ts'), 'export const x = 1')
+    execSync('git add -A', { cwd: tmpRepo, stdio: 'pipe' })
+
+    const { code } = captureRunFull(['checkpoint', '--repo', tmpRepo, '--home', tmpHome])
+    expect(code).toBe(0)
+
+    const checkpointsFile = findCheckpointsFile(tmpHome)
+    expect(checkpointsFile).not.toBeNull()
+    const lines = fs.readFileSync(checkpointsFile!, 'utf-8')
+      .split('\n').filter((l) => l.trim() !== '')
+    const entry = JSON.parse(lines[lines.length - 1]!)
+
+    if (entry.diffStat !== null) {
+      expect(entry.diffStat).toHaveProperty('fileCount')
+      expect(entry.diffStat.files).toBeUndefined() // the path list is gone
+    }
+    // No changed file path leaks into the checkpoint record.
+    expect(JSON.stringify(entry)).not.toContain('secret-billing-tokenizer')
+  })
+
   it('leaves the working tree BYTE-IDENTICAL (non-destructive)', () => {
     const filePath = path.join(tmpRepo, 'README.md')
     fs.writeFileSync(filePath, '# changed for checkpoint test\n')

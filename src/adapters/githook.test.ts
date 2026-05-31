@@ -8,6 +8,7 @@ import {
   GROVE_END,
   resolveHooksDir,
   buildHookBlock,
+  hooksDirInWorktree,
   installPostCommit,
   uninstallPostCommit,
 } from './githook'
@@ -59,50 +60,56 @@ function countOf(haystack: string, needle: string): number {
 
 describe('buildHookBlock', () => {
   it('wraps the invocation in sentinel markers with a fail-open commit-hook call', () => {
-    const block = buildHookBlock(FAKE_INVOCATION, '/some/repo')
+    const block = buildHookBlock(FAKE_INVOCATION)
     expect(block).toContain(GROVE_BEGIN)
     expect(block).toContain(GROVE_END)
     expect(block).toContain(FAKE_INVOCATION)
-    // commit-hook subcommand + repo path (now single-quote-escaped, not "...")
     expect(block).toContain('commit-hook')
-    expect(block).toContain("--repo '/some/repo'")
     // fail-open guarantee: a Grove failure must never block the commit
     expect(block).toContain('|| true')
     // sentinel ordering: BEGIN must come before END
     expect(block.indexOf(GROVE_BEGIN)).toBeLessThan(block.indexOf(GROVE_END))
   })
 
-  // ---- shell-injection hardening (P0) --------------------------------------
-  it('single-quote-escapes a repoDir containing quotes and $() — no RCE', () => {
-    // A repoDir an attacker (or an unlucky path) could control. Interpolated
-    // naively into a "..." shell line this is RCE on every commit.
-    const evil = `/tmp/a'; touch HACKED; echo '$(touch PWNED)`
-    const block = buildHookBlock(FAKE_INVOCATION, evil)
-
-    // The dangerous substrings must NOT appear in a form the shell would honor:
-    // the single quote that would break out must be escaped as '\'' , and the
-    // whole value lives inside single quotes so $() is inert.
-    expect(block).toContain("'\\''") // the '->'\'' escape is present
-    // No raw `--repo "<evil>"` double-quoted interpolation (the old vuln shape)
-    expect(block).not.toContain(`--repo "${evil}"`)
-
-    // The ONLY rigorous proof is behavioral: round-trip through /bin/sh and
-    // confirm the shell parses our --repo token back to EXACTLY the evil string
-    // (a single literal argument, with $() NOT executed). The dangerous bytes may
-    // appear verbatim inside the SAFE single-quoted token — that's expected; what
-    // matters is the shell never honors them as structure.
-    const repoIdx = block.indexOf('--repo ')
-    const repoTokenLine = block.slice(repoIdx).split('\n')[0]!
-    // Extract just the quoted token between `--repo ` and ` 2>/dev/null`.
-    const quoted = repoTokenLine.replace(/^--repo /, '').replace(/ 2>\/dev\/null.*$/, '')
-    const seen = execSync(`printf %s ${quoted}`, { shell: '/bin/sh' }).toString()
-    expect(seen).toBe(evil)
+  // ---- isolation: no machine path baked into the (possibly committed) hook ---
+  it('resolves the repo at RUNTIME (portable) — bakes in no install-time machine path', () => {
+    // The hook can end up committed (husky/lefthook .husky). It must therefore
+    // embed NO absolute developer path and stay correct on any clone — so the
+    // repo is resolved at runtime via `git rev-parse --show-toplevel`.
+    const block = buildHookBlock(FAKE_INVOCATION)
+    expect(block).toContain('--repo "$(git rev-parse --show-toplevel)"')
+    // No single-quoted absolute path (the old install-time shape that leaked $HOME).
+    expect(block).not.toMatch(/--repo '\//)
   })
 
-  it('a repoDir with only a double quote is escaped, not left raw', () => {
-    const block = buildHookBlock(FAKE_INVOCATION, '/tmp/a"b')
-    // single-quoting makes the embedded double-quote harmless and literal
-    expect(block).toContain(`--repo '/tmp/a"b'`)
+  it('interpolates no external path — there is no command-substitution surface', () => {
+    // The old design interpolated repoDir into the shell line (an RCE surface if
+    // a path held $()/quotes). Now the ONLY substitution is git's own
+    // --show-toplevel, double-quoted; nothing external is interpolated at all.
+    const block = buildHookBlock(FAKE_INVOCATION)
+    const hookLine = block.split('\n').find((l) => l.includes('commit-hook'))!
+    expect(hookLine).toBe(
+      `${FAKE_INVOCATION} commit-hook --repo "$(git rev-parse --show-toplevel)" 2>/dev/null || true`,
+    )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// hooksDirInWorktree — is the hooks dir a TRACKED (committable) part of the tree?
+// ---------------------------------------------------------------------------
+
+describe('hooksDirInWorktree', () => {
+  it('is false for the default .git/hooks (never tracked)', () => {
+    expect(hooksDirInWorktree('/repo', '/repo/.git/hooks')).toBe(false)
+  })
+
+  it('is true for a husky/lefthook dir inside the working tree (committable)', () => {
+    expect(hooksDirInWorktree('/repo', '/repo/.husky')).toBe(true)
+    expect(hooksDirInWorktree('/repo', '/repo/.config/hooks')).toBe(true)
+  })
+
+  it('is false for an absolute hooks dir outside the repo', () => {
+    expect(hooksDirInWorktree('/repo', '/etc/git-hooks')).toBe(false)
   })
 })
 
@@ -157,6 +164,7 @@ describe('installPostCommit', () => {
 
     expect(res.action).toBe('created')
     expect(res.hookPath).toBe(path.join(tmp, '.git', 'hooks', 'post-commit'))
+    expect(res.inWorktree).toBe(false) // .git/hooks is never tracked → no commit risk
     expect(fs.existsSync(res.hookPath)).toBe(true)
     expect(isExecutable(res.hookPath)).toBe(true)
 
@@ -210,9 +218,14 @@ describe('installPostCommit', () => {
 
     expect(res.action).toBe('created')
     expect(res.hookPath).toBe(path.join(tmp, '.husky', 'post-commit'))
+    expect(res.inWorktree).toBe(true) // .husky IS tracked → init must warn (commit risk)
     expect(fs.existsSync(res.hookPath)).toBe(true)
     // Must NOT have written into .git/hooks
     expect(fs.existsSync(path.join(tmp, '.git', 'hooks', 'post-commit'))).toBe(false)
+    // ISOLATION: the committed-capable hook bakes in NO absolute machine path.
+    const content = fs.readFileSync(res.hookPath, 'utf-8')
+    expect(content).toContain('--repo "$(git rev-parse --show-toplevel)"')
+    expect(content).not.toContain(tmp) // no install-time abs path leaked into the file
   })
 })
 

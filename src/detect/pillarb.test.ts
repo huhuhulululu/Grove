@@ -125,6 +125,27 @@ describe('scanRepo — git last-commit diff classification', () => {
     expect(testEvent!.magnitude).toBeLessThanOrEqual(10)
   })
 
+  it('stores only a COUNT for test_added — never the file PATHS (isolation · R-safety)', () => {
+    tmp = mkTmp()
+    gitInit(tmp)
+    fs.writeFileSync(path.join(tmp, 'src.ts'), 'export const x = 1')
+    gitCommit(tmp, 'initial')
+    const testsDir = path.join(tmp, 'tests')
+    fs.mkdirSync(testsDir)
+    // A revealing path: the file name is work content that must NOT be persisted.
+    fs.writeFileSync(path.join(testsDir, 'secret-feature.test.ts'), 'it("x", () => {})')
+    gitCommit(tmp, 'add test')
+
+    const result = scanRepo(tmp, { sessionId: 'iso', ts: '2026-01-01T00:00:00Z' })
+    const ev = result.events.find((e) => e.type === 'test_added')!
+    const meta = ev.meta as Record<string, unknown>
+
+    expect(meta['count']).toBe(1)
+    expect(meta['files']).toBeUndefined() // no path list persisted
+    // the revealing path must not appear ANYWHERE in the event record
+    expect(JSON.stringify(ev)).not.toContain('secret-feature')
+  })
+
   it('classifies files in the INITIAL (root, parentless) commit — regression for missing --root', () => {
     // A fresh repo's first commit has no parent; `diff-tree HEAD` without --root
     // is empty, so a user's very first `sq scan` used to miss test/doc signals.

@@ -199,3 +199,24 @@ pre-existing foil test still passes; "3-72" uses ASCII hyphen, no copy-lint issu
 Recurring lesson (re-confirmed this round): semantic changes in the engine must be chased onto EVERY player
 surface in the SAME pass (the engine‖cli/doc disconnect) — and widening a display string can overflow a
 fixed-width box, so re-measure box rows after copy edits.
+
+## R11 (isolation hardening) — close the 3 data-isolation gaps the adversarial audit found
+A 3-hunter adversarial safety audit (try-to-refute) confirmed WORK-SAFETY holds with ZERO violations (engine
+pure, all git read-only, checkpoint = stash create never apply, hook fail-open 2 layers, every write confined
+to ~/.grove). But DATA-ISOLATION had 3 real gaps (game data vs work data not fully separated). R11 closes all,
+TDD:
+- **A · Husky commit risk (was HIGH)**: the post-commit hook now resolves the repo at RUNTIME via
+  `--repo "$(git rev-parse --show-toplevel)"` instead of baking in the install-time absolute path — so a hook
+  that lands in a TRACKED dir (husky/lefthook `.husky`) and gets committed leaks no machine path and works on
+  any clone. `installPostCommit` returns `inWorktree`; `sq init` warns + gives gitignore guidance when the
+  hooks dir is tracked. (githook.ts, hooks.ts)
+- **C · LAN cost leak (was MED)**: `webSafeState()` strips `work.lastCostUsd` from the /api/state JSON + SSE
+  snapshot, so opt-in LAN exposure (`sq serve --host 0.0.0.0`) never puts the user's real spend on the wire.
+  (web/server.ts)
+- **B · local log work-content (was MED/LOW)**: `sq wrap` now records the program basename only (not the full
+  command line / filter patterns); pillarb test_added/spec_written store a COUNT not the file paths; checkpoint
+  records the diff SHAPE (fileCount/insertions/deletions) not the changed paths. Engine/quests don't read these
+  fields, so signal logic is unchanged. (share.ts, pillarb.ts, hooks.ts)
+Evidence: 1368 tests pass (66 files, +10), tsc clean, build OK, and a live-binary smoke confirms each property
+(hook has no repo path; wrap cmd="echo" not the secret arg; checkpoint diffStat has fileCount not files; init
+warns on husky). WORK-SAFETY was untouched by these edits and remains green.

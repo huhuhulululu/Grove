@@ -76,6 +76,18 @@ export function handleInit(flags: Record<string, string>, dir: string): number {
   console.log(`  Hook path: ${res.hookPath}`)
   console.log(`  Grove failures never block commits · the hook is fail-open by design.`)
 
+  // ISOLATION: when the hooks dir is a TRACKED part of the working tree
+  // (husky/lefthook point core.hooksPath at .husky), the hook file can be
+  // committed + shared with the team. The hook carries no machine path (it
+  // resolves the repo at runtime), but a teammate without Grove would carry a
+  // dormant no-op hook line — so disclose it and offer to keep it local.
+  if (res.inWorktree) {
+    console.log(`  ⚠️  ${res.hookPath} is tracked by git (husky/lefthook).`)
+    console.log(`     A later \`git add\` can commit the Grove hook line · it stays a harmless no-op`)
+    console.log(`     for teammates without Grove. To keep it out of the repo, add the file to .gitignore`)
+    console.log(`     or remove the Grove block (between the sentinel comments) before committing.`)
+  }
+
   // First-run starter: a brand-new player gets seeds so the dashboard has loot
   // to show before their first commit lands (avoids the empty-board first-aha).
   const granted = grantStarterOnce(dir)
@@ -352,13 +364,20 @@ export function handleCheckpoint(flags: Record<string, string>, dir: string, zen
   // 2. Collect diffStat for the record (may be null on clean repo · that's fine)
   const diffStat = stagedDiffStat(repo)
 
-  // 3. Record to checkpoints.jsonl in the grove state dir
+  // 3. Record to checkpoints.jsonl in the grove state dir. ISOLATION (R-safety):
+  // store the change SHAPE (counts) only, never the changed file PATHS — paths are
+  // work content. branch + the user's own -m message are deliberate labels they
+  // chose for their own local recall, so those stay.
+  const diffShape = diffStat
+    ? { fileCount: diffStat.files.length, insertions: diffStat.insertions, deletions: diffStat.deletions }
+    : null
+
   const entry = {
     ts: new Date().toISOString(),
     ref,
     branch,
     message,
-    diffStat,
+    diffStat: diffShape,
   }
 
   try {

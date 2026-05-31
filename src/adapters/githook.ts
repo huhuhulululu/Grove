@@ -18,7 +18,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { shQuote } from './shquote'
 
 // ---------------------------------------------------------------------------
 // Sentinels — delimit Grove's contribution to a (possibly shared) hook file.
@@ -72,17 +71,32 @@ export function resolveHooksDir(repoDir: string): string {
  * crash, anything) NEVER causes the post-commit hook to exit non-zero, so the
  * developer's commit is never blocked by the game layer.
  *
- * SECURITY (P0): `repoDir` is interpolated into a generated shell line that runs
- * on every commit. A naive `--repo "${repoDir}"` is RCE if the repo path contains
- * a `"`/`$()`/backtick. We single-quote-escape it (shQuote) so the path is always
- * a single, literal argument with no command substitution.
+ * PORTABILITY + ISOLATION: the repo dir is resolved at RUNTIME via
+ * `git rev-parse --show-toplevel`, not hardcoded as the install-time absolute
+ * path. This (a) keeps the developer's machine path OUT of the hook file — so if
+ * the hook lives in a tracked dir (husky/lefthook `.husky/`) and gets committed,
+ * no absolute home path leaks into the shared repo — and (b) makes the hook
+ * correct on any clone/worktree. No external value is interpolated into the shell
+ * line, so there is no command-substitution surface at all.
  */
-export function buildHookBlock(invocation: string, repoDir: string): string {
+export function buildHookBlock(invocation: string): string {
   return [
     GROVE_BEGIN,
-    `${invocation} commit-hook --repo ${shQuote(repoDir)} 2>/dev/null || true`,
+    `${invocation} commit-hook --repo "$(git rev-parse --show-toplevel)" 2>/dev/null || true`,
     GROVE_END,
   ].join('\n')
+}
+
+/**
+ * True when the resolved hooks dir is a TRACKED part of the working tree (e.g.
+ * husky/lefthook point `core.hooksPath` at `.husky`), as opposed to the untracked
+ * `.git/hooks`. A hook installed into a tracked dir can be `git add`ed, committed,
+ * and shared with the team — so the caller warns. Pure path arithmetic, no I/O.
+ */
+export function hooksDirInWorktree(repoDir: string, hooksDir: string): boolean {
+  const rel = path.relative(repoDir, hooksDir)
+  if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) return false
+  return rel.split(path.sep)[0] !== '.git'
 }
 
 // ---------------------------------------------------------------------------
@@ -92,29 +106,33 @@ export function buildHookBlock(invocation: string, repoDir: string): string {
 export function installPostCommit(
   repoDir: string,
   invocation: string,
-): { action: 'created' | 'chained' | 'already'; hookPath: string } {
+): { action: 'created' | 'chained' | 'already'; hookPath: string; inWorktree: boolean } {
   const hooksDir = resolveHooksDir(repoDir)
   fs.mkdirSync(hooksDir, { recursive: true })
   const hookPath = path.join(hooksDir, 'post-commit')
-  const block = buildHookBlock(invocation, repoDir)
+  const block = buildHookBlock(invocation)
+  // A tracked hooks dir (husky/lefthook `.husky`) means the hook file can be
+  // committed + shared; `.git/hooks` (the default) is never tracked. The caller
+  // warns in the former case. The hook itself carries no machine path either way.
+  const inWorktree = hooksDirInWorktree(repoDir, hooksDir)
 
   if (!fs.existsSync(hookPath)) {
     // Fresh hook: shebang + our block.
     fs.writeFileSync(hookPath, `#!/bin/sh\n\n${block}\n`, { mode: 0o755 })
-    return { action: 'created', hookPath }
+    return { action: 'created', hookPath, inWorktree }
   }
 
   const existing = fs.readFileSync(hookPath, 'utf-8')
 
   if (existing.includes(GROVE_BEGIN)) {
     // Already installed — idempotent no-op, never duplicate.
-    return { action: 'already', hookPath }
+    return { action: 'already', hookPath, inWorktree }
   }
 
   // Someone else's hook (e.g. husky). Append our block, preserving theirs verbatim.
   fs.appendFileSync(hookPath, `\n${block}\n`)
   ensureExecutable(hookPath)
-  return { action: 'chained', hookPath }
+  return { action: 'chained', hookPath, inWorktree }
 }
 
 // ---------------------------------------------------------------------------

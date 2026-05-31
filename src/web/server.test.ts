@@ -6,7 +6,7 @@ import * as http from 'node:http'
 import { initialState } from '../core/state'
 import type { GameState } from '../core/state'
 import { saveState } from '../store/store'
-import { startWebServer } from './server'
+import { startWebServer, webSafeState } from './server'
 
 // ---------------------------------------------------------------------------
 // Temp-home plumbing (mirrors store.test.ts): each test gets its own home with
@@ -46,6 +46,37 @@ afterEach(() => {
     fs.rmSync(h, { recursive: true, force: true })
   }
   tempHomes.length = 0
+})
+
+describe('cost isolation — work.lastCostUsd never crosses the network (R-safety)', () => {
+  it('webSafeState strips lastCostUsd but keeps the other (cosmetic) work fields', () => {
+    const s: GameState = {
+      ...initialState(),
+      work: { workMeter: 7, lastCostUsd: 42.5, windowKey: 99, milestonesInWindow: 1 },
+    }
+    const safe = webSafeState(s)
+    expect((safe.work as Record<string, unknown>)['lastCostUsd']).toBeUndefined()
+    expect(safe.work.workMeter).toBe(7)
+    expect(safe.work.windowKey).toBe(99)
+    expect(safe.work.milestonesInWindow).toBe(1)
+  })
+
+  it('GET /api/state omits the real spend figure (lastCostUsd) from the payload', async () => {
+    const dir = makeStateDir()
+    saveState(dir, {
+      ...initialState(),
+      work: { workMeter: 3, lastCostUsd: 1234.56, windowKey: 0, milestonesInWindow: 0 },
+    })
+    const srv = startWebServer({ dir, port: 0 })
+    servers.push(srv)
+
+    const res = await get(new URL('/api/state', srv.url).toString())
+    expect(res.status).toBe(200)
+    const parsed = JSON.parse(res.body) as { work?: Record<string, unknown> }
+    expect(parsed.work?.['lastCostUsd']).toBeUndefined()
+    // Belt + suspenders: the raw spend figure must not appear anywhere on the wire.
+    expect(res.body).not.toContain('1234.56')
+  })
 })
 
 // A tiny GET helper returning { status, body, headers }.

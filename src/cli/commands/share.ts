@@ -26,6 +26,17 @@ import { printContextualOffers, maybePush, printRewards } from './shared'
 type WrapEventType = 'test_result' | 'build_result' | 'lint_clean'
 
 /**
+ * The bare PROGRAM name from a wrapped argv (basename of argv[0]) — never the
+ * arguments. ISOLATION (R-safety): the event log records WHICH tool ran (e.g.
+ * `pytest`), not the full command line, so test-filter patterns / feature names
+ * / internal flags (work content) never get persisted into the grove store.
+ */
+export function programName(argv: string[]): string {
+  const first = argv[0] ?? ''
+  return first === '' ? '' : path.basename(first)
+}
+
+/**
  * Infer the GroveEvent type from the wrapped command's argv. Looks at the first
  * token (the program name) and any sub-token for a 'test' / 'build' / 'lint'
  * hint (so `npm test`, `npm run build`, `cargo build`, `eslint`/`lint` all map
@@ -95,7 +106,8 @@ export function handleWrap(command: string[], asType: string | undefined, dir: s
       magnitude: 1,
       success: exitCode === 0,
       ts: new Date().toISOString(),
-      meta: { cmd: command.join(' '), exitCode },
+      // Record the program name only, never the full args (ISOLATION · see programName).
+      meta: { cmd: programName(command), exitCode },
     })
 
     // Push-on-big-moment (opt-in, default OFF, fire-and-forget) · independent of zen.

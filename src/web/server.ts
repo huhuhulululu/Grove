@@ -18,6 +18,7 @@
 import * as http from 'node:http'
 import * as fs from 'node:fs'
 import { loadState } from '../store/store'
+import type { GameState } from '../core/state'
 import { renderPage } from './page'
 
 export interface WebServerOptions {
@@ -51,9 +52,23 @@ function randomPort(): number {
   return 49152 + Math.floor(Math.random() * (65535 - 49152))
 }
 
-/** Read the current state JSON string (read-only). Never throws to the caller. */
+/**
+ * Strip COST data before a state crosses the network. The web dashboard never
+ * renders cost — only the raw /api/state JSON + SSE snapshot ever carried
+ * `work.lastCostUsd` (the user's real cumulative spend). When the server is
+ * opt-in LAN-exposed (`--host 0.0.0.0`, e.g. to reach it from a phone), this
+ * keeps that figure OFF the wire. Only cosmetic game stats are transmitted.
+ */
+export function webSafeState(
+  state: GameState,
+): Omit<GameState, 'work'> & { work: Omit<GameState['work'], 'lastCostUsd'> } {
+  const { lastCostUsd: _cost, ...work } = state.work
+  return { ...state, work }
+}
+
+/** Read the current state JSON string (read-only, cost stripped). Never throws to the caller. */
 function stateJson(dir: string): string {
-  return JSON.stringify(loadState(dir))
+  return JSON.stringify(webSafeState(loadState(dir)))
 }
 
 /**

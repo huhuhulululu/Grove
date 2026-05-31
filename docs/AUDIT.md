@@ -149,3 +149,11 @@ R8 push targets the concrete A-blockers (mostly FEEL/surfacing/docs, NOT soundne
 - **Robustness/sec** (code/security): handlePull skip-save when broke; web security headers + granular SSE
   update (not full reload); rotate settings backups + cap jsonl logs.
 > Honest caveat: some A-→A items are subjective FEEL; the loop may converge to "mostly A, a couple A-".
+
+## Re-score ⑦ (after R8) — 5/10 straight A (security, product, ethics, qa, strategy); 5 at A-
+R9 targets the (now mostly concrete) remaining A-blockers:
+- **ai-eng → A**: GOALS.md M5 still calls account-global energy ROADMAP (drift — it's shipped). Doc fix.
+- **architecture → A**: split the 2101-line `sq.ts` God-file into per-command modules (keep run()/dispatch + exports).
+- **code-review → A**: complete the juice refusal regex (drops 2 refusal messages); implement granular SSE update (no full reload).
+- **economy → A** (all low): rarity-scale FOIL_COST + a "fully-foiled" capstone; sharpen spark vs craft (lower threshold or foil-finish guarantee).
+- **game-design → A** (the craft item): rarity-SCALED reveal frames (escalating anticipation for rarer drops, not identical dots) + better pack-open frames; light TUI panel motion (XP-bar fill / row pulse) — the last bit is subjective and may not fully converge.

@@ -75,16 +75,17 @@ describe('sq foil', () => {
   })
 
   it('spends FOIL_COST shards and flags an owned card foiled (default target)', () => {
+    // Use forest.sapling (truly common in ALL_CARD_DEFS) so the rarity-scaled cost = FOIL_COST.
     seedState(tmpHome, (s) => ({
       ...s,
-      cards: [{ id: 'forest.oak', name: 'Oak', rarity: 'common', set: 'forest' }],
+      cards: [{ id: 'forest.sapling', name: 'Sapling', rarity: 'common', set: 'forest' }],
       player: { ...s.player, shards: FOIL_COST + 4 },
     }))
     const { code } = captureRun(['foil', '--home', tmpHome])
     expect(code).toBe(0)
     const after = loadState(stateDir(tmpHome))
     expect(after.player.shards ?? 0).toBe(4)
-    expect(after.foiled).toContain('forest.oak')
+    expect(after.foiled).toContain('forest.sapling')
   })
 
   it('foils a chosen owned card id when given', () => {
@@ -128,15 +129,16 @@ describe('sq foil', () => {
   })
 
   it('--zen prints a quiet confirmation but still persists the foil', () => {
+    // Use forest.sapling (truly common in ALL_CARD_DEFS) so the rarity-scaled cost = FOIL_COST.
     seedState(tmpHome, (s) => ({
       ...s,
-      cards: [{ id: 'forest.oak', name: 'Oak', rarity: 'common', set: 'forest' }],
+      cards: [{ id: 'forest.sapling', name: 'Sapling', rarity: 'common', set: 'forest' }],
       player: { ...s.player, shards: FOIL_COST },
     }))
     const { code, output } = captureRun(['--zen', 'foil', '--home', tmpHome])
     expect(code).toBe(0)
     expect(output.join('\n')).toContain('✓')
-    expect(loadState(stateDir(tmpHome)).foiled).toContain('forest.oak')
+    expect(loadState(stateDir(tmpHome)).foiled).toContain('forest.sapling')
   })
 })
 

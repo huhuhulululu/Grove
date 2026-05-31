@@ -1,0 +1,260 @@
+/**
+ * commands/view.ts · read/show + event-ingest handlers — event, status, recap,
+ * scan, quests, dashboard, and the async tui / serve surfaces.
+ *
+ * Impure shell (ADR-0005): reads persisted state, ingests events via the pure
+ * engine (app/ingest), and renders. No game logic re-implemented here.
+ */
+
+import { loadState, readEvents } from '../../store/store'
+import { ingestEvent } from '../../app/ingest'
+import { buildRecap } from '../../app/recap'
+import { formatReward, formatStatus, formatRecap, formatQuests } from '../../render/format'
+import { EVENT_TYPES } from '../../core/events'
+import type { GroveEvent } from '../../core/events'
+import { scanRepo } from '../../detect/pillarb'
+import { QUESTS } from '../../core/quests'
+import { runTui } from '../../tui/app'
+import { startWebServer } from '../../web/server'
+import { renderDashboard } from '../../render/dashboard'
+import { stateDir } from '../../store/paths'
+import {
+  parsePositiveIntFlag,
+  parseIntFlag,
+  calmConfirm,
+  printContextualOffers,
+  maybePush,
+  printRewards,
+} from './shared'
+
+export function handleEvent(
+  positional: string[],
+  flags: Record<string, string>,
+  dir: string,
+  zen: boolean,
+): number {
+  const type = positional[0]
+
+  if (!type) {
+    console.error('Error: event type is required. Run `sq help` for usage.')
+    return 2
+  }
+
+  if (!(EVENT_TYPES as readonly string[]).includes(type)) {
+    console.error(
+      `Error: invalid event type "${type}". Valid types: ${EVENT_TYPES.join(', ')}`,
+    )
+    return 2
+  }
+
+  // Guard NaN: a non-numeric / empty --magnitude (e.g. `--magnitude abc`, `--magnitude=`)
+  // would poison every downstream reward calc with NaN · default to 1 instead.
+  const magnitude = parsePositiveIntFlag(flags['magnitude'], 1)
+  const successFlag = flags['success']
+  const success = successFlag !== 'false'
+  const source = flags['source'] ?? 'cli'
+  const sessionId = flags['session'] ?? 'cli'
+  const ts = new Date().toISOString()
+
+  const raw: Omit<GroveEvent, 'meta'> & { meta: Record<string, unknown> } = {
+    source,
+    sessionId,
+    type: type as GroveEvent['type'],
+    magnitude,
+    success,
+    ts,
+    meta: {},
+  }
+
+  const { rewards } = ingestEvent(dir, raw)
+
+  // Push-on-big-moment (opt-in, default OFF, fire-and-forget). Runs regardless of
+  // zen · it is the user's own chosen async channel, not terminal spectacle.
+  maybePush(rewards)
+
+  if (zen) {
+    // Calm: engine ran & persisted; suppress all loot/crit/offers · one quiet line.
+    calmConfirm(success ? `${type} recorded` : `${type} recorded (no reward)`)
+    return 0
+  }
+
+  if (rewards.length === 0) {
+    console.log('  (no drop)')
+  } else {
+    printRewards(rewards)
+  }
+
+  // Contextual offers
+  printContextualOffers(rewards, dir)
+
+  return 0
+}
+
+export function handleStatus(dir: string, zen: boolean): number {
+  const state = loadState(dir)
+  if (zen) {
+    // Quiet status: a single terse line, no banner/box spectacle.
+    const { player, cards } = state
+    calmConfirm(`Level ${player.level} · ${player.currency} 🌰 · ${cards.length} cards`)
+    return 0
+  }
+  console.log(formatStatus(state))
+  return 0
+}
+
+export function handleRecap(flags: Record<string, string>, dir: string): number {
+  const events = readEvents(dir)
+  const state = loadState(dir)
+
+  const sinceMode = flags['since'] ?? 'session'
+
+  let sinceTs: string | undefined
+
+  if (sinceMode === 'session') {
+    // Find the ts of the last session_start event
+    const sessionStarts = events.filter((e) => e.type === 'session_start')
+    const lastSessionStart = sessionStarts[sessionStarts.length - 1]
+    if (lastSessionStart !== undefined) {
+      sinceTs = lastSessionStart.ts
+    }
+    // If no session_start found, sinceTs remains undefined → all events
+  }
+  // 'all' → sinceTs stays undefined
+
+  const recap = buildRecap(events, state, sinceTs !== undefined ? { sinceTs } : undefined)
+  console.log(formatRecap(recap))
+  return 0
+}
+
+export function handleScan(positional: string[], dir: string, zen: boolean): number {
+  const repoDir = positional[0] ?? process.cwd()
+
+  const { events, notes } = scanRepo(repoDir)
+
+  // Tally counts for the summary
+  const counts: Record<string, number> = {}
+
+  let totalRewards = 0
+
+  for (const event of events) {
+    counts[event.type] = (counts[event.type] ?? 0) + 1
+    const { rewards } = ingestEvent(dir, event)
+    totalRewards += rewards.length
+    if (zen) continue // engine ran & persisted; suppress per-reward loot lines.
+    if (rewards.length === 0) {
+      console.log('  (nothing new)')
+    } else {
+      for (const reward of rewards) {
+        console.log(formatReward(reward))
+      }
+    }
+  }
+
+  // Print notes (e.g. git not available)
+  for (const note of notes) {
+    console.log(`  note: ${note}`)
+  }
+
+  // Summary
+  const typeList = Object.entries(counts)
+    .map(([t, n]) => `${t}:${n}`)
+    .join(', ')
+  const eventCount = events.length
+  if (zen) {
+    // Calm: a single terse confirmation, no per-reward loot, no "reward(s)" tally spectacle.
+    calmConfirm(`scan complete · ${eventCount} signal(s)${typeList ? ` (${typeList})` : ''}`)
+    return 0
+  }
+  console.log(
+    `  Scan complete · ${eventCount} signal(s) detected${typeList ? ` (${typeList})` : ''}, ${totalRewards} reward(s).`,
+  )
+
+  return 0
+}
+
+export function handleQuests(dir: string): number {
+  const state = loadState(dir)
+  console.log(formatQuests(QUESTS, state))
+  return 0
+}
+
+export function handleDashboard(flags: Record<string, string>, dir: string): number {
+  const noClear = flags['no-clear'] === 'true'
+
+  if (!noClear) {
+    process.stdout.write('\x1b[2J\x1b[H')
+  }
+
+  const state = loadState(dir)
+  // Inject wall-clock epoch so energy ETAs render correctly (pure renderer).
+  console.log(renderDashboard(state, { nowEpoch: Date.now() }))
+  return 0
+}
+
+// ---------------------------------------------------------------------------
+// tui / serve handlers (async · the M3 TUI + M5 web renderers)
+// ---------------------------------------------------------------------------
+
+/**
+ * `sq tui [--once]` · launch the navigable live Ink dashboard over the engine.
+ * Delegates to the existing `runTui` renderer (NO game logic here):
+ *  - `--once` renders ONE static frame string (deterministic, headless/CI-safe ·
+ *    never mounts Ink raw-mode) and logs it.
+ *  - otherwise mounts the live interactive <App>; resolves on the user's q/Ctrl-C.
+ * Returns 0 (a TUI session has no failure exit code).
+ */
+export async function handleTui(flags: Record<string, string>, dir: string): Promise<number> {
+  const once = flags['once'] === 'true'
+  const frame = await runTui(dir, once ? { once: true } : {})
+  // In --once mode log the frame so CI / pipes can assert on it. The live path
+  // already rendered to the terminal via Ink; its returned frame is redundant
+  // there, so only print on the once path.
+  if (once) console.log(frame)
+  return 0
+}
+
+/**
+ * `sq serve [--port N] [--host H]` · start the local READ-ONLY web dashboard via
+ * the existing `startWebServer` (NO game logic here), print its URL, and keep the
+ * process alive until Ctrl-C (live-updating an open page as state changes).
+ *
+ * `--no-wait` is the TEST/CI seam: it starts the server, prints the URL, then
+ * IMMEDIATELY closes the handle and returns · so a test never blocks on a signal.
+ */
+export async function handleServe(flags: Record<string, string>, dir: string): Promise<number> {
+  const port = flags['port'] !== undefined ? parseIntFlag(flags['port'], 0) : 0
+  const host = flags['host']
+  const noWait = flags['no-wait'] === 'true'
+
+  const server = startWebServer({
+    dir,
+    port,
+    ...(host !== undefined ? { host } : {}),
+  })
+
+  console.log(`  🌳 Grove web dashboard · ${server.url}`)
+  console.log(`  Read-only view of your state · live-updates as you ship · Ctrl-C to stop.`)
+
+  if (noWait) {
+    // Test/CI seam: don't block on a signal · tear the server down and return.
+    server.close()
+    return 0
+  }
+
+  // Keep the process alive until SIGINT/SIGTERM, then close cleanly.
+  await new Promise<void>((resolve) => {
+    const stop = (): void => {
+      server.close()
+      resolve()
+    }
+    process.once('SIGINT', stop)
+    process.once('SIGTERM', stop)
+  })
+  return 0
+}
+
+/** Resolve the grove state dir for an async subcommand from its --home flag. */
+export function resolveDir(flags: Record<string, string>): string {
+  const home = flags['home']
+  return home ? stateDir(home) : stateDir()
+}

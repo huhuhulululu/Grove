@@ -22,7 +22,8 @@ import { makeGear } from '../engine/gear'
 import { mulberry32 } from '../core/rng'
 import { PULL_COST } from '../engine/reduce'
 import { saveState } from '../store/store'
-import { renderTuiFrame, dispatchKey, runTui } from './app'
+import { renderTuiFrame, dispatchKey, runTui, pulseTargetFor } from './app'
+import type { Reward } from '../core/rewards'
 
 describe('renderTuiFrame — static frame for headless testing', () => {
   it('shows level / seeds / shards / prestige in the header', () => {
@@ -151,6 +152,35 @@ describe('dispatchKey — pure key → engine action router', () => {
     const msg = out.rewards.find((r) => r.kind === 'gear')?.message ?? ''
     expect(msg).toContain('✓ success')
     expect(msg).not.toContain('broke') // never the old typo token
+  })
+})
+
+describe('pulseTargetFor — the freshly-acquired row to pulse (panel motion)', () => {
+  it('a card reward pulses its COLLECTION set row', () => {
+    const r: Reward = {
+      kind: 'card',
+      message: '🃏 Sapling · common',
+      card: { id: 'c1', name: 'Sapling', rarity: 'common', set: 'forest' },
+    }
+    expect(pulseTargetFor(r)).toEqual({ kind: 'collection', key: 'forest' })
+  })
+
+  it('a gear reward pulses its GEAR row (by id)', () => {
+    const r: Reward = {
+      kind: 'gear',
+      message: 'ENHANCE +3→+4 · ✓ success',
+      gear: { id: 'g1', name: 'Commit Hammer', level: 4, rarity: 'rare', broken: false },
+    }
+    expect(pulseTargetFor(r)).toEqual({ kind: 'gear', key: 'g1' })
+  })
+
+  it('a non-card/non-gear reward (level-up / currency) pulses nothing', () => {
+    expect(pulseTargetFor({ kind: 'levelup', message: 'Level 4', amount: 4 })).toBeNull()
+    expect(pulseTargetFor({ kind: 'currency', message: '✨ windfall · +20 🌰', amount: 20 })).toBeNull()
+  })
+
+  it('returns null for a null salient reward (no pulse on a no-op)', () => {
+    expect(pulseTargetFor(null)).toBeNull()
   })
 })
 

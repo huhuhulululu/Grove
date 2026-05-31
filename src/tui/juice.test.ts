@@ -22,7 +22,9 @@ import {
   flashFor,
   revealFrames,
   revealSteps,
+  xpBarSteps,
 } from './juice'
+import type { Rarity } from '../core/rewards'
 import type { DispatchResult } from './app'
 import { initialState } from '../core/state'
 import type { GameState } from '../core/state'
@@ -322,6 +324,149 @@ describe('revealSteps — pure stepper yields frames then settles', () => {
   it('a no-op refresh yields zero steps (no frames, no flash)', () => {
     const res: DispatchResult = { state: initialState(), changed: false, rewards: [] }
     expect(revealSteps('r', res, { animate: true })).toEqual([])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// revealFrames / revealSteps — rarity-SCALED (rarer drop → longer build)
+// ---------------------------------------------------------------------------
+
+describe('revealFrames — rarity scales the build', () => {
+  it('a legendary pull plays a LONGER build than a common pull', () => {
+    const common = revealFrames('p', { animate: true, rarity: 'common' })
+    const legendary = revealFrames('p', { animate: true, rarity: 'legendary' })
+    expect(legendary.length).toBeGreaterThan(common.length)
+  })
+
+  it('a legendary enhance plays a LONGER build than a common enhance', () => {
+    const common = revealFrames('e', { animate: true, rarity: 'common' })
+    const legendary = revealFrames('e', { animate: true, rarity: 'legendary' })
+    expect(legendary.length).toBeGreaterThan(common.length)
+  })
+
+  it('omitting rarity still yields a non-empty build (backward-compatible)', () => {
+    expect(revealFrames('p', { animate: true }).length).toBeGreaterThan(0)
+  })
+
+  it('rarity has no effect when animation is OFF (always empty)', () => {
+    expect(revealFrames('p', { animate: false, rarity: 'legendary' })).toEqual([])
+  })
+})
+
+describe('revealSteps — feeds rarity through so a rarer drop suspends longer', () => {
+  function cardRes(rarity: Rarity): DispatchResult {
+    return {
+      state: initialState(),
+      changed: true,
+      rewards: [reward('card', `🃏 X · ${rarity}`, { rarity })],
+    }
+  }
+
+  it('a legendary drop produces MORE total steps than a common drop', () => {
+    const common = revealSteps('p', cardRes('common'), { animate: true, rarity: 'common' })
+    const legendary = revealSteps('p', cardRes('legendary'), { animate: true, rarity: 'legendary' })
+    expect(legendary.length).toBeGreaterThan(common.length)
+  })
+
+  it('the LAST step is always the settled flash regardless of rarity', () => {
+    const steps = revealSteps('p', cardRes('legendary'), { animate: true, rarity: 'legendary' })
+    expect(steps[steps.length - 1]).toContain('legendary')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// flashFor — refusal regex must catch the NEW foil/premium refusals
+// ---------------------------------------------------------------------------
+
+describe('flashFor — completed refusal regex (foil / premium / craft variants)', () => {
+  // The exact engine refusal copy (src/engine/reduce.ts) — every line MUST surface
+  // as a can't flash, not be silently dropped.
+  it.each([
+    'not enough 🌰 · need 45, have 0',
+    'not enough 🌰 · premium needs 225, have 0',
+    'not enough shards — craft needs 60, have 0',
+    'not enough 🌰 — prestige 1 costs 100, have 0',
+    'not enough shards — foil needs 30, have 0',
+    "can't foil card.forest.1 — you don't own it",
+    'card.forest.1 is already foiled',
+    'nothing to foil — no cards owned yet',
+    'nothing left to foil — all owned cards are foiled',
+    'nothing left to craft — collection complete',
+    '🔒 card.x is in a locked set — can\'t craft yet',
+    "can't craft card.x — already owned or not craftable",
+  ])('surfaces a can\'t flash for refusal copy: %s', (msg) => {
+    const res: DispatchResult = {
+      state: initialState(),
+      changed: false,
+      rewards: [reward('currency', msg)],
+    }
+    const flash = flashFor(res)
+    expect(flash).not.toBeNull()
+    expect(flash!.toLowerCase()).toContain("can't")
+  })
+
+  it('a non-refusal reward on a no-op (no key) is still NOT flashed', () => {
+    // A neutral currency line that is not a refusal should not produce a can't.
+    const res: DispatchResult = {
+      state: initialState(),
+      changed: false,
+      rewards: [reward('currency', '+12 🌰 · work tracked')],
+    }
+    expect(flashFor(res)).toBeNull()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// xpBarSteps — the pure XP-bar fill interpolation stepper (panel motion)
+// ---------------------------------------------------------------------------
+
+describe('xpBarSteps — interpolates the fill fraction toward the target', () => {
+  it('starts at the FROM fraction and ENDS exactly at the target', () => {
+    const steps = xpBarSteps(0, 1, { animate: true })
+    expect(steps[0]).toBeCloseTo(0)
+    expect(steps[steps.length - 1]).toBeCloseTo(1)
+  })
+
+  it('is monotonically non-decreasing when filling UP (0 → 1)', () => {
+    const steps = xpBarSteps(0.2, 0.9, { animate: true })
+    for (let i = 1; i < steps.length; i++) {
+      expect(steps[i]!).toBeGreaterThanOrEqual(steps[i - 1]!)
+    }
+  })
+
+  it('produces MULTIPLE intermediate steps for a visible fill (animate on)', () => {
+    const steps = xpBarSteps(0, 1, { animate: true })
+    expect(steps.length).toBeGreaterThan(2)
+  })
+
+  it('a level-up wrap (0.9 → 0.1) interpolates UP to 1 then settles at the target', () => {
+    // When XP wraps past a level the bar fills to full, then the new level
+    // starts low — the stepper must still END at the final target.
+    const steps = xpBarSteps(0.9, 0.1, { animate: true, wrapped: true })
+    expect(steps[steps.length - 1]).toBeCloseTo(0.1)
+    // It visibly fills toward full before resetting (a step reaches near 1).
+    expect(Math.max(...steps)).toBeGreaterThan(0.9)
+  })
+
+  it('with animation OFF yields ONLY the target (instant, no motion)', () => {
+    expect(xpBarSteps(0, 1, { animate: false })).toEqual([1])
+  })
+
+  it('a no-change gain (from === to) yields a single settled step', () => {
+    expect(xpBarSteps(0.5, 0.5, { animate: true })).toEqual([0.5])
+  })
+
+  it('clamps fractions into [0,1]', () => {
+    const steps = xpBarSteps(-0.5, 1.5, { animate: true })
+    for (const s of steps) {
+      expect(s).toBeGreaterThanOrEqual(0)
+      expect(s).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('never throws on degenerate input', () => {
+    expect(() => xpBarSteps(0, 0, { animate: true })).not.toThrow()
+    expect(() => xpBarSteps(1, 0, { animate: true })).not.toThrow()
   })
 })
 

@@ -15,8 +15,9 @@ ingestion, `sq enhance`/`pull`/`protect`/`repair` (the risk/economy loop), a ful
 energy/statusline, `suggest-commit`/`checkpoint` utilities, and `--zen` calm mode.
 
 **Shipped since (M3/M5/M6 partial):** the navigable, live-updating Ink TUI (`sq tui`), the read-only
-web SSE dashboard (`sq serve`), opt-in ntfy mobile push on big moments (`sq ntfy`), and the opt-in
-shareable card / README badge (`sq share`).
+web SSE dashboard (`sq serve`), opt-in ntfy mobile push on big moments (`sq ntfy`), account-global
+energy (the 5h/7d quota windows are shared across all your repos via one locked `<home>/_global/global.json`),
+and the opt-in shareable card / README badge (`sq share`).
 
 **Roadmap (NOT yet built):** friend streaks / co-op; and the opt-in, league-based **global leaderboard**
 (M6, ADR-0011) — which needs a server-verified outcomes backend before it can ship.
@@ -33,8 +34,10 @@ shareable card / README badge (`sq share`).
   live-updating Ink TUI (`sq tui`). *SHIPPED.*
 - **M4 — Pillar B breadth:** SHIPPED — 8 quests shipped (CLAUDE.md / spec / doc-sync / tests + 4 more R5 quests);
   renewable variants are ROADMAP.
-- **M5 — Multi-platform:** PARTIAL — the read-only web SSE dashboard (`sq serve`) and opt-in ntfy
-  mobile push on big moments (`sq ntfy`, default OFF) are SHIPPED; account-global energy sync is ROADMAP.
+- **M5 — Multi-platform:** PARTIAL — the read-only web SSE dashboard (`sq serve`), opt-in ntfy
+  mobile push on big moments (`sq ntfy`, default OFF), and account-global energy sync (the 5h/7d quota
+  windows shared across all repos under one home via a locked `<home>/_global/global.json`) are SHIPPED;
+  cross-DEVICE sync (phone/web reading the same remote state) remains ROADMAP.
 - **M6 — Social + launch:** PARTIAL — the opt-in shareable card + README badge (`sq share`) is SHIPPED;
   friend streaks, co-op repo raids, and the league-based **global leaderboard** are ROADMAP (ADR-0011).
   The global leaderboard specifically needs a server-verified outcomes backend (local state is forgeable)

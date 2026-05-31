@@ -1,0 +1,414 @@
+/**
+ * commands/hooks.ts · integration handlers — the git post-commit hook (init /
+ * uninstall / commit-hook), the Claude Code statusline (ingest / install /
+ * uninstall), suggest-commit, and checkpoint.
+ *
+ * Impure shell (ADR-0005): installs/removes generated scripts (never clobbers ·
+ * always chains), reads stdin, and ingests events through the pure engine. Grove
+ * failures NEVER block a commit · the hook is fail-open by design.
+ */
+
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { loadState, saveState, withStateLock, rotateBackups } from '../../store/store'
+import { ingestEvent } from '../../app/ingest'
+import { scanRepo } from '../../detect/pillarb'
+import { installPostCommit, uninstallPostCommit } from '../../adapters/githook'
+import { parseStatuslinePayload } from '../../adapters/statusline'
+import { installStatusline, uninstallStatusline } from '../../adapters/statusline-install'
+import { stagedDiffStat, createStashSnapshot, currentBranch } from '../../adapters/git-utils'
+import {
+  calmConfirm,
+  groveInvocation,
+  detectAiClis,
+  printContextualOffers,
+  maybePush,
+  printRewards,
+} from './shared'
+
+// ---------------------------------------------------------------------------
+// init / uninstall (the post-commit git hook)
+// ---------------------------------------------------------------------------
+
+/** Starter seeds granted ONCE on first `sq init` so the dashboard isn't empty. */
+const STARTER_SEEDS = 40
+
+/**
+ * Grant the first-run starter exactly once. Idempotency is tracked by an
+ * `.onboarded` marker file in the grove state dir (the impure shell) · so a
+ * second `init` never re-grants, and the engine state shape is untouched. The
+ * grant is COSMETIC seeds only (ADR-0005). Returns true if it granted this call.
+ */
+function grantStarterOnce(dir: string): boolean {
+  const marker = path.join(dir, '.onboarded')
+  return withStateLock(dir, () => {
+    if (fs.existsSync(marker)) return false
+    const state = loadState(dir)
+    saveState(dir, {
+      ...state,
+      player: { ...state.player, currency: state.player.currency + STARTER_SEEDS },
+    })
+    try {
+      fs.mkdirSync(dir, { recursive: true })
+      fs.writeFileSync(marker, new Date().toISOString() + '\n', 'utf8')
+    } catch {
+      // Non-fatal: if the marker can't be written, worst case is a re-grant on
+      // the next init · never a crash, never a blocked install.
+    }
+    return true
+  })
+}
+
+export function handleInit(flags: Record<string, string>, dir: string): number {
+  const repo = flags['repo'] ?? process.cwd()
+  const res = installPostCommit(repo, groveInvocation())
+
+  let message: string
+  if (res.action === 'created') {
+    message = `Grove post-commit hook installed.`
+  } else if (res.action === 'chained') {
+    message = `Grove chained onto your existing hook · your existing hooks are preserved.`
+  } else {
+    message = `Grove hook already installed (no change).`
+  }
+
+  console.log(`  🌳 ${message}`)
+  console.log(`  Hook path: ${res.hookPath}`)
+  console.log(`  Grove failures never block commits · the hook is fail-open by design.`)
+
+  // First-run starter: a brand-new player gets seeds so the dashboard has loot
+  // to show before their first commit lands (avoids the empty-board first-aha).
+  const granted = grantStarterOnce(dir)
+  if (granted) {
+    console.log(`  🪙 starter grant · +${STARTER_SEEDS} 🌰 seeds · your board isn't empty.`)
+  }
+
+  // Detect the AI CLIs the user already runs (tool-agnostic · ADR-0001).
+  const clis = detectAiClis()
+  if (clis.length > 0) {
+    console.log(`  Detected: ${clis.join(', ')} · Grove rides alongside, doesn't replace.`)
+  } else {
+    console.log(`  Works with any AI-coding tool (Claude Code, Cursor, Aider, Codex…) · tool-agnostic.`)
+  }
+
+  // Clear next-step CTA (the first-aha): one concrete command to run next.
+  console.log(`  Next: git commit like normal, then \`sq dashboard\` to see your loot.`)
+  return 0
+}
+
+export function handleUninstall(flags: Record<string, string>): number {
+  const repo = flags['repo'] ?? process.cwd()
+  const res = uninstallPostCommit(repo)
+
+  let message: string
+  if (res.action === 'removed') {
+    message = `Grove hook removed.`
+  } else if (res.action === 'unchained') {
+    message = `Grove block removed · your other hooks remain intact.`
+  } else {
+    message = `Grove hook was not installed (nothing to remove).`
+  }
+
+  console.log(`  ${message}`)
+  console.log(`  Hook path: ${res.hookPath}`)
+  return 0
+}
+
+export function handleCommitHook(flags: Record<string, string>, dir: string, zen: boolean): number {
+  // Banner first in normal mode (kept for the loot reveal). Calm mode stays quiet
+  // until the single confirmation below · no banner, no loot, no offers.
+  if (!zen) console.log('  🌳 grove')
+
+  try {
+    const repo = flags['repo'] ?? process.cwd()
+    const { events } = scanRepo(repo)
+
+    const allRewards: ReturnType<typeof ingestEvent>['rewards'] = []
+
+    for (const event of events) {
+      const { rewards } = ingestEvent(dir, event)
+      allRewards.push(...rewards)
+      if (zen) continue
+      printRewards(rewards)
+    }
+
+    // Push-on-big-moment for the whole commit's reward batch (opt-in, default
+    // OFF, fire-and-forget). Done before the zen early-return so a calm user who
+    // opted into push still gets their phone alert.
+    maybePush(allRewards)
+
+    if (zen) {
+      // Calm: engine ran & persisted; one quiet line, no banner/loot/offers.
+      calmConfirm(`commit recorded · ${events.length} signal(s)`)
+      return 0
+    }
+
+    // Contextual offers after all events are processed
+    printContextualOffers(allRewards, dir)
+  } catch {
+    // Never fail a commit · swallow all errors silently
+  }
+
+  return 0
+}
+
+// ---------------------------------------------------------------------------
+// statusline-ingest handler
+// ---------------------------------------------------------------------------
+
+/**
+ * Read the Claude Code statusline JSON from STDIN (or --test-stdin for tests),
+ * parse it via parseStatuslinePayload, and ingest the resulting quota_update
+ * event. Prints NOTHING to stdout. Always returns 0 (never disrupts the HUD).
+ */
+export function handleStatuslineIngest(flags: Record<string, string>, dir: string): number {
+  try {
+    // --test-stdin allows tests to inject JSON without real stdin plumbing.
+    const raw = flags['test-stdin'] !== undefined
+      ? flags['test-stdin']
+      : readStdinSync()
+
+    const payload: unknown = JSON.parse(raw)
+    const { events } = parseStatuslinePayload(payload, {
+      sessionId: 'statusline',
+    })
+
+    for (const event of events) {
+      // Add a real timestamp at the impure shell layer.
+      const eventWithTs = { ...event, ts: new Date().toISOString() }
+      ingestEvent(dir, eventWithTs)
+    }
+  } catch {
+    // Never disrupt the HUD · swallow all errors silently.
+  }
+
+  return 0
+}
+
+// ---------------------------------------------------------------------------
+// statusline install/uninstall handlers
+// ---------------------------------------------------------------------------
+
+function defaultSettingsPath(): string {
+  return path.join(process.env['HOME'] ?? process.env['USERPROFILE'] ?? '/root', '.claude', 'settings.json')
+}
+
+export function handleStatuslineInstall(flags: Record<string, string>, _dir: string): number {
+  const settingsPath = flags['settings'] ?? defaultSettingsPath()
+  const wrapperPath = path.join(path.dirname(settingsPath), 'grove-statusline-wrapper.sh')
+
+  // Use the portable, injection-safe invocation the git-hook adapter uses:
+  // a bare `sq` when installed, else `node '<abs>/dist/cli/sq.js'` (shQuote'd).
+  const ingestCmd = `${groveInvocation()} statusline-ingest`
+  const result = installStatusline(settingsPath, wrapperPath, ingestCmd)
+
+  // R8 hygiene: the installer writes a timestamped settings.json.bak.<ts> each
+  // install; rotate so only the newest few survive (never an unbounded pile).
+  rotateBackups(path.dirname(settingsPath), 'settings.json.bak.')
+
+  if (result.action === 'already-installed') {
+    console.log('  Grove statusline wrapper is already installed (no change).')
+  } else {
+    console.log(`  Grove statusline wrapper installed.`)
+    console.log(`  Original command preserved: ${result.original || '(none)'}`)
+    console.log(`  Wrapper: ${wrapperPath}`)
+    // Point to backup
+    const backupFiles = fs.readdirSync(path.dirname(settingsPath))
+      .filter((f: string) => f.startsWith('settings.json.bak'))
+      .sort()
+      .reverse()
+    const latestBackup = backupFiles[0]
+    if (latestBackup !== undefined) {
+      console.log(`  Backup: ${path.join(path.dirname(settingsPath), latestBackup)}`)
+    }
+  }
+
+  console.log(`  Your original statusline is fully preserved and chained · it still runs.`)
+  return 0
+}
+
+export function handleStatuslineUninstall(flags: Record<string, string>): number {
+  const settingsPath = flags['settings'] ?? defaultSettingsPath()
+  const result = uninstallStatusline(settingsPath)
+
+  // R8 hygiene: cap the timestamped settings backups here too (keep newest few).
+  rotateBackups(path.dirname(settingsPath), 'settings.json.bak.')
+
+  if (result.action === 'not-installed') {
+    console.log('  Grove statusline wrapper was not installed (nothing to remove).')
+  } else {
+    console.log('  Grove statusline wrapper removed.')
+    console.log('  Your original statusline command has been restored.')
+  }
+
+  return 0
+}
+
+// ---------------------------------------------------------------------------
+// Minimal synchronous stdin reader
+// ---------------------------------------------------------------------------
+
+/**
+ * Read all of stdin synchronously (blocking). Used by statusline-ingest which
+ * is invoked from a shell pipe · it's fine to block here.
+ */
+function readStdinSync(): string {
+  const BUFSIZE = 65536
+  let data = ''
+  let bytesRead: number
+  const buf = Buffer.alloc(BUFSIZE)
+
+  // Use fs.readSync on fd 0 (stdin)
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      bytesRead = fs.readSync(0, buf, 0, BUFSIZE, null)
+      if (bytesRead === 0) break
+      data += buf.subarray(0, bytesRead).toString('utf-8')
+    } catch {
+      break
+    }
+  }
+  return data
+}
+
+// ---------------------------------------------------------------------------
+// Commit type inference (pure helper for suggest-commit)
+// ---------------------------------------------------------------------------
+
+/**
+ * Infer a conventional-commit type from staged file paths.
+ * Priority order: test > docs > chore > feat/fix heuristic.
+ */
+function inferCommitType(files: string[]): string {
+  const hasTest = files.some((f) =>
+    /\.test\.[tj]sx?$|\.spec\.[tj]sx?$|__tests__/.test(f),
+  )
+  if (hasTest) return 'test'
+
+  const hasDocs = files.some((f) =>
+    /\.md$|^docs\/|CHANGELOG|ARCHITECTURE|DECISIONS/i.test(f),
+  )
+  if (hasDocs) return 'docs'
+
+  const hasChore = files.some((f) =>
+    /package\.json$|package-lock\.json$|tsconfig|\.eslintrc|\.prettierrc|vitest\.config|vite\.config/.test(f),
+  )
+  if (hasChore) return 'chore'
+
+  return 'feat'
+}
+
+// ---------------------------------------------------------------------------
+// suggest-commit handler
+// ---------------------------------------------------------------------------
+
+export function handleSuggestCommit(flags: Record<string, string>): number {
+  const repo = flags['repo'] ?? process.cwd()
+
+  const diff = stagedDiffStat(repo)
+
+  if (diff === null || diff.files.length === 0) {
+    console.log('  nothing staged · `git add` first, then `sq suggest-commit`.')
+    return 0
+  }
+
+  const type = inferCommitType(diff.files)
+  const topFile = diff.files[0] ?? ''
+  // Build a concise subject from the top changed path
+  const subject = path.basename(topFile, path.extname(topFile))
+
+  const fileList = diff.files.join(', ')
+  const statsLine = `+${diff.insertions}/-${diff.deletions}`
+
+  // Suggested message (two-line conventional-commit style)
+  const suggested = [
+    `${type}: ${subject}`,
+    ``,
+    `Changed: ${fileList} (${statsLine})`,
+  ].join('\n')
+
+  console.log('  📋 Suggested commit (copy it):')
+  console.log('  ─'.repeat(26))
+  console.log(suggested.split('\n').map((l) => `  ${l}`).join('\n'))
+  console.log('  ─'.repeat(26))
+
+  return 0
+}
+
+// ---------------------------------------------------------------------------
+// checkpoint handler
+// ---------------------------------------------------------------------------
+
+export function handleCheckpoint(flags: Record<string, string>, dir: string, zen: boolean): number {
+  const repo = flags['repo'] ?? process.cwd()
+  const message = flags['m'] ?? 'checkpoint'
+
+  // 1. Non-destructive snapshot via git stash create
+  const snapshot = createStashSnapshot(repo)
+  const ref = snapshot?.ref ?? ''
+  const branch = currentBranch(repo) ?? 'unknown'
+
+  // 2. Collect diffStat for the record (may be null on clean repo · that's fine)
+  const diffStat = stagedDiffStat(repo)
+
+  // 3. Record to checkpoints.jsonl in the grove state dir
+  const entry = {
+    ts: new Date().toISOString(),
+    ref,
+    branch,
+    message,
+    diffStat,
+  }
+
+  try {
+    fs.mkdirSync(dir, { recursive: true })
+    const checkpointsFile = path.join(dir, 'checkpoints.jsonl')
+    fs.appendFileSync(checkpointsFile, JSON.stringify(entry) + '\n', 'utf8')
+  } catch {
+    // Non-fatal · continue even if write fails
+  }
+
+  // 4. Ingest a 'checkpoint' GroveEvent (fires rest-buff + gift pull)
+  const rewards = (() => {
+    try {
+      const result = ingestEvent(dir, {
+        source: 'sq-checkpoint',
+        sessionId: 'checkpoint',
+        type: 'checkpoint',
+        magnitude: 1,
+        success: true,
+        ts: new Date().toISOString(),
+        meta: { ref, branch },
+      })
+      return result.rewards
+    } catch {
+      return []
+    }
+  })()
+
+  // 5. Print checkpoint confirmation (the safety-net purpose · kept even in calm
+  //    mode; it is the command's reason for existing, not loot spectacle).
+  if (ref !== '') {
+    console.log(`  📍 Checkpoint saved · ${branch}`)
+    console.log(`  Restore: git stash apply ${ref}`)
+  } else {
+    console.log(`  📍 Checkpoint · nothing to snapshot · ${branch}`)
+  }
+
+  // Push-on-big-moment (opt-in, default OFF, fire-and-forget) · independent of zen.
+  maybePush(rewards)
+
+  if (zen) {
+    // Calm: engine ran & persisted the rest-buff; suppress loot + offers.
+    return 0
+  }
+
+  // Print rewards
+  printRewards(rewards)
+
+  // 6. Contextual offers
+  printContextualOffers(rewards, dir)
+
+  return 0
+}

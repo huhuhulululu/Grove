@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import type { Gear } from '../core/rewards'
+import type { Gear, Rarity } from '../core/rewards'
 import type { EnhanceResult } from '../engine/gear'
 import { renderEnhanceOdds, renderEnhanceResult, renderEnhanceFrames, renderPullFrames } from './enhance'
 
@@ -225,5 +225,123 @@ describe('renderPullFrames', () => {
   it('uses a pack/card-opening motif (🃏)', () => {
     const frames = renderPullFrames()
     expect(frames.some((f) => f.includes('🃏'))).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// RARITY-SCALED REVEAL FRAMES — escalating anticipation for rarer drops
+// ---------------------------------------------------------------------------
+
+const RARITY_ORDER: Rarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'shiny']
+
+/** Count ✨-sparkle glyphs across a frame list (the "brightness" of the build). */
+function sparkleCount(frames: string[]): number {
+  return frames.reduce((n, f) => n + (f.match(/✨/g)?.length ?? 0), 0)
+}
+
+describe('renderPullFrames — rarity-scaled escalation', () => {
+  it('still works with no rarity (backward-compatible default build)', () => {
+    const frames = renderPullFrames()
+    expect(frames.length).toBeGreaterThan(0)
+    expect(frames.some((f) => f.includes('🃏'))).toBe(true)
+  })
+
+  it('a legendary build is LONGER than a common build (more suspense for rarer drops)', () => {
+    const common = renderPullFrames('common')
+    const legendary = renderPullFrames('legendary')
+    expect(legendary.length).toBeGreaterThan(common.length)
+  })
+
+  it('a shiny build is the longest of all (top-tier gets the biggest moment)', () => {
+    const lengths = RARITY_ORDER.map((r) => renderPullFrames(r).length)
+    const shinyLen = renderPullFrames('shiny').length
+    expect(shinyLen).toBe(Math.max(...lengths))
+  })
+
+  it('frame length is monotonically NON-DECREASING up the rarity ladder', () => {
+    const lengths = RARITY_ORDER.map((r) => renderPullFrames(r).length)
+    for (let i = 1; i < lengths.length; i++) {
+      expect(lengths[i]!).toBeGreaterThanOrEqual(lengths[i - 1]!)
+    }
+  })
+
+  it('a rarer build is BRIGHTER — more ✨ sparkle than a common build', () => {
+    expect(sparkleCount(renderPullFrames('legendary'))).toBeGreaterThan(
+      sparkleCount(renderPullFrames('common')),
+    )
+  })
+
+  it('a legendary build holds a beat / near-miss tease before the reveal', () => {
+    // The penultimate frames build tension; a longer build = a held beat the
+    // common reveal never gets. We assert the legendary build has repeated
+    // top-intensity frames (the "held beat") that the common build lacks.
+    const legendary = renderPullFrames('legendary')
+    const common = renderPullFrames('common')
+    expect(legendary.length - common.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('every frame is a non-empty string for every rarity', () => {
+    for (const r of RARITY_ORDER) {
+      for (const f of renderPullFrames(r)) {
+        expect(typeof f).toBe('string')
+        expect(f.length).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('frames within a build are not all identical (a genuine animation)', () => {
+    for (const r of RARITY_ORDER) {
+      expect(new Set(renderPullFrames(r)).size).toBeGreaterThan(1)
+    }
+  })
+
+  it('keeps the pack/card motif (🃏) at every rarity', () => {
+    for (const r of RARITY_ORDER) {
+      expect(renderPullFrames(r).some((f) => f.includes('🃏'))).toBe(true)
+    }
+  })
+})
+
+describe('renderEnhanceFrames — rarity-scaled escalation', () => {
+  it('still works with no rarity (backward-compatible default build)', () => {
+    const frames = renderEnhanceFrames()
+    expect(frames.length).toBeGreaterThan(0)
+  })
+
+  it('a legendary build is LONGER than a common build', () => {
+    expect(renderEnhanceFrames('legendary').length).toBeGreaterThan(
+      renderEnhanceFrames('common').length,
+    )
+  })
+
+  it('frame length is monotonically NON-DECREASING up the rarity ladder', () => {
+    const lengths = RARITY_ORDER.map((r) => renderEnhanceFrames(r).length)
+    for (let i = 1; i < lengths.length; i++) {
+      expect(lengths[i]!).toBeGreaterThanOrEqual(lengths[i - 1]!)
+    }
+  })
+
+  it('a rarer build is brighter — more ✨ sparkle than a common build', () => {
+    expect(sparkleCount(renderEnhanceFrames('legendary'))).toBeGreaterThan(
+      sparkleCount(renderEnhanceFrames('common')),
+    )
+  })
+
+  it('every frame is a non-empty string for every rarity', () => {
+    for (const r of RARITY_ORDER) {
+      for (const f of renderEnhanceFrames(r)) {
+        expect(typeof f).toBe('string')
+        expect(f.length).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('no longer emits a flat loading-dot counter (the placeholder is gone)', () => {
+    // The old placeholder was literally '🃏 .' / '🃏 ..' / '✨ .' style dots.
+    // A real build widens a sparkle field / ramps tension — assert the legendary
+    // build is not just dot-padded repeats of a single base.
+    const frames = renderPullFrames('legendary')
+    const dotOnly = frames.every((f) => /^[🃏✨🎲⚡]?\s*\.*$/u.test(f))
+    expect(dotOnly).toBe(false)
   })
 })

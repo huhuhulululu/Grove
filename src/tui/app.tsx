@@ -43,6 +43,7 @@ import {
   pickSalientReward,
   flashFor,
   revealSteps,
+  xpBarSteps,
 } from './juice'
 
 // ---------------------------------------------------------------------------
@@ -61,6 +62,33 @@ export interface DispatchResult {
   rewards: Reward[]
   /** true iff the engine action actually mutated state (drives the juicy highlight). */
   changed: boolean
+}
+
+/**
+ * A freshly-acquired row to pulse for one beat (light panel motion, R9): a
+ * collection set (by set name) or a gear (by id). Reused by the view to tint the
+ * matching row with the salient rarity for a single ~120ms beat.
+ */
+export interface PulseTarget {
+  kind: 'collection' | 'gear'
+  /** the set name (collection) or gear id (gear) to highlight. */
+  key: string
+}
+
+/**
+ * Derive the row to pulse from the salient reward of one action: a card → its set
+ * row; a gear → its gear row; anything else → no pulse. PURE; the component drives
+ * the one-beat highlight from this. Exported for headless testing of the wiring.
+ */
+export function pulseTargetFor(salient: Reward | null): PulseTarget | null {
+  if (salient === null) return null
+  if (salient.kind === 'card' && salient.card) {
+    return { kind: 'collection', key: salient.card.set }
+  }
+  if (salient.kind === 'gear' && salient.gear) {
+    return { kind: 'gear', key: salient.gear.id }
+  }
+  return null
 }
 
 /**
@@ -327,6 +355,11 @@ export function App(props: AppProps): React.ReactElement {
   const [revealStep, setRevealStep] = useState<{ steps: string[]; i: number } | null>(null)
   // The settled rarity to apply once the animation finishes stepping.
   const settledRarity = useRef<Rarity | null>(null)
+  // Light panel motion (R9): the XP bar fills toward its new value over a few beats.
+  // `xpAnim` overrides the header's static fill fraction while filling; null = settled.
+  const [xpAnim, setXpAnim] = useState<{ fracs: number[]; i: number } | null>(null)
+  // The freshly-acquired row to pulse for one beat (a collection set or a gear id).
+  const [pulse, setPulse] = useState<PulseTarget | null>(null)
 
   const focus: Panel = PANELS[focusIdx]!
 
@@ -356,16 +389,39 @@ export function App(props: AppProps): React.ReactElement {
         return
       }
 
+      // Light panel motion (R9): capture the XP fill BEFORE swapping state so the
+      // bar can animate from the old fraction to the new one. A level change wraps
+      // (fill to full, then refill the new level). Gated by `animate` (off in tests/
+      // pipes) — when off, the bar just jumps via the model's static fraction.
+      const before = tuiModel(state).header
+      const after = tuiModel(result.state).header
       setState(result.state)
+
+      if (animate && result.changed && (after.level !== before.level || after.xpFraction !== before.xpFraction)) {
+        const fracs = xpBarSteps(before.xpFraction, after.xpFraction, {
+          animate: true,
+          wrapped: after.level !== before.level,
+        })
+        setXpAnim({ fracs, i: 0 })
+      } else {
+        setXpAnim(null)
+      }
 
       // Juice: pick the HIGHEST-salience reward (level-up / set / prestige /
       // windfall > legendary > gear > card) and colour the flash by its rarity.
       const salient = pickSalientReward(result.rewards)
       settledRarity.current = salientRarity(salient)
 
+      // Pulse the freshly-acquired collection/gear row for one beat (animate-gated).
+      setPulse(animate && result.changed ? pulseTargetFor(salient) : null)
+
       // Build the reveal sequence: suspense frames (if animating) THEN the settled
-      // flash. A blocked action settles instantly on a terse can't line.
-      const steps = revealSteps(key, result, { animate })
+      // flash. The SALIENT rarity scales the build so a rarer drop suspends longer
+      // (rarity-scaled reveal, R9). A blocked action settles on a terse can't line.
+      const steps = revealSteps(key, result, {
+        animate,
+        ...(settledRarity.current !== null ? { rarity: settledRarity.current } : {}),
+      })
       if (steps.length === 0) {
         // A true no-op (refresh / unmapped) — nothing to show.
         setRevealStep(null)
@@ -377,7 +433,7 @@ export function App(props: AppProps): React.ReactElement {
       // The rarity tint only applies to the SETTLED step; suspense frames are neutral.
       setFlashRarity(steps.length === 1 ? settledRarity.current : null)
     },
-    [dir, seed, focus, focusedGearIndex, animate],
+    [dir, seed, focus, focusedGearIndex, animate, state],
   )
 
   // Reveal stepper: advance through the suspense frames on a ~120ms beat, then
@@ -412,6 +468,27 @@ export function App(props: AppProps): React.ReactElement {
     return () => clearTimeout(t)
   }, [revealStep, flash])
 
+  // XP-bar fill stepper (R9 panel motion): advance the fill fraction on the same
+  // ~120ms beat until it settles on the new value, then clear (the static header
+  // fraction takes over). Pure timing; the fractions come from pure xpBarSteps.
+  useEffect(() => {
+    if (xpAnim === null) return
+    if (xpAnim.i >= xpAnim.fracs.length - 1) {
+      const t = setTimeout(() => setXpAnim(null), 120)
+      return () => clearTimeout(t)
+    }
+    const t = setTimeout(() => setXpAnim({ fracs: xpAnim.fracs, i: xpAnim.i + 1 }), 120)
+    return () => clearTimeout(t)
+  }, [xpAnim])
+
+  // Row-pulse stepper (R9 panel motion): the freshly-acquired collection/gear row
+  // glows for ONE ~120ms beat, then clears. A short, calm highlight (never a flash storm).
+  useEffect(() => {
+    if (pulse === null) return
+    const t = setTimeout(() => setPulse(null), 120)
+    return () => clearTimeout(t)
+  }, [pulse])
+
   useInput((input, keyMeta) => {
     if (input === 'q' || (keyMeta.ctrl && input === 'c')) {
       app.exit()
@@ -441,6 +518,9 @@ export function App(props: AppProps): React.ReactElement {
   })
 
   const model = tuiModel(state)
+  // While the XP bar is filling, override the static header fraction with the
+  // current animation step; otherwise show the settled fraction.
+  const animatedXpFraction = xpAnim ? xpAnim.fracs[xpAnim.i]! : null
   return (
     <AppView
       model={model}
@@ -448,6 +528,8 @@ export function App(props: AppProps): React.ReactElement {
       focusedGearIndex={focusedGearIndex}
       flash={flash}
       flashRarity={flashRarity}
+      animatedXpFraction={animatedXpFraction}
+      pulse={pulse}
     />
   )
 }
@@ -459,19 +541,26 @@ function AppView(props: {
   focusedGearIndex: number
   flash: string | null
   flashRarity: Rarity | null
+  /** the current XP-bar fill while animating, or null to use the static fraction. */
+  animatedXpFraction: number | null
+  /** the freshly-acquired row to pulse for one beat, or null. */
+  pulse: PulseTarget | null
 }): React.ReactElement {
-  const { model, focus, focusedGearIndex, flash, flashRarity } = props
+  const { model, focus, focusedGearIndex, flash, flashRarity, animatedXpFraction, pulse } = props
   const h = model.header
 
   // Rarity-as-colour on the flash line: a legendary/shiny drop glows yellow+bold,
   // an epic magenta, etc. A non-drop flash (level-up / can't / error) stays yellow.
   const flashColor = flashRarity ? rarityColor(flashRarity) : { color: 'yellow', bold: true }
 
+  // The bar fills toward its new value while animating; otherwise the settled fraction.
+  const xpFraction = animatedXpFraction ?? h.xpFraction
+
   return (
     <Box flexDirection="column">
       <Text bold>
         {`GROVE · Level ${h.level}`}
-        <Text color="green">{`   XP [${progressBar(h.xpFraction, 12)}] ${h.xp}/${h.xpForLevel}`}</Text>
+        <Text color="green">{`   XP [${progressBar(xpFraction, 12)}] ${h.xp}/${h.xpForLevel}`}</Text>
       </Text>
       <Text>
         {`🌰 ${h.seeds} seeds · 🔧 ${h.shards} shards · ✦ Prestige ${h.prestigeRank} (next ${h.nextPrestigeCost} 🌰)`}
@@ -481,11 +570,17 @@ function AppView(props: {
       <PanelBox title="COLLECTION" focused={focus === 'Collection'}>
         {model.collection.map((c) => {
           const tint = rarityColor(c.rarity)
+          // One-beat pulse on the freshly-acquired set row: glow bold for the beat.
+          const pulsing = pulse?.kind === 'collection' && pulse.key === c.set
           return (
-            <Text key={c.set} color={c.locked ? 'gray' : tint.color} bold={!c.locked && tint.bold}>
+            <Text
+              key={c.set}
+              color={c.locked ? 'gray' : tint.color}
+              bold={pulsing || (!c.locked && tint.bold)}
+            >
               {c.locked
                 ? `${c.set}  🔒 L${c.unlockLevel}`
-                : `${c.set}  ${c.owned}/${c.total}${c.complete ? '  ✓' : ''}`}
+                : `${pulsing ? '✦ ' : ''}${c.set}  ${c.owned}/${c.total}${c.complete ? '  ✓' : ''}`}
             </Text>
           )
         })}
@@ -498,9 +593,11 @@ function AppView(props: {
           model.gear.map((g, i) => {
             const focused = focus === 'Gear' && i === focusedGearIndex
             const tint = rarityColor(g.rarity)
+            // One-beat pulse on the freshly-enhanced/acquired gear row.
+            const pulsing = pulse?.kind === 'gear' && pulse.key === g.id
             return (
-              <Text key={g.id} color={focused ? 'cyan' : tint.color} bold={!focused && tint.bold}>
-                {`${focused ? '▶ ' : '  '}${g.name} +${g.level}`}
+              <Text key={g.id} color={focused ? 'cyan' : tint.color} bold={pulsing || (!focused && tint.bold)}>
+                {`${focused ? '▶ ' : pulsing ? '✦ ' : '  '}${g.name} +${g.level}`}
                 {g.broken ? '  BROKEN' : ''}
                 {g.protectedNow ? '  PROTECTED' : ''}
                 {g.effect ? ` · ${g.effect}` : ''}

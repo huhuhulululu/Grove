@@ -29,7 +29,7 @@ import {
 import { addCard, grantDupComp, craftableCardId, missingCardIds, SHARDS_PER_CRAFT } from './collection'
 import type { Rarity } from '../core/rewards'
 import { makeGear, activeGearBonus } from './gear'
-import { cardFromDef, unlockedSets, ALL_CARD_DEFS, setUnlockLevel, SET_UNLOCK_LEVEL } from '../core/cards'
+import { cardFromDef, unlockedSets, ALL_CARD_DEFS, setUnlockLevel, SET_UNLOCK_LEVEL, cardIdsInSet } from '../core/cards'
 import {
   applyQuests,
   activeMultiplier,
@@ -115,13 +115,37 @@ export const PREMIUM_PULL_COST = 225
 export const SPARK_THRESHOLD = 8
 
 /**
- * R8 RENEWABLE CONTENT AXIS (economy A-blocker). Shards to cosmetically FOIL one
- * OWNED card (`foilCard`). Every owned card becomes a further shard sink target, so
- * a completed collection still has a runway. Set in the same shard economy as a
- * craft (SHARDS_PER_CRAFT) but cheaper — foil is a repeatable polish, not a new
- * card. Published / inspectable (ADR-0002); cosmetic-only, ZERO power (ADR-0005).
+ * R9 ECONOMY → A: FOIL IS A CURVE, NOT A FLAT DRAIN. Shards to cosmetically FOIL one
+ * OWNED card, SCALED by that card's rarity — mirroring SHARDS_BY_RARITY's shape so a
+ * dupe's worth and its foil's cost rise together (commons cheap, legendary/shiny
+ * dear). So foiling a finished collection is a SHAPED late-game climb (polish the
+ * commons early, save the legendaries for last), not a uniform sink.
+ *
+ * Tuned ≈ 1.5× the matching SHARDS_BY_RARITY tier so a foil is a repeatable polish in
+ * the SAME shard economy — never as dear as a fresh craft (SHARDS_PER_CRAFT). Every
+ * rarity stays a positive integer. Published / inspectable (ADR-0002); cosmetic-only,
+ * ZERO power (ADR-0005).
  */
-export const FOIL_COST = 30
+export const FOIL_COST_BY_RARITY: Record<Rarity, number> = {
+  common: 3,
+  uncommon: 6,
+  rare: 12,
+  epic: 24,
+  legendary: 48,
+  shiny: 72,
+}
+
+/** Shards to foil a card of the given rarity (the published foil CURVE). PURE. */
+export function foilCost(rarity: Rarity): number {
+  return FOIL_COST_BY_RARITY[rarity]
+}
+
+/**
+ * Back-compat baseline: the cheapest (common) foil cost. The cost a `foilCard`
+ * actually debits is the chosen card's rarity-scaled `foilCost(rarity)` — this
+ * constant is just the floor of the curve, kept for callers/tests that reference it.
+ */
+export const FOIL_COST = FOIL_COST_BY_RARITY.common
 
 /**
  * Seeds an ENDGAME prestige cosmetic costs (R5 endgame sink, game-design P2). A
@@ -682,7 +706,7 @@ export function pullPremium(
     // Force the chosen missing card (deterministic spark guarantee). Reset spark to 0.
     const def = ALL_CARD_DEFS.find((d) => d.id === target)!
     const card = cardFromDef(def)
-    const next = applyPulledCard(
+    let next = applyPulledCard(
       { ...state, player: { ...state.player, currency: spent }, spark: 0 },
       card,
       def.rarity,
@@ -690,6 +714,22 @@ export function pullPremium(
       rng,
       rewards,
     )
+    // R9 SPARK NICHE craft CANNOT replicate: the guaranteed card arrives already
+    // FOILED (a premium finish). Craft delivers a plain card — so spark buys a
+    // strictly DIFFERENT, higher-finish outcome, not a worse-priced craft dupe.
+    // Cosmetic-only (ADR-0005); deterministic (no extra rng).
+    const foiled = next.foiled ?? []
+    if (!foiled.includes(target!)) {
+      const nextFoiled = [...foiled, target!]
+      rewards.push({
+        kind: 'card',
+        rarity: def.rarity,
+        message: `✦ FOIL finish · ${card.name} arrives foiled (spark)`,
+      })
+      next = { ...next, foiled: nextFoiled }
+      // a foil-finish that closes a set fires the same fully-foiled capstone.
+      next = grantFoiledSetCapstone(next, def.set, nextFoiled, rewards)
+    }
     return { state: next, rewards }
   }
 
@@ -817,6 +857,47 @@ export function craftCard(
 /** The set a card id belongs to (for the locked-set refusal message). */
 function defSet(cardId: string): string {
   return ALL_CARD_DEFS.find((d) => d.id === cardId)?.set ?? cardId
+}
+
+/** The capstone buff id granted when every card of `set` is foiled. */
+export function foiledSetBuffId(set: string): string {
+  return `foiled-set:${set}`
+}
+
+/**
+ * Grant the FULLY-FOILED-SET capstone (R9 economy → A) for the set just completed by
+ * a foil, IF every card of that set is now foiled and the capstone has not already
+ * fired. A distinct COSMETIC flair (kind 'rest' — read by NO xp/seed/crit selector,
+ * so ZERO power per ADR-0005) that gives post-completion players a visible GOAL: a
+ * shimmer earned by foiling a whole set, not a flat sink. Fires exactly ONCE per set.
+ *
+ * `set` is the set the just-foiled card belongs to; `foiled` is the NEW foiled list
+ * (after the append). Returns a NEW state (buffs extended) when the capstone fires,
+ * else the same state unchanged. PURE — pushes at most one celebratory reward.
+ */
+function grantFoiledSetCapstone(
+  state: GameState,
+  set: string,
+  foiled: string[],
+  rewards: Reward[],
+): GameState {
+  const required = cardIdsInSet(set)
+  if (required.length === 0) return state
+  const foiledIds = new Set(foiled)
+  const allFoiled = required.every((id) => foiledIds.has(id))
+  if (!allFoiled) return state
+
+  const buffId = foiledSetBuffId(set)
+  if (state.buffs.some((b) => b.id === buffId)) return state // already fired (idempotent)
+
+  // kind:'rest' is purely cosmetic — NOT read by any XP/seed/crit/streak selector.
+  const buff: Buff = { id: buffId, label: `${set} fully foiled`, kind: 'rest' }
+  rewards.push({
+    kind: 'buff',
+    buff: buffId,
+    message: `✦✦ ${set} set fully foiled · capstone unlocked (cosmetic)`,
+  })
+  return { ...state, buffs: [...state.buffs, buff] }
 }
 
 /** The buff id the FIRST prestige rank grants (legacy/back-compat constant). */
@@ -992,23 +1073,28 @@ export function foilCard(
     return { state: cloneState(state), rewards }
   }
 
+  // R9: the cost is the chosen card's RARITY-SCALED foil cost (a curve, not flat).
+  const def = ALL_CARD_DEFS.find((d) => d.id === targetId)
+  const name = def?.name ?? targetId
+  const rarity = def?.rarity ?? 'common'
+  const cost = foilCost(rarity)
+
   // Affordability — calm refusal, no debit.
-  if (haveShards < FOIL_COST) {
+  if (haveShards < cost) {
     rewards.push({
       kind: 'currency',
       amount: haveShards,
-      message: `not enough shards — foil needs ${FOIL_COST}, have ${haveShards}`,
+      message: `not enough shards — foil ${name} needs ${cost}, have ${haveShards}`,
     })
     return { state: cloneState(state), rewards }
   }
 
-  const spentShards = haveShards - FOIL_COST
-  const def = ALL_CARD_DEFS.find((d) => d.id === targetId)
-  const name = def?.name ?? targetId
+  const spentShards = haveShards - cost
+  const nextFoiled = [...foiled, targetId]
   rewards.push({
     kind: 'currency',
-    amount: -FOIL_COST,
-    message: `-${FOIL_COST} shards · foil`,
+    amount: -cost,
+    message: `-${cost} shards · foil ${rarity}`,
   })
   rewards.push({
     kind: 'card',
@@ -1016,14 +1102,15 @@ export function foilCard(
     message: `✦ FOIL · ${name} now shimmers (cosmetic)`,
   })
 
-  return {
-    state: {
-      ...state,
-      player: { ...state.player, shards: spentShards },
-      foiled: [...foiled, targetId],
-    },
-    rewards,
+  let next: GameState = {
+    ...state,
+    player: { ...state.player, shards: spentShards },
+    foiled: nextFoiled,
   }
+  // R9 capstone: foiling the LAST card of a set unlocks a distinct one-time flair.
+  if (def) next = grantFoiledSetCapstone(next, def.set, nextFoiled, rewards)
+
+  return { state: next, rewards }
 }
 
 // ---------------------------------------------------------------------------

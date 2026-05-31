@@ -159,3 +159,15 @@ declared `bin` (`sq`) are all kept consistent, enforced by `src/cli/packaging.te
 re-score② audit. `grove-cli` is also taken (a prototype). `grovekit` is unclaimed, keeps the brand, and is
 unscoped (no scope-ownership / membership prerequisite to publish). The product/brand stays "Grove"; only the
 distribution identifier disambiguates. The binary `sq` is short and memorable and the whole README/UX drives it.
+
+## ADR-0011 note — share + ntfy shipped; GLOBAL leaderboard still needs a server backend
+**Status:** note · 2026-05-31 (integrate wave)
+**What shipped (within ADR-0011's guardrails):** the opt-in, privacy-minimal social layer's FIRST slice —
+`sq share [--badge]` (a copy-pasteable card / README badge; cosmetic stats only) and `sq ntfy <topic> | off`
+(opt-in mobile push on big moments via ntfy.sh, **default OFF**). Both transmit ONLY cosmetic game events —
+never code, cwd, or cost (the ADR-0011 privacy rule). Push fires only when a topic is set AND the batch is
+`pushWorthy` (level-up / legendary / chest / quest or set complete), fire-and-forget so it never blocks or
+alters a command. **Still deferred:** the *global, ranked* leaderboard. As ADR-0011 requires, a credible one
+needs **server-side verification of outcomes** (local `state.json` is trivially forgeable — the buddy-hunter
+lesson); until that backend + identity exist, any "leaderboard" stays friends-only / cosmetic. No heavy
+server/social infra is built ahead of adoption.

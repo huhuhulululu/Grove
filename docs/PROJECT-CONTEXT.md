@@ -105,6 +105,18 @@
     cluster-B test files green (`cli/{sq,zen,wrap-flags,nits,run-guard,onboarding,packaging}.test.ts`,
     `render/{dashboard,format,enhance,copy-lint,width}.test.ts`), copy-lint pass.
 
+- **2026-05-31 — Social/push integrate wave (M5 partial / M6 partial) DONE & verified.** Wired the new
+  opt-in modules into the CLI: `sq share [--badge]` prints the pure `renderShareCard` / `renderReadmeBadge`
+  (cosmetic stats only — level + collection %, NEVER code/cwd/cost; still prints under `--zen` since it's
+  user-invoked); `sq ntfy <topic>` persists an opt-in push topic to `<groveHome>/ntfy-topic` (where the
+  adapter's `ntfyTopic()` reads it) and `sq ntfy off` clears it; a fire-and-forget `maybePush(rewards)` hook
+  (injectable `topicFn`/`send` seams) is called in every reward path (`event` / `commit-hook` / `wrap` /
+  `checkpoint`) and sends ONLY when a topic is set AND `pushWorthy(rewards)` is non-null — **default OFF, no
+  push without opt-in**, never blocks/affects the command. USAGE + README + GOALS updated; a decisions note
+  records that the *global* leaderboard still needs a server-verified outcomes backend (ADR-0011, deferred).
+  Evidence (re-run by hand): **whole suite 1152/1152 pass** (15 new in `cli/ntfy-share.test.ts`), `tsc
+  --noEmit` clean, `npm run build` success, copy-lint pass.
+
 ## Origin / research
 A 10-agent research workflow produced: pain-point map (fatigue + competency pains), prior-art review,
 game-mechanics taxonomy, psychology/ethics guardrails, tool-agnostic adapter design, multi-platform

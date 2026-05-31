@@ -32,7 +32,7 @@ sq dashboard            # XP bar · seeds · gear · quests · buffs · energy
 
 # 5. The earn → choose → pull loop
 #    Shipping outcomes earns 🌰 seeds. You decide WHEN to spend them.
-sq pull                 # spend 30 🌰 for one gacha pull (refuses calmly when you're broke)
+sq pull                 # spend 45 🌰 for one gacha pull (refuses calmly when you're broke)
 sq enhance first        # risk/reward: upgrade a piece of gear (cosmetic — code is never touched)
 
 # 6. Optional: feed Grove your Claude Code energy meter (chains your statusline — never clobbers)
@@ -65,12 +65,30 @@ adapter per tool, no coupling.
 | `sq scan [path]` | Scan a repo for habit signals (grimoire / tests / docs / specs) and reward them |
 | `sq dashboard` | Full in-place board: XP, seeds, gear, quests, buffs, energy |
 | `sq quests` | The habit quest board |
-| `sq pull` | Spend 30 🌰 seeds for one gacha pull — you choose when |
+| `sq pull` | Spend 45 🌰 seeds for one gacha pull · you choose when |
 | `sq enhance <ref>` · `sq repair <ref>` · `sq protect <ref>` | The gear risk/reward loop (cosmetic only) |
 | `sq suggest-commit` | Read-only: draft a commit message from your staged diff (never commits) |
 | `sq checkpoint` | Non-destructive `git stash create` snapshot + a rest buff |
 | `sq statusline install` / `uninstall` | Chain Grove onto your Claude Code statusline (energy meter) |
+| `sq share [--badge]` | Print a copy-pasteable share card (or a README badge) — opt-in, cosmetic stats only (ADR-0011) |
+| `sq ntfy <topic>` / `sq ntfy off` | Opt into (or disable) mobile push for big moments via ntfy.sh — **default OFF** |
 | `sq status` / `sq recap` | Plain-text state / session recap |
+
+### Opt-in sharing & mobile push (privacy-minimal, ADR-0011)
+
+Both are **off by default** and transmit only cosmetic game stats — never code, cwd, or cost.
+
+```sh
+sq share                # prints a terse, copy-pasteable card (level + collection %)
+sq share --badge        # prints a markdown shields.io badge for your README
+sq ntfy my-grove-alerts # opt in: subscribe to that topic in the ntfy.sh app to get phone alerts
+sq ntfy off             # disable push again
+```
+
+Push fires only on a **big moment** (level-up, legendary/shiny drop, milestone chest, quest/set complete) —
+never routine commits, never a stream. A **global, ranked leaderboard is roadmap, not shipped**: a credible
+one needs a server-verified outcomes backend (local state is trivially forgeable), so until that exists any
+"leaderboard" stays friends-only / cosmetic (ADR-0011).
 
 ## Positioning: Grove vs. nearest rivals
 
@@ -93,13 +111,15 @@ Each factor exists *somewhere*; the **product exists nowhere but Grove.** The ma
 
 **Shipped today:** the pure game engine (XP, gacha, gear, collection, quests, energy, crit), persistence,
 the auto-capture git hook, `sq scan`, `sq wrap -- <cmd>` (real exit-code-driven signals — ADR-0003), the
-seeds economy + `sq pull` / `enhance` / `repair` / `protect`, the `sq dashboard`, `suggest-commit`,
-`checkpoint`, the chain-safe statusline integration, and `--zen` calm mode.
+seeds economy + `sq pull` / `enhance` / `repair` / `protect`, the `sq dashboard`, the navigable Ink TUI
+(`sq tui`), the read-only web/SSE dashboard (`sq serve`), `suggest-commit`, `checkpoint`, the chain-safe
+statusline integration, `--zen` calm mode, the opt-in `sq share` card/badge, and opt-in `sq ntfy` mobile
+push on big moments.
 
 **Roadmap (not yet built):** account-global energy (quota is account-wide; energy is currently stored
-per-repo); a navigable live-updating Ink TUI (the dashboard is a string render today, redrawn on demand
-but not keyboard-navigable); and the opt-in, league-based leaderboard (ADR-0011). Multi-platform
-mobile/web sync is a later phase.
+per-repo); friend streaks / co-op; and the opt-in, league-based **global leaderboard** — which needs a
+**server-verified outcomes backend** (local state is forgeable) before it can ship without becoming a
+dark pattern, so it stays deferred (ADR-0011).
 
 ## Build from source
 

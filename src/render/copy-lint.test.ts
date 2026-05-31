@@ -27,6 +27,7 @@ const FILES = [
   'src/render/format.ts',
   'src/app/recap.ts',
   'src/cli/sq.ts',
+  'src/render/share.ts',
 ]
 
 // Hard-coded deny-list (from docs/TONE.md). Matched case-insensitively.

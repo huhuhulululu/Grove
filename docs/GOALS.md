@@ -14,8 +14,12 @@ ingestion, `sq enhance`/`pull`/`protect`/`repair` (the risk/economy loop), a ful
 `sq dashboard` (string render, redrawn on demand — NOT yet a navigable Ink TUI), Pillar-B quests,
 energy/statusline, `suggest-commit`/`checkpoint` utilities, and `--zen` calm mode.
 
-**Roadmap (NOT yet built):** a navigable, live-updating Ink TUI (M3 stretch); web SSE dashboard +
-mobile push (M5); social / leaderboard (M6, ADR-0011).
+**Shipped since (M3/M5/M6 partial):** the navigable, live-updating Ink TUI (`sq tui`), the read-only
+web SSE dashboard (`sq serve`), opt-in ntfy mobile push on big moments (`sq ntfy`), and the opt-in
+shareable card / README badge (`sq share`).
+
+**Roadmap (NOT yet built):** friend streaks / co-op; and the opt-in, league-based **global leaderboard**
+(M6, ADR-0011) — which needs a server-verified outcomes backend before it can ship.
 
 ## Milestones
 - **M0 — Engine spine (current):** locked event schema + pure game engine (XP/leveling, gacha+pity,
@@ -29,8 +33,12 @@ mobile push (M5); social / leaderboard (M6, ADR-0011).
   a fully navigable, live-updating Ink TUI (the dashboard is a string render today, not yet keyboard-navigable).
 - **M4 — Pillar B breadth:** PARTIAL — 4 flagship quests shipped (CLAUDE.md / spec / doc-sync / tests);
   the full 8-quest set + renewable variants are ROADMAP.
-- **M5 — Multi-platform (ROADMAP, not built):** web SSE dashboard + ntfy mobile push.
-- **M6 — Social + launch (ROADMAP, not built):** opt-in shareable recap card, friend streaks, co-op repo raids.
+- **M5 — Multi-platform:** PARTIAL — the read-only web SSE dashboard (`sq serve`) and opt-in ntfy
+  mobile push on big moments (`sq ntfy`, default OFF) are SHIPPED; account-global energy sync is ROADMAP.
+- **M6 — Social + launch:** PARTIAL — the opt-in shareable card + README badge (`sq share`) is SHIPPED;
+  friend streaks, co-op repo raids, and the league-based **global leaderboard** are ROADMAP (ADR-0011).
+  The global leaderboard specifically needs a server-verified outcomes backend (local state is forgeable)
+  before it can ship without becoming the dark pattern Grove exists to fight — deferred until that exists.
 
 ## Non-goals
 - No surveillance/productivity-scoreboard for managers.

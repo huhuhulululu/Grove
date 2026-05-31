@@ -25,7 +25,7 @@ import * as path from 'node:path'
 import * as url from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { shQuote } from '../adapters/shquote'
-import { stateDir } from '../store/paths'
+import { stateDir, groveHome } from '../store/paths'
 import { ingestEvent } from '../app/ingest'
 import { loadState, saveState, readEvents, withStateLock } from '../store/store'
 import { buildRecap } from '../app/recap'
@@ -63,6 +63,10 @@ import { mulberry32, hashStringToSeed } from '../core/rng'
 import { parseStatuslinePayload } from '../adapters/statusline'
 import { installStatusline, uninstallStatusline } from '../adapters/statusline-install'
 import { stagedDiffStat, createStashSnapshot, currentBranch } from '../adapters/git-utils'
+import { pushWorthy, ntfyTopic, sendNtfy } from '../adapters/ntfy'
+import type { NtfyNotification } from '../adapters/ntfy'
+import { renderShareCard, renderReadmeBadge } from '../render/share'
+import type { Reward } from '../core/rewards'
 
 // ---------------------------------------------------------------------------
 // Minimal argv parser
@@ -85,7 +89,7 @@ interface ParsedArgs {
  */
 // Flags that carry NO value (boolean-only). A flag in this set is set to
 // 'true' unconditionally, never consuming the following positional token.
-const BOOL_FLAGS = new Set(['zen', 'no-clear', 'premium', 'once', 'no-wait'])
+const BOOL_FLAGS = new Set(['zen', 'no-clear', 'premium', 'once', 'no-wait', 'badge'])
 
 function parseArgs(argv: string[]): ParsedArgs {
   const positional: string[] = []
@@ -163,7 +167,7 @@ const SUBCOMMANDS = [
   'event', 'status', 'recap', 'scan', 'quests', 'pull', 'enhance', 'repair',
   'protect', 'craft', 'convert', 'prestige', 'dashboard', 'tui', 'serve',
   'statusline-ingest', 'statusline', 'init', 'uninstall', 'commit-hook',
-  'suggest-commit', 'checkpoint', 'wrap', 'help',
+  'suggest-commit', 'checkpoint', 'wrap', 'share', 'ntfy', 'help',
 ] as const
 
 /** Classic Levenshtein edit distance (pure). */
@@ -410,6 +414,17 @@ Subcommands:
       never modifies tree/index), record to grove state, ingest a checkpoint
       event for the rest-buff reward. Prints how to restore with git stash apply.
 
+  share [--badge] [--home DIR]
+      Print a terse, copy-pasteable share card (level + collection %). Opt-in &
+      privacy-minimal — only cosmetic stats, NEVER code/cwd/cost (ADR-0011).
+      --badge  Print a markdown shields.io badge for your README instead.
+
+  ntfy <topic> | off [--home DIR]
+      Opt-in mobile push (ntfy.sh). Default OFF — no push unless you set a topic.
+      <topic>  Set the topic; install the ntfy.sh app and subscribe to it.
+      off      Disable push. Big moments only (level-ups, legendaries, chests);
+      the message carries cosmetic events only — NEVER code/cwd/cost (ADR-0011).
+
   help
       Show this help message.
 `.trim()
@@ -551,6 +566,10 @@ function handleEvent(
   }
 
   const { rewards } = ingestEvent(dir, raw)
+
+  // Push-on-big-moment (opt-in, default OFF, fire-and-forget). Runs regardless of
+  // zen — it is the user's own chosen async channel, not terminal spectacle.
+  maybePush(rewards)
 
   if (zen) {
     // Calm: engine ran & persisted; suppress all loot/crit/offers — one quiet line.
@@ -1480,6 +1499,9 @@ function handleCheckpoint(flags: Record<string, string>, dir: string, zen: boole
     console.log(`  📍 Checkpoint — progress noted · ${branch}`)
   }
 
+  // Push-on-big-moment (opt-in, default OFF, fire-and-forget) — independent of zen.
+  maybePush(rewards)
+
   if (zen) {
     // Calm: engine ran & persisted the rest-buff; suppress loot + offers.
     return 0
@@ -1520,6 +1542,42 @@ function printContextualOffers(rewards: ReturnType<typeof ingestEvent>['rewards'
     }
   } catch {
     // Non-fatal
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Push-on-big-moment wiring (M5, opt-in, ADR-0011) — fire-and-forget
+// ---------------------------------------------------------------------------
+
+/** Injectable seams for maybePush — tests pass mocks; prod uses the real adapter. */
+export interface PushDeps {
+  /** Resolve the opt-in topic (null = disabled). Defaults to the real ntfyTopic. */
+  topicFn?: () => string | null
+  /** Fire-and-forget sender. Defaults to the real sendNtfy. */
+  send?: (topic: string, n: NtfyNotification) => void
+}
+
+/**
+ * Push a phone notification ONLY when BOTH hold:
+ *   1. the user has opted in (a topic is configured), AND
+ *   2. the reward batch is significant (pushWorthy returns a notification).
+ *
+ * Default OFF: with no topic set, this is a silent no-op — no network is touched.
+ * Fire-and-forget by construction: it never throws, never blocks, and never
+ * affects the command's outcome (a failing send is swallowed). Privacy-minimal —
+ * only the cosmetic NtfyNotification is sent, never code/cwd/cost (ADR-0011).
+ */
+export function maybePush(rewards: Reward[], deps: PushDeps = {}): void {
+  const topicFn = deps.topicFn ?? ntfyTopic
+  const send = deps.send ?? sendNtfy
+  try {
+    const topic = topicFn()
+    if (topic === null || topic === '') return // opt-in OFF → never push
+    const note = pushWorthy(rewards)
+    if (note === null) return // routine batch → never spam
+    send(topic, note)
+  } catch {
+    // Fire-and-forget: a push must NEVER disrupt the coding workflow.
   }
 }
 
@@ -1603,6 +1661,9 @@ function handleWrap(command: string[], asType: string | undefined, dir: string, 
       meta: { cmd: command.join(' '), exitCode },
     })
 
+    // Push-on-big-moment (opt-in, default OFF, fire-and-forget) — independent of zen.
+    maybePush(rewards)
+
     if (!zen) {
       for (const reward of rewards) {
         console.log(formatReward(reward))
@@ -1639,6 +1700,11 @@ function handleCommitHook(flags: Record<string, string>, dir: string, zen: boole
       }
     }
 
+    // Push-on-big-moment for the whole commit's reward batch (opt-in, default
+    // OFF, fire-and-forget). Done before the zen early-return so a calm user who
+    // opted into push still gets their phone alert.
+    maybePush(allRewards)
+
     if (zen) {
       // Calm: engine ran & persisted; one quiet line, no banner/loot/offers.
       calmConfirm(`commit recorded · ${events.length} signal(s)`)
@@ -1651,6 +1717,93 @@ function handleCommitHook(flags: Record<string, string>, dir: string, zen: boole
     // Never fail a commit — swallow all errors silently
   }
 
+  return 0
+}
+
+// ---------------------------------------------------------------------------
+// share handler (M6 social, opt-in, ADR-0011) — user-invoked, copy-pasteable
+// ---------------------------------------------------------------------------
+
+/**
+ * `sq share [--badge]` — print an opt-in, copy-pasteable share artifact built
+ * from the PURE share renderer (no game logic here):
+ *  - default → renderShareCard (level + collection %, a terse flex line)
+ *  - --badge → renderReadmeBadge (a markdown shields.io badge for a README)
+ *
+ * Privacy-minimal (ADR-0011): the renderer emits only cosmetic stats — never
+ * code, cwd, token counts, or cost. User-invoked, so it STILL prints under
+ * --zen (zen strips spectacle from automatic output; an explicit `share` is the
+ * thing the user asked for, not spectacle).
+ */
+function handleShare(flags: Record<string, string>, dir: string): number {
+  const state = loadState(dir)
+  const badge = flags['badge'] === 'true'
+  console.log(badge ? renderReadmeBadge(state) : renderShareCard(state))
+  return 0
+}
+
+// ---------------------------------------------------------------------------
+// ntfy handler (M5 push, opt-in, ADR-0011) — set/clear the global topic config
+// ---------------------------------------------------------------------------
+
+/**
+ * Path to the opt-in ntfy topic config file. It lives under groveHome() (the
+ * account-wide root) — one topic per machine, not per repo — which is exactly
+ * where the adapter's `ntfyTopic()` reads it back. Honors GROVE_HOME, so tests
+ * point both writer and reader at one isolated tree.
+ */
+function ntfyConfigPath(): string {
+  return path.join(groveHome(), 'ntfy-topic')
+}
+
+/**
+ * `sq ntfy <topic> | off` — opt into (or disable) mobile push.
+ *
+ *  - `<topic>` → persist the topic to <groveHome>/ntfy-topic so push is enabled.
+ *  - `off`     → delete the config so push is OFF (the default).
+ *  - (no arg)  → print the current state without changing anything.
+ *
+ * DEFAULT OFF: nothing is sent until the user runs this with a topic (ADR-0011).
+ * Cosmetic-only, privacy-minimal — the topic is the only thing stored.
+ */
+function handleNtfy(positional: string[], _dir: string): number {
+  const arg = positional[0]
+  const configPath = ntfyConfigPath()
+
+  if (arg === undefined) {
+    // Status only — persist nothing.
+    const current = ntfyTopic()
+    if (current === null) {
+      console.log('  🔕 ntfy push is OFF — run `sq ntfy <topic>` to opt in.')
+    } else {
+      console.log(`  🔔 ntfy push ON · topic: ${current}`)
+      console.log('  Run `sq ntfy off` to disable.')
+    }
+    return 0
+  }
+
+  if (arg.toLowerCase() === 'off') {
+    try {
+      fs.rmSync(configPath, { force: true })
+    } catch {
+      // Non-fatal — worst case it was already gone.
+    }
+    console.log('  🔕 ntfy push disabled.')
+    return 0
+  }
+
+  // Set the topic. The topic is user-chosen and acts as a shared secret — keep
+  // it as a single literal line; no interpolation into any shell context.
+  try {
+    fs.mkdirSync(groveHome(), { recursive: true })
+    fs.writeFileSync(configPath, arg + '\n', 'utf8')
+  } catch {
+    console.error('  could not save the ntfy topic — check your GROVE_HOME permissions.')
+    return 1
+  }
+  console.log(`  🔔 ntfy push ON · topic: ${arg}`)
+  console.log('  Install the ntfy app and subscribe to that topic to get big-moment alerts.')
+  console.log('  Big moments only (level-ups, legendaries, chests). Run `sq ntfy off` anytime.')
   return 0
 }
 
@@ -1797,6 +1950,12 @@ export function run(argv: string[]): number {
 
     case 'checkpoint':
       return handleCheckpoint(flags, dir, zen)
+
+    case 'share':
+      return handleShare(flags, dir)
+
+    case 'ntfy':
+      return handleNtfy(rest, dir)
 
     case 'help':
     case undefined:

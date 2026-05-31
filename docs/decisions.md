@@ -171,3 +171,74 @@ alters a command. **Still deferred:** the *global, ranked* leaderboard. As ADR-0
 needs **server-side verification of outcomes** (local `state.json` is trivially forgeable — the buddy-hunter
 lesson); until that backend + identity exist, any "leaderboard" stays friends-only / cosmetic. No heavy
 server/social infra is built ahead of adoption.
+
+## ADR-0013 — Grove Commons: GitHub-native idle-AI collective build (earn, never gamble)
+**Status:** proposed (rev.2, after critic REJECT of rev.1) · 2026-05-31 (user: "用闲置的 AI 一起共建一个有意义的东西")
+**Decision:** Add an OPT-IN "Commons" mode where the community turns idle AI time into HUMAN-REVIEWED, GitHub-PR
+contributions to a shared, meaningful codebase — the FIRST target being **Grove itself** (dogfood). The verified
+outcome is a **MERGED GitHub PR**; the reward is cosmetic loot + (deferred) reputation. The real value is the
+COMMONS ARTIFACT itself (a better shared codebase everyone uses) — NEVER redeemable money.
+
+**The bright line (non-negotiable; extends ADR-0005 firewall + ADR-0002 transparency):**
+- Randomness/gacha NEVER yields redeemable real value — cosmetic by construction.
+- Real value (the merged code; later, reputation) is earned DETERMINISTICALLY for a **publicly-verifiable merged
+  PR** — "earn for verified work", not "gamble". NOT a 资金盘/Ponzi (no money flows between participants; each
+  uses their OWN quota; the only "payout" is shared code) and NOT gambling (no random-for-money).
+
+**Architecture — GitHub IS the verified-outcome backend (the rev.1 "reuse the ADR-0011 server" was vapor; the
+critic was right — building a bespoke multi-tenant server + identity + CI-sandbox + merge-bot is the largest,
+riskiest piece in the project and is NOT free reuse). Instead lean on existing OSS infra:**
+- Contributions are **real GitHub PRs**: fork → the user's AI drafts a patch for a claimed task → the **user
+  reviews and opens the PR under their OWN GitHub identity** → **GitHub Actions** runs build+test in GitHub's
+  sandbox → a **maintainer reviews + merges**. A merged PR (read via the public GitHub API) is the outcome.
+  **Grove's own infra NEVER executes contributor code** → the rev.1 server-side-CI RCE/supply-chain surface is
+  eliminated (critic finding #2).
+- `sq commons` client (opt-in, OFF by default, **attended** — not an unattended background daemon): lists curated
+  claimable tasks (Grove issues labelled `commons`/good-first), helps the user's AI draft a patch for a claimed
+  task, and the **user** opens the PR. Fire-and-forget; **no obligation, no streak, no v1 leaderboard** (protects
+  the North-star — critic #5).
+- Engine PURE: a `commons_contribution` event (a verified merge) → cosmetic reward via reduce(). Networked logic
+  lives in a thin client adapter + GitHub, never the engine. (Purity is necessary-NOT-sufficient — purity.test.ts
+  is a token-grep, so it cannot prove the feature safe; real safety is the GitHub-runs-the-code design.)
+- **Firewall governance (critic #5):** commons tasks are scoped to SAFE, additive areas (i18n locales, card
+  packs, tool adapters, docs, tests). Changes to the ethics-firewall code (src/engine, src/core purity; ADR-0005)
+  are **maintainer-gated and OUT OF SCOPE for the commons flow** — no reputation-holder can land firewall changes.
+  Pooled contributions are covered by a CLA + the repo's MIT license.
+
+**Phased rollout (sequenced LATE, after adoption — same discipline as ADR-0011):**
+- **P0 (honestly sized, buildable on existing infra):** the GitHub-native loop — a `commons` issue-label scheme +
+  CONTRIBUTING.md/CLA + the `commons_contribution` engine event (with a test asserting it grants its reward) +
+  the `sq commons` client that drafts-a-patch and opens-a-PR for a claimed task. NO bespoke server.
+- **P1:** reputation derived from **publicly-merged PRs** (read-only GitHub API) → cosmetic rewards. Still no
+  competitive leaderboard.
+- **P2 (deferred = ADR-0011 territory):** an OPTIONAL aggregation service + contributor leaderboard, ONLY once
+  adoption is proven AND with ADR-0011's server-verified guardrails. Any bespoke backend lives HERE, explicitly
+  deferred and honestly sized as net-new infra — never smuggled into P0.
+- **P3:** open a SECOND commons target (a public OSS lib / knowledge base) once the loop is proven loved.
+
+**Acceptance criteria (runtime-observable):**
+- Commons mode opt-in, OFF by default; no patch drafted without explicit per-task user action, and the USER (not
+  Grove) opens every PR.
+- Grove infra NEVER executes contributor code (CI runs on GitHub Actions, asserted by design + the absence of any
+  server-side exec path).
+- A `commons_contribution` reward is granted ONLY for a PR the GitHub API reports as MERGED; a closed/un-merged PR
+  grants nothing (testable against GitHub merge state).
+- Commons task scope EXCLUDES firewall paths (src/engine, src/core); a guard test asserts the scope.
+- An engine test asserts a `commons_contribution` event actually grants its cosmetic reward (guards the closed
+  `EVENT_TYPES` enum + `reduce()` `default: break` silent-no-op trap — critic #4).
+- No money flows between participants; each uses their own quota (not a 资金盘).
+
+**Blocking pre-P0 gates (were "open questions"; the critic correctly flagged they are prerequisites, not footnotes):**
+- **Per-tool AI ToS** for AI-assisted, user-attended OSS contribution (likely fine — it is normal "use your AI to
+  help on an OSS PR you open yourself" — but MUST be confirmed per supported tool with citations; the rev.1
+  "human-review-makes-it-ToS-clean" hand-wave is rejected — critic #3).
+- Commons repo home + maintainer/merge ownership + reviewer capacity at scale (who merges the human-approved-but-
+  still-AI PRs).
+- Task source: auto-derive from labelled GitHub issues vs a curated backlog.
+- CLA mechanism + license confirmation for pooled contributions.
+
+**Why:** User — "大家用闲置的 AI 一起共建一个有意义的东西…分成就是游戏里的奖励." Reframed from a 资金盘/挖矿币 idea
+(Ponzi/gambling + ToS landmine; would kill "everyone loves it / reduces stress") into a GitHub-native distributed-AI
+COMMONS. rev.2 incorporates the critic's REJECT: GitHub (not a bespoke server) is the verified-outcome backend, so
+P0 is buildable and Grove never runs stranger code; ToS is a blocking investigation not a hand-wave; the firewall
+is governance-protected; the loop stays fire-and-forget with no v1 leaderboard; acceptance criteria are observable.

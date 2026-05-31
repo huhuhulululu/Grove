@@ -1,0 +1,150 @@
+# Architecture Decision Records (append-only)
+
+Each ADR captures a decision and its rationale. Several directly defuse landmines found in the
+adversarial design review (2026-05-30).
+
+---
+
+## ADR-0001 — Tool-agnostic adapter layer + one normalized event schema
+**Status:** accepted · 2026-05-30
+**Decision:** Capture coding signals through thin per-tool *adapters* that translate into a single
+closed-vocabulary `GroveEvent`. The engine consumes only `GroveEvent` and never knows the source tool.
+**Why:** Grove must work for any AI-coding workflow (Claude Code, Cursor, Aider, Codex/Copilot/Gemini CLI,
+plain terminal+git). Coupling to one tool's hooks would forfeit universality. New tool = one adapter file.
+
+## ADR-0002 — Embrace RNG transparency; deterministic seedable PRNG
+**Status:** accepted · 2026-05-30
+**Decision:** Use `mulberry32` (seedable, deterministic). Publish drop odds and pity thresholds. Do NOT
+build competitive leaderboards on raw RNG outcomes.
+**Why:** Review ground-truth: CLI power users reverse-engineer local PRNGs (the installed `buddy-hunter`
+plugin brute-forces Claude Code's `/buddy` seed). For a solo, local, **cosmetic-only** game, "farming" your
+own cosmetics is harmless, and determinism makes the engine testable. We resolve the "transparency paradox"
+by making fairness inspectable and never staking anything real or competitive on the RNG.
+
+## ADR-0003 — Never auto-run the user's tests; ingest signals the user already produces
+**Status:** accepted · 2026-05-30
+**Decision:** Grove will NOT invoke a project's test suite. Test/build results enter via `sq wrap <cmd>`
+(reads exit code of a command the user runs anyway), chained git hooks, CI status, and file presence/diff.
+**Why:** Auto-running tests in post-commit is slow, has side effects (DBs, emails, containers), is not
+zero-config (needs the test command), and double-runs work — the opposite of fatigue relief.
+
+## ADR-0004 — Chain git hooks; never clobber existing hook frameworks
+**Status:** accepted · 2026-05-30
+**Decision:** The git adapter must detect existing `core.hooksPath` / husky / lefthook / pre-commit and
+**chain** (call through) rather than overwrite. Installs as a plugin where a framework is present.
+"Installs without disabling existing git hooks" is an acceptance criterion.
+**Why:** `core.hooksPath` is a single value; overwriting silently disables a mature dev's real hooks — a
+data-loss-adjacent footgun and a dark pattern. The Pillar-B target audience is exactly who runs husky.
+
+## ADR-0005 — Ethics firewall by construction
+**Status:** accepted · 2026-05-30
+**Decision:** The engine is a pure function `(GameState, GroveEvent, Rng) → (GameState, Reward[])` with no
+I/O. All rewards are cosmetic. Gear-enhancement / gacha / loss mechanics gamble only earned in-game currency
+and cosmetics — never code, commits, docs, files, or git history. Reward **outcomes** (verifiable artifacts),
+never raw activity (LOC/commit-count/hours). Forgiving by default: no shame, free streak grace, `--zen` calm
+mode that strips randomness/risk. Front-load rewards for first-time good practices, then fade (anti-overjustification).
+**Why:** The product exists to REDUCE pressure. Purity makes "real work can never be harmed" a structural
+guarantee, not a promise. Outcome-gating defeats Goodhart/streak distortion.
+
+## ADR-0006 — TypeScript + vitest, pure-engine-first build order
+**Status:** accepted · 2026-05-30
+**Decision:** Node + TypeScript single language; vitest for TDD (80%+ coverage). Build the pure engine
+(deterministic, fully testable, no infra) BEFORE persistence/daemon/adapters/renderers, so the "fun" core is
+proven and the architectural seam is locked before the hard infra (daemon, mobile sync) is committed.
+**Why:** The engine is the crown jewel and the lowest-risk highest-value first slice; locking its interfaces
+lets later phases (and parallel work) proceed without churning the core.
+
+## ADR-0007 — Productivity-first; interactive/operable over scrolling text
+**Status:** accepted · 2026-05-30 (user direction)
+**Decision:** Grove exists ENTIRELY to reinforce the dev workflow and boost productivity — every mechanic
+must map to a real work action that makes the user faster/better; nothing is "fun for fun's sake." The
+experience must be high game-feel, high **operability** (the player DOES things — enhance gear, open packs,
+navigate, choose), and high interactivity. Crucially, the default reward surface must NOT be a scrolling
+**text stream** (append-only log lines cause their own CLI fatigue — the very thing we fight). Favor an
+in-place, navigable, visual interface: a rich TUI (panels/HUD that update in place, with juice on drops/
+enhances) in the terminal, and a live web/mobile dashboard — over `console.log` spam.
+**Implications:**
+- Build a rich interactive TUI (e.g. Ink) as a first-class renderer; keep terse text output only as a
+  scriptable/non-interactive fallback (e.g. for hook output) — never the primary experience.
+- Add interactive, agency-bearing commands: gear enhancement (`sq enhance`, the risk/tension loop the user
+  asked for), pack-opening, collection browsing, quest-board navigation.
+- Measure every feature against: "does this make the actual coding workflow faster, clearer, or less tiring?"
+**Why:** User's explicit steer (2026-05-30): "完全用来强化工作流和提效；游戏性强、操作性强、交互性强；减少 CLI
+文字流疲劳感." This also resolves the design review's "no moment-to-moment agency / dead-time is mere
+spectation / text fades fast" critique.
+
+## ADR-0008 — Rewards are real, safe workflow power-ups (not just cosmetics)
+**Status:** accepted · 2026-05-30 (user direction)
+**Decision:** Beyond cosmetic dopamine, Grove's mechanics must confer GENUINE workflow utility. Crits, buffs,
+multipliers, levels, gear, and collection each map to a REAL, helpful workflow effect tied to the habit/action
+that earned it. The reward for playing well IS a more capable, better-paced workflow.
+**Boundary (extends ADR-0005, respects ADR-0003):** real effects are ONLY safe, non-destructive, and
+opt-in/offered — read-only helpers, better AI context, generated suggestions/artifacts the user accepts, or
+pacing nudges. NEVER silent destructive mutations; NEVER auto-run side-effectful commands (e.g. the test
+suite); NEVER intrusive nagging (that would re-add the fatigue Grove fights). The game OFFERS help; the user disposes.
+**Examples (mix of SHIPPED + roadmap — see scope note):** crit on commit → offer a drafted commit summary /
+a rollback checkpoint; 'Fresh Architecture' buff → inject/refresh the codemap given to the AI; 'Pre-cast x2'
+→ turn the spec into a live acceptance checklist + test stubs; 'Refreshed' / low-energy → suggest
+checkpoint+compact (fights context rot & burnout); gear/levels → unlock real workflow templates/configs.
+**Why:** User steer — "除了游戏性，也希望它真的有用；暴击/加成在工作流里如何应用？" This is Grove's core
+thesis: a fun skin over a real productivity toolkit. Open risk to vet: keeping real effects from becoming
+intrusive (the design workflow + critic guard this).
+**Scope — SHIPPED today (honesty pass, R4):** the genuine-utility surface that actually exists is:
+`sq suggest-commit` (crit → read-only drafted commit message, never commits), `sq checkpoint` (low-energy →
+non-destructive `git stash create` safety-net + rest buff), contextual OFFERS (crit→suggest-commit,
+low-vigor→checkpoint; printed only, never auto), gear-level workflow effects (`gearEffectText` → xp/seed/crit
+nudges), and the energy "good stopping point" nudge. The codemap-injection, spec→checklist/test-stub
+generation, and template/config unlocks in the example list above are ROADMAP — NOT yet built. The decision &
+boundary stand; this note keeps the docs honest about what ships vs. what is planned.
+
+## ADR-0009 — Tone: de-中二, Diablo loot-grammar, keep light personality
+**Status:** accepted · 2026-05-30 (user direction)
+**Decision:** Drop the cloying forest-whimsy copy. Adopt Diablo's terse, rarity-forward LOOT GRAMMAR
+(`🃏 Name · rarity`, `ENHANCE +7→+8 ✓ success`, numbers carry the feeling) while KEEPING a light,
+approachable personality and emoji — not grimdark, not cutesy. User picked "keep a bit of fun, trim the
+most cloying" (over both full-Diablo-grit and current whimsy). Full style guide + deny-list in **docs/TONE.md**;
+a copy-lint test enforces the deny-list. Mechanics unchanged; this is a copy/rarity-presentation/panel pass.
+**Why:** User: "也不要搞得太中二了啊，参考一下暗黑破坏神." The whimsical voice clashed with a hardcore
+productivity tool's credibility.
+
+## ADR-0010 — Three-layer progression: outcomes (primary) + token-milestone floor + serendipity
+**Status:** accepted · 2026-05-30 (user direction) · realized in R3
+**Decision:** Progression has THREE layers, with token consumption as one factor — never the only one:
+1. **Outcomes (primary):** green tests / merges / specs / docs → the main XP + seeds. Outcome-gated,
+   anti-Goodhart — unchanged, stays dominant.
+2. **Token-milestone floor (保底):** cumulative real token/cost consumption (from the statusline payload's
+   `cost.total_cost_usd` / `output_tokens` — works even for Wellspring/API users who have no rate_limits)
+   fills a "work meter"; crossing a threshold grants a GUARANTEED loot chest. A fair floor so heavy work
+   always pays out.
+3. **Serendipity (奇遇):** stochastic surprise events (rare lucky drops / mini-encounters) layered on
+   outcomes for the variable-ratio dopamine the game-design audit said was missing.
+**Ethics guardrails (token = ACTIVITY not outcome — handle per ADR-0005/0008):** the token-milestone grants
+COSMETIC loot / modest seeds ONLY — NEVER power/XP that would reward burning tokens; it is CAPPED & diminishing
+per 5h window (grinding tokens past a point yields nothing); framed neutrally ("work tracked", never "burn
+more"); outcomes stay the dominant driver; it composes with the energy system's "rest when low" so it never
+pressures overuse. This keeps "token as an important factor, not the only one" (user's words) without
+re-introducing the activity-Goodhart trap or a burnout incentive.
+**Why:** User steer — "把 token 的消耗量也作为一个重要的参考因素，但不要作为唯一因素 … token 作为一个
+milestone / 保底，然而也会有很多奇遇、很多随机性."
+
+## ADR-0011 — Global leaderboard: opt-in, league-based, ranks HEALTHY outcomes, server-verified, sequenced LATE
+**Status:** accepted (design) · 2026-05-30 (user direction) · build deferred until after R3 + adoption + a sync backend
+**Decision:** A global leaderboard is desirable but is the mechanic MOST in tension with Grove's
+anti-burnout / anti-shame / local-first ethos, so it ships ONLY under strict guardrails and LATE:
+- **Opt-in, off by default;** zen/calm users never see it; rank is always hideable. (Honors the GOALS
+  "no surveillance / productivity-scoreboard" non-goal.)
+- **Rank on HEALTHY, hard-to-game metrics** — Pillar-B good-practice scores / consistency / collection —
+  NEVER raw token consumption, hours, LOC, or commit-count (those reward overwork/grinding = the anti-goal;
+  ranking on tokens would weaponize ADR-0010's token factor — explicitly forbidden).
+- **League/cohort structure** (Duolingo-style brackets of similar peers; the middle 80% never "lose"),
+  plus opt-in friend groups. No public "#9000 of millions" shaming.
+- **Cheat-resistance:** local scores are trivially forgeable (edit state.json / script fake events — the
+  buddy-hunter lesson), so a credible global board needs SERVER-SIDE verification of outcomes (e.g. via
+  GitHub/CI signals the server can independently check). Until that exists, "leaderboard" = friends-only / cosmetic.
+- **Privacy:** transmit only opt-in, minimal, aggregated data (a handle + a derived score) — NEVER raw
+  repo/code/cwd/cost.
+- **Architecture/sequencing:** needs the sync backend + identity that is currently unbuilt. Per the audit,
+  do NOT build heavy server/social infra before the core game loop (R3) and the install path. Order:
+  R3 → adoption → opt-in friend-streaks + share-card → (only then) leagues / global with server-verified outcomes.
+**Why:** User — "进而我们也可以有全球的排行榜." Captured with the guardrails that keep it from becoming the
+dark pattern Grove exists to fight.

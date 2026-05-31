@@ -1,0 +1,38 @@
+# Grove — Goals
+
+## North star
+Make AI-assisted coding **fun, low-pressure, and habit-forming** for any developer, on any tool,
+without ever risking real work. (Multi-platform — phone / web — is a ROADMAP goal, not yet shipped;
+today Grove is a terminal-only CLI. See Milestones / Status.)
+
+Grove is **productivity-first**: it exists to reinforce the workflow and make the user faster/better —
+every mechanic ties to a real work action. It aims to be **high game-feel, high operability (you DO things),
+high interactivity**, and to **reduce CLI text-stream fatigue**. (See ADR-0007.)
+
+**Shipped today (terminal CLI):** the pure engine, persistence, a chained git-hook + `sq wrap` signal
+ingestion, `sq enhance`/`pull`/`protect`/`repair` (the risk/economy loop), a full-screen in-place
+`sq dashboard` (string render, redrawn on demand — NOT yet a navigable Ink TUI), Pillar-B quests,
+energy/statusline, `suggest-commit`/`checkpoint` utilities, and `--zen` calm mode.
+
+**Roadmap (NOT yet built):** a navigable, live-updating Ink TUI (M3 stretch); web SSE dashboard +
+mobile push (M5); social / leaderboard (M6, ADR-0011).
+
+## Milestones
+- **M0 — Engine spine (current):** locked event schema + pure game engine (XP/leveling, gacha+pity,
+  risk gear-enhancement, collection) with TDD ≥80% coverage. *Acceptance: deterministic engine turns a
+  stream of events into loot/XP/gear/collection; no I/O; full suite green.*
+- **M1 — Persistence + recap:** append-only event store + `sq recap` ("what you shipped" + loot summary).
+- **M2 — Adapters:** universal chained git-hook adapter + `sq wrap` signal ingestion + Claude Code adapter.
+- **M3 — Interactive surface (front-loaded per ADR-0007):** SHIPPED — interactive gear enhancement
+  (`sq enhance`: the risk/tension loop), pack-opening (`sq pull`), and a full-screen in-place
+  `sq dashboard` (level/collection/quests/gear/energy panels, redrawn on demand). *ROADMAP within M3:*
+  a fully navigable, live-updating Ink TUI (the dashboard is a string render today, not yet keyboard-navigable).
+- **M4 — Pillar B breadth:** PARTIAL — 4 flagship quests shipped (CLAUDE.md / spec / doc-sync / tests);
+  the full 8-quest set + renewable variants are ROADMAP.
+- **M5 — Multi-platform (ROADMAP, not built):** web SSE dashboard + ntfy mobile push.
+- **M6 — Social + launch (ROADMAP, not built):** opt-in shareable recap card, friend streaks, co-op repo raids.
+
+## Non-goals
+- No surveillance/productivity-scoreboard for managers.
+- No real-money gacha, no pay-to-restore, no FOMO timers.
+- No mechanic that can modify, lock, or lose real code/docs/history.

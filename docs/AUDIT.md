@@ -136,3 +136,16 @@ mandate is MET.
 - P3 dead shard-tail (shards accrue unbounded once craftable-complete → add shard→seed conversion).
 - P3 game-FEEL ceiling: dashboard is a string redraw, not a navigable Ink TUI (GOALS M3 roadmap) — caps feel, not soundness.
 - Roadmap (GOALS M5/M6): web/mobile, opt-in leaderboard (ADR-0011).
+
+## Re-score ⑥ (after BC + polish) — ALL 10 ≥ A- (9×A-, 1×A: strategy). New target: straight A.
+R8 push targets the concrete A-blockers (mostly FEEL/surfacing/docs, NOT soundness):
+- **TUI feel** (game-design/product/qa): wire the reveal animation into the Ink TUI (frames exist, only the
+  React loop is missing); flash the HIGHEST-salience reward (level-up/set-complete/prestige/windfall, not just
+  card/gear); rarity-as-COLOR in TUI; feedback on unaffordable/blocked actions; try/catch around withStateLock.
+- **Economy depth** (economy): a renewable content axis (cosmetic foil-upgrade shard sink and/or rotating set)
+  + a targeted/"spark" premium banner; surface pity/odds at the decision point.
+- **Docs/arch** (ai-eng/architecture): README account-global-energy is BUILT (drift — fix); ARCHITECTURE claims
+  an engine-purity test that doesn't exist (add it); note the 1738-line sq.ts God-file.
+- **Robustness/sec** (code/security): handlePull skip-save when broke; web security headers + granular SSE
+  update (not full reload); rotate settings backups + cap jsonl logs.
+> Honest caveat: some A-→A items are subjective FEEL; the loop may converge to "mostly A, a couple A-".

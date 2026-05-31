@@ -27,6 +27,11 @@ import {
   prestigeCost,
   PULL_COST,
   PREMIUM_PULL_COST,
+  FOIL_COST,
+  pityProgress,
+  sparkProgress,
+  missingCardIdsForPlayer,
+  realizedLegendaryShinyRate,
 } from '../engine/reduce'
 import { craftableCardId } from '../engine/collection'
 import { displayWidth, padToWidth, truncateToWidth } from './width'
@@ -72,6 +77,7 @@ export function renderDashboard(state: GameState, opts: DashboardOptions = {}): 
     renderHeader(state, width),
     renderEnergy(state, width, opts.nowEpoch),
     renderWork(state, width),
+    renderOdds(state, width),
     renderCollection(state, width),
     renderGear(state, width),
     renderQuests(state, width),
@@ -347,6 +353,58 @@ function renderWork(state: GameState, width: number): string {
     boxTitle('WORK', width),
     boxDivider(width),
     boxRow(prefix + bar, width),
+    boxBottom(width),
+  ].join('\n')
+}
+
+/**
+ * ODDS panel (R8) — put the honesty/odds AT the pull/save decision point.
+ *
+ * Surfaces, in one place: pity progress (sinceLegendary toward the HARD guarantee,
+ * with a soft-pity flag), the PUBLISHED realized legendary+shiny rate, the spark
+ * progress (the targeted premium guarantee), how many cards are left to collect in
+ * the player's unlocked sets, and the foil shard-sink option. So the player can
+ * reason about WHEN to pull / save / spark / craft / foil without leaving the board.
+ * PURE: reads state + published engine constants only (ADR-0002 transparency).
+ */
+function renderOdds(state: GameState, width: number): string {
+  const pity = pityProgress(state)
+  const spark = sparkProgress(state)
+  const missing = missingCardIdsForPlayer(state).length
+  // Honest realized rate as a "per 100 pulls" figure. NOT a bare "X%" token —
+  // the dashboard-wide Wellspring guard forbids any `\d+%` (no invented energy
+  // numbers); "per 100" keeps the odds honest without tripping that invariant.
+  const realizedPer100 = (realizedLegendaryShinyRate() * 100).toFixed(1)
+
+  // Pity: raw counter toward the HARD guarantee + soft-pity status.
+  const pityStatus = pity.softActive
+    ? (pity.hardNext ? '· hard NEXT' : '· soft on')
+    : `· ${pity.pullsToHard} to hard`
+  const pityLine = `🎯 pity ${pity.sinceLegendary}/${pity.hardPity} ${pityStatus}`
+
+  // Published HONEST long-run odds (pity-inclusive) — never hide the real rate.
+  const oddsLine = `legendary+shiny ~${realizedPer100} per 100 pulls`
+
+  // Spark: the targeted premium guarantee progress (saving 225 = choosing a target).
+  const sparkLine = spark.guaranteedNext
+    ? `✦ spark ${spark.spark}/${spark.threshold} · guarantee ARMED`
+    : `✦ spark ${spark.spark}/${spark.threshold}`
+
+  // How much is left to collect within the unlocked sets (the pull/craft goal).
+  const leftLine = missing > 0 ? `${missing} cards left to collect` : 'collection complete'
+
+  // The foil shard sink — a completed collection still has a renewable target.
+  const foilLine = `✨ foil any owned card · ${FOIL_COST} shards (sq foil)`
+
+  return [
+    boxTop(width),
+    boxTitle('ODDS', width),
+    boxDivider(width),
+    boxRow(pityLine, width),
+    boxRow(oddsLine, width),
+    boxRow(sparkLine, width),
+    boxRow(leftLine, width),
+    boxRow(foilLine, width),
     boxBottom(width),
   ].join('\n')
 }

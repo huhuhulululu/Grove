@@ -232,4 +232,57 @@ describe('startWebServer', () => {
     errSpy.mockRestore()
     expect(surfaced).toBe(true)
   })
+
+  // -------------------------------------------------------------------------
+  // Security response headers (R8) — defense-in-depth for the self-contained
+  // inline page. Even a local read-only view should not be sniffable / cached /
+  // able to load remote resources.
+  // -------------------------------------------------------------------------
+
+  it('GET / carries safe security headers (nosniff, CSP, no-store)', async () => {
+    const dir = makeStateDir()
+    saveState(dir, seededState())
+    const srv = startWebServer({ dir, port: 0 })
+    servers.push(srv)
+
+    const res = await get(srv.url)
+    expect(res.status).toBe(200)
+    expect(res.headers['x-content-type-options']).toBe('nosniff')
+    expect(res.headers['cache-control']).toMatch(/no-store/)
+    const csp = String(res.headers['content-security-policy'] ?? '')
+    expect(csp.length).toBeGreaterThan(0)
+    // The page is self-contained: no remote scripts, no framing.
+    expect(csp).toMatch(/default-src 'self'/)
+    expect(csp).toMatch(/frame-ancestors 'none'/)
+  })
+
+  it('GET /api/state carries the nosniff + no-store headers too', async () => {
+    const dir = makeStateDir()
+    saveState(dir, seededState())
+    const srv = startWebServer({ dir, port: 0 })
+    servers.push(srv)
+
+    const res = await get(new URL('/api/state', srv.url).toString())
+    expect(res.status).toBe(200)
+    expect(res.headers['x-content-type-options']).toBe('nosniff')
+    expect(res.headers['cache-control']).toMatch(/no-store/)
+  })
+
+  it('the SSE stream also carries the nosniff header', async () => {
+    const dir = makeStateDir()
+    saveState(dir, seededState())
+    const srv = startWebServer({ dir, port: 0 })
+    servers.push(srv)
+    const port = Number(new URL(srv.url).port)
+
+    const headers = await new Promise<http.IncomingHttpHeaders>((resolve, reject) => {
+      const req = http.get({ host: '127.0.0.1', port, path: '/events' }, (res) => {
+        resolve(res.headers)
+        req.destroy()
+      })
+      req.on('error', (e) => reject(e))
+      setTimeout(() => reject(new Error('SSE: no headers within timeout')), 3000)
+    })
+    expect(headers['x-content-type-options']).toBe('nosniff')
+  })
 })

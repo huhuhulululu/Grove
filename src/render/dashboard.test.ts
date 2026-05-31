@@ -907,3 +907,81 @@ describe('renderDashboard — craft target shows card name', () => {
     expect(craftLine).not.toContain('forest.sapling')
   })
 })
+
+// ---------------------------------------------------------------------------
+// ODDS panel (R8) — honesty/odds live at the decision point: pity progress
+// (sinceLegendary vs SOFT/HARD), realized legendary+shiny %, spark progress,
+// missing-card count, and the foil shard-sink option.
+// ---------------------------------------------------------------------------
+
+import { SPARK_THRESHOLD, FOIL_COST } from '../engine/reduce'
+import { SOFT_PITY, HARD_PITY, REALIZED_LEGENDARY_SHINY_RATE } from '../engine/gacha'
+
+describe('renderDashboard — ODDS / decision-point honesty', () => {
+  it('renders an ODDS section header', () => {
+    const out = renderDashboard(initialState())
+    expect(out).toContain('ODDS')
+  })
+
+  it('surfaces pity progress (sinceLegendary vs HARD_PITY)', () => {
+    const state: GameState = { ...initialState(), pity: { sinceLegendary: 12 } }
+    const out = renderDashboard(state)
+    const lower = out.toLowerCase()
+    expect(lower).toContain('pity')
+    // shows the raw counter and the hard threshold the player counts toward
+    const pityLine = out.split('\n').find((l) => /pity/i.test(l))
+    expect(pityLine).toBeDefined()
+    expect(pityLine).toContain('12')
+    expect(pityLine).toContain(String(HARD_PITY))
+  })
+
+  it('flags soft pity as active once at/above SOFT_PITY', () => {
+    const state: GameState = { ...initialState(), pity: { sinceLegendary: SOFT_PITY } }
+    const out = renderDashboard(state).toLowerCase()
+    expect(out).toMatch(/soft/)
+  })
+
+  it('publishes the realized legendary+shiny rate (honest long-run odds)', () => {
+    const out = renderDashboard(initialState())
+    const lower = out.toLowerCase()
+    expect(lower).toMatch(/legendary|shiny/)
+    // Rendered as a "per 100 pulls" figure (NOT a bare %, which the energy
+    // Wellspring "no invented numbers" guard forbids in the whole output).
+    const per100 = (REALIZED_LEGENDARY_SHINY_RATE * 100).toFixed(1)
+    expect(out).toContain(per100)
+  })
+
+  it("shows 'X cards left' (missing-card count) within unlocked sets", () => {
+    const out = renderDashboard(initialState()).toLowerCase()
+    // a fresh player is missing every level-1 card
+    expect(out).toMatch(/\d+ cards left/)
+  })
+
+  it('surfaces spark progress against SPARK_THRESHOLD', () => {
+    const state: GameState = { ...initialState(), spark: 3 }
+    const out = renderDashboard(state)
+    const sparkLine = out.split('\n').find((l) => /spark/i.test(l))
+    expect(sparkLine).toBeDefined()
+    expect(sparkLine).toContain('3')
+    expect(sparkLine).toContain(String(SPARK_THRESHOLD))
+  })
+
+  it('flags the spark guarantee as armed once spark reaches the threshold', () => {
+    const state: GameState = { ...initialState(), spark: SPARK_THRESHOLD }
+    const out = renderDashboard(state).toLowerCase()
+    expect(out).toMatch(/guarantee|armed|ready/)
+  })
+
+  it('surfaces the foil option with its shard cost when a card is owned', () => {
+    const state: GameState = {
+      ...initialState(),
+      cards: [{ id: 'forest.oak', name: 'Oak', rarity: 'common', set: 'forest' }],
+      player: { ...initialState().player, shards: FOIL_COST },
+    }
+    const out = renderDashboard(state)
+    const lower = out.toLowerCase()
+    expect(lower).toContain('foil')
+    const foilLine = out.split('\n').find((l) => /foil/i.test(l))
+    expect(foilLine).toContain(String(FOIL_COST))
+  })
+})

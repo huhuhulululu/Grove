@@ -19,11 +19,11 @@
  * router + frame renderer stay pure so they are trivially testable.
  */
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { Box, Text, useApp, useInput, render as inkRender } from 'ink'
 
 import type { GameState } from '../core/state'
-import type { Reward } from '../core/rewards'
+import type { Reward, Rarity } from '../core/rewards'
 import type { Rng } from '../core/rng'
 import { mulberry32, hashStringToSeed } from '../core/rng'
 import {
@@ -37,6 +37,13 @@ import { loadState, saveState, withStateLock } from '../store/store'
 
 import { tuiModel, PANELS } from './model'
 import type { Panel, TuiModel } from './model'
+import {
+  rarityColor,
+  salientRarity,
+  pickSalientReward,
+  flashFor,
+  revealSteps,
+} from './juice'
 
 // ---------------------------------------------------------------------------
 // dispatchKey — the PURE key → engine-action router
@@ -290,6 +297,13 @@ export interface AppProps {
   initial: GameState
   /** a fixed rng seed for deterministic tests; otherwise time-seeded per action. */
   seed?: number
+  /**
+   * play the pre-result reveal animation (pack-opening / dice-roll frames) before
+   * settling on the drop. Defaults to true on an interactive TTY; the loop entry
+   * forces it false under reduced-motion (--no-anim), a non-TTY stdout, or tests
+   * (so output stays instant + deterministic, mirroring the CLI's playReveal guard).
+   */
+  animate?: boolean
 }
 
 /**
@@ -300,44 +314,103 @@ export interface AppProps {
  */
 export function App(props: AppProps): React.ReactElement {
   const { dir, initial, seed } = props
+  const animate = props.animate ?? true
   const app = useApp()
 
   const [state, setState] = useState<GameState>(initial)
   const [focusIdx, setFocusIdx] = useState(0)
   const [focusedGearIndex, setFocusedGearIndex] = useState(0)
   const [flash, setFlash] = useState<string | null>(null)
+  // The rarity of the currently-flashed reward — colours the flash line (null = no tint).
+  const [flashRarity, setFlashRarity] = useState<Rarity | null>(null)
+  // The reveal animation steps (suspense frames … settled flash) + a cursor into them.
+  const [revealStep, setRevealStep] = useState<{ steps: string[]; i: number } | null>(null)
+  // The settled rarity to apply once the animation finishes stepping.
+  const settledRarity = useRef<Rarity | null>(null)
 
   const focus: Panel = PANELS[focusIdx]!
 
-  // The action runner: dispatch (pure) → persist under the lock → re-read.
+  // The action runner: dispatch (pure) → persist under the lock → re-read. Every
+  // failure path (disk/permission) is caught so a calm error flash shows and the
+  // TUI never crashes (firewall: a game action can never take down the surface).
   const runAction = useCallback(
     (key: string) => {
-      const result = withStateLock(dir, () => {
-        const fresh = loadState(dir)
-        const rng = mulberry32(
-          seed ?? hashStringToSeed(`tui:${key}:${fresh.eventCount}:${String(Date.now())}`),
-        )
-        const out = dispatchKey(fresh, key, focus, rng, { focusedGearIndex })
-        if (out.changed) saveState(dir, out.state)
-        return out
-      })
-      setState(result.state)
-      // Juice: flash the first card/gear drop line briefly on a real change.
-      if (result.changed) {
-        const drop = result.rewards.find((r) => r.kind === 'card' || r.kind === 'gear')
-        setFlash(drop ? `✨ ${drop.message}` : null)
+      let result: DispatchResult
+      try {
+        result = withStateLock(dir, () => {
+          const fresh = loadState(dir)
+          const rng = mulberry32(
+            seed ?? hashStringToSeed(`tui:${key}:${fresh.eventCount}:${String(Date.now())}`),
+          )
+          const out = dispatchKey(fresh, key, focus, rng, { focusedGearIndex })
+          if (out.changed) saveState(dir, out.state)
+          return out
+        })
+      } catch {
+        // Calm: a disk/permission failure never crashes the session. No state
+        // change, no animation — just a terse error flash.
+        setRevealStep(null)
+        settledRarity.current = null
+        setFlashRarity(null)
+        setFlash("can't: save failed · your code is safe")
+        return
       }
+
+      setState(result.state)
+
+      // Juice: pick the HIGHEST-salience reward (level-up / set / prestige /
+      // windfall > legendary > gear > card) and colour the flash by its rarity.
+      const salient = pickSalientReward(result.rewards)
+      settledRarity.current = salientRarity(salient)
+
+      // Build the reveal sequence: suspense frames (if animating) THEN the settled
+      // flash. A blocked action settles instantly on a terse can't line.
+      const steps = revealSteps(key, result, { animate })
+      if (steps.length === 0) {
+        // A true no-op (refresh / unmapped) — nothing to show.
+        setRevealStep(null)
+        return
+      }
+      // Show the first step immediately, then the interval advances the rest.
+      setRevealStep({ steps, i: 0 })
+      setFlash(steps[0]!)
+      // The rarity tint only applies to the SETTLED step; suspense frames are neutral.
+      setFlashRarity(steps.length === 1 ? settledRarity.current : null)
     },
-    [dir, seed, focus, focusedGearIndex],
+    [dir, seed, focus, focusedGearIndex, animate],
   )
 
-  // Juice: the flash highlight is transient — auto-clear it after a short beat so
-  // it doesn't persist until the next action (matches the "briefly flashes" doc).
+  // Reveal stepper: advance through the suspense frames on a ~120ms beat, then
+  // settle on the final flash (applying its rarity tint). Pure timing in the
+  // impure shell — the frames/flash themselves come from the pure revealSteps.
   useEffect(() => {
-    if (flash === null) return
-    const t = setTimeout(() => setFlash(null), 1500)
+    if (revealStep === null) return
+    const { steps, i } = revealStep
+    if (i >= steps.length - 1) {
+      // Settled on the last step: apply the rarity tint now.
+      setFlashRarity(settledRarity.current)
+      return
+    }
+    const t = setTimeout(() => {
+      const next = i + 1
+      setRevealStep({ steps, i: next })
+      setFlash(steps[next]!)
+    }, 120)
     return () => clearTimeout(t)
-  }, [flash])
+  }, [revealStep])
+
+  // Juice: the settled flash is transient — auto-clear it a short beat AFTER the
+  // animation has finished stepping, so it doesn't persist until the next action.
+  useEffect(() => {
+    if (revealStep === null || flash === null) return
+    if (revealStep.i < revealStep.steps.length - 1) return // still animating
+    const t = setTimeout(() => {
+      setFlash(null)
+      setFlashRarity(null)
+      setRevealStep(null)
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [revealStep, flash])
 
   useInput((input, keyMeta) => {
     if (input === 'q' || (keyMeta.ctrl && input === 'c')) {
@@ -368,7 +441,15 @@ export function App(props: AppProps): React.ReactElement {
   })
 
   const model = tuiModel(state)
-  return <AppView model={model} focus={focus} focusedGearIndex={focusedGearIndex} flash={flash} />
+  return (
+    <AppView
+      model={model}
+      focus={focus}
+      focusedGearIndex={focusedGearIndex}
+      flash={flash}
+      flashRarity={flashRarity}
+    />
+  )
 }
 
 /** The pure presentational view — renders the view-model as Ink boxes. */
@@ -377,9 +458,14 @@ function AppView(props: {
   focus: Panel
   focusedGearIndex: number
   flash: string | null
+  flashRarity: Rarity | null
 }): React.ReactElement {
-  const { model, focus, focusedGearIndex, flash } = props
+  const { model, focus, focusedGearIndex, flash, flashRarity } = props
   const h = model.header
+
+  // Rarity-as-colour on the flash line: a legendary/shiny drop glows yellow+bold,
+  // an epic magenta, etc. A non-drop flash (level-up / can't / error) stays yellow.
+  const flashColor = flashRarity ? rarityColor(flashRarity) : { color: 'yellow', bold: true }
 
   return (
     <Box flexDirection="column">
@@ -390,30 +476,37 @@ function AppView(props: {
       <Text>
         {`🌰 ${h.seeds} seeds · 🔧 ${h.shards} shards · ✦ Prestige ${h.prestigeRank} (next ${h.nextPrestigeCost} 🌰)`}
       </Text>
-      {flash ? <Text color="yellow" bold>{flash}</Text> : null}
+      {flash ? <Text color={flashColor.color} bold={flashColor.bold}>{flash}</Text> : null}
 
       <PanelBox title="COLLECTION" focused={focus === 'Collection'}>
-        {model.collection.map((c) => (
-          <Text key={c.set}>
-            {c.locked
-              ? `${c.set}  🔒 L${c.unlockLevel}`
-              : `${c.set}  ${c.owned}/${c.total}${c.complete ? '  ✓' : ''}`}
-          </Text>
-        ))}
+        {model.collection.map((c) => {
+          const tint = rarityColor(c.rarity)
+          return (
+            <Text key={c.set} color={c.locked ? 'gray' : tint.color} bold={!c.locked && tint.bold}>
+              {c.locked
+                ? `${c.set}  🔒 L${c.unlockLevel}`
+                : `${c.set}  ${c.owned}/${c.total}${c.complete ? '  ✓' : ''}`}
+            </Text>
+          )
+        })}
       </PanelBox>
 
       <PanelBox title="GEAR" focused={focus === 'Gear'}>
         {model.gear.length === 0 ? (
           <Text dimColor>(no gear yet · merge a PR to drop some)</Text>
         ) : (
-          model.gear.map((g, i) => (
-            <Text key={g.id} color={focus === 'Gear' && i === focusedGearIndex ? 'cyan' : undefined}>
-              {`${focus === 'Gear' && i === focusedGearIndex ? '▶ ' : '  '}${g.name} +${g.level}`}
-              {g.broken ? '  BROKEN' : ''}
-              {g.protectedNow ? '  PROTECTED' : ''}
-              {g.effect ? ` · ${g.effect}` : ''}
-            </Text>
-          ))
+          model.gear.map((g, i) => {
+            const focused = focus === 'Gear' && i === focusedGearIndex
+            const tint = rarityColor(g.rarity)
+            return (
+              <Text key={g.id} color={focused ? 'cyan' : tint.color} bold={!focused && tint.bold}>
+                {`${focused ? '▶ ' : '  '}${g.name} +${g.level}`}
+                {g.broken ? '  BROKEN' : ''}
+                {g.protectedNow ? '  PROTECTED' : ''}
+                {g.effect ? ` · ${g.effect}` : ''}
+              </Text>
+            )
+          })
         )}
       </PanelBox>
 
@@ -472,6 +565,23 @@ export interface RunTuiOpts {
   once?: boolean
   /** fixed rng seed for deterministic action dispatch (passed to <App>). */
   seed?: number
+  /**
+   * disable the reveal animation — the --no-anim / reduced-motion escape. When
+   * unset, animation auto-enables ONLY on an interactive TTY (off in pipes / CI /
+   * tests). Mirrors the CLI's playReveal TTY guard so output stays deterministic.
+   */
+  noAnim?: boolean
+}
+
+/**
+ * Decide whether the reveal animation should play: only on an interactive TTY and
+ * only when the caller hasn't opted out (--no-anim / reduced-motion). A non-TTY
+ * stdout (pipe / CI / test) is treated as no-animation so the reveal settles
+ * instantly and deterministically — the same guard the CLI's playReveal uses.
+ */
+export function shouldAnimate(opts: RunTuiOpts = {}): boolean {
+  if (opts.noAnim === true) return false
+  return process.stdout.isTTY === true
 }
 
 /**
@@ -481,6 +591,9 @@ export interface RunTuiOpts {
  *    resolve it immediately (no Ink session, no raw-mode) — the CI/test path.
  *  - otherwise → mount the live Ink <App> and resolve when the user exits (q /
  *    Ctrl-C). Returns the last persisted state's frame so callers can log it.
+ *
+ * The reveal animation auto-enables only on an interactive TTY (off in pipes /
+ * tests), respecting the --no-anim / reduced-motion escape via `opts.noAnim`.
  *
  * The Integrate agent wires `sq tui` to call this.
  */
@@ -492,7 +605,12 @@ export async function runTui(dir: string, opts: RunTuiOpts = {}): Promise<string
   }
 
   const instance = inkRender(
-    <App dir={dir} initial={state} {...(opts.seed !== undefined ? { seed: opts.seed } : {})} />,
+    <App
+      dir={dir}
+      initial={state}
+      animate={shouldAnimate(opts)}
+      {...(opts.seed !== undefined ? { seed: opts.seed } : {})}
+    />,
   )
   await instance.waitUntilExit()
   // On exit, return a final static frame of the latest persisted state.

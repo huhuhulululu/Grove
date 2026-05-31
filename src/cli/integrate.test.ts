@@ -27,6 +27,7 @@ import {
   PULL_COST,
   PREMIUM_PULL_COST,
   PRESTIGE_COST,
+  FOIL_COST,
 } from '../engine/reduce'
 import {
   SHARDS_PER_CRAFT,
@@ -261,10 +262,11 @@ describe('help text never drifts from the live engine cost constants (P2)', () =
       REPAIR_COST_BASE,
       REPAIR_COST_PER_LEVEL,
       PROTECT_COST,
+      FOIL_COST, // R8: `sq foil` surfaces FOIL_COST shards in the help text.
     ])
-    // The stale drift trio must NOT appear (unless one happens to equal a live
-    // cost — assert specifically that the OLD pull/premium/craft values vanished).
-    const stale = [30, 150]
+    // The stale drift values must NOT appear (unless one equals a live cost — e.g.
+    // FOIL_COST is now 30, a legit live cost, so 30 is allowed via liveCosts).
+    const stale = [150]
     for (const n of stale) {
       if (!liveCosts.has(n)) {
         expect(tokens, `stale cost ${n} still present in help`).not.toContain(n)
@@ -291,6 +293,7 @@ describe('help text never drifts from the live engine cost constants (P2)', () =
       REPAIR_COST_BASE,
       REPAIR_COST_PER_LEVEL,
       PROTECT_COST,
+      FOIL_COST, // R8: `sq foil` surfaces FOIL_COST shards in the help text.
     ])
     // Match a number immediately tied to a spend/cost/currency cue.
     const costRe = /(?:Spend|costs?|cost)\s+(\d+)|(\d+)\s*(?:🌰|shards?)/g

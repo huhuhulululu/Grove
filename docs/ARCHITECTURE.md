@@ -74,7 +74,7 @@ Failing events (`success:false`): eventCount advances + buffs expire silently; *
 ## Store layer (`src/store/`)
 
 - `paths.ts` — `stateDir(home?)`: resolves grove home directory (`~/.grove` by default).
-- `store.ts` — `loadState(dir)`, `saveState(dir,state)`, `readEvents(dir)`, `withStateLock(dir,fn)`: atomic JSON state + JSONL event log. Cross-process lockfile guards the read-modify-write cycle (R2 trust fix).
+- `store.ts` — `loadState(dir)`, `saveState(dir,state)`, `readEvents(dir)`, `withStateLock(dir,fn)`: atomic JSON state + JSONL event log. Cross-process lockfile guards the read-modify-write cycle (R2 trust fix). **File hygiene (R8):** `rotateBackups(dir,prefix,keep=BACKUP_KEEP)` caps timestamped sidecars (settings.json.bak.* on statusline install/uninstall, state.json.corrupt.* on recovery) to the newest `BACKUP_KEEP` (3); `appendEvent` caps `events.jsonl` growth to ~`EVENTS_MAX_LINES` (trimmed with an amortizing margin, newest kept).
 
 ## App layer (`src/app/`)
 
@@ -100,7 +100,7 @@ Failing events (`success:false`): eventCount advances + buffs expire silently; *
 
 | File | Purpose |
 |---|---|
-| `dashboard.ts` | Full-screen, in-place dashboard (pure). Sections: ENERGY · WORK · COLLECTION · GEAR · QUESTS · BUFFS. Wide-emoji cell-accurate layout via `width.ts`. |
+| `dashboard.ts` | Full-screen, in-place dashboard (pure). Sections: ENERGY · WORK · ODDS · COLLECTION · GEAR · QUESTS · BUFFS. The ODDS panel surfaces decision-point honesty (ADR-0002): pity progress (sinceLegendary vs SOFT/HARD), the published realized legendary+shiny rate, spark progress, cards-left, and the foil option. Wide-emoji cell-accurate layout via `width.ts`. |
 | `format.ts` | `formatReward`, `formatStatus`, `formatRecap`, `formatQuests` — terse Diablo loot-grammar lines (ADR-0009). |
 | `enhance.ts` | `renderEnhanceOdds`, `renderEnhanceResult`, `renderPullFrames` — the gear risk reveal + pack-opening animation frames. |
 | `share.ts` | `renderShareCard`, `renderReadmeBadge` — opt-in terse share card + shields.io README badge (`sq share` / `sq share --badge`). Cosmetic only (ADR-0011). |
@@ -113,14 +113,15 @@ Failing events (`success:false`): eventCount advances + buffs expire silently; *
 
 ## Web (`src/web/`)
 
-- `server.ts` — read-only HTTP + SSE dashboard server (`sq serve`). Streams live game-state updates over SSE; clients reconnect automatically. `--port N` / `--host H` to customize binding.
-- `page.ts` — HTML page template served at `/` (inline SSE client; no external deps).
+- `server.ts` — read-only HTTP + SSE dashboard server (`sq serve`). Streams live game-state updates over SSE; clients reconnect automatically. `--port N` / `--host H` to customize binding. Every response carries safe security headers (R8): `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`, a restrictive same-origin `Content-Security-Policy` (the page is self-contained — inline CSS/JS only — so a tight CSP costs nothing), `frame-ancestors 'none'`, `Referrer-Policy: no-referrer`.
+- `page.ts` — HTML page template served at `/` (inline SSE client; no external deps). The live client PATCHES the bound facts (level/xp/seeds/shards/prestige/pity/spark/energy) into the DOM from each SSE JSON snapshot — no full `location.reload()` (R8), so the page stays scrolled/focused while numbers update.
 
 ## CLI (`src/cli/`)
 
-- `sq.ts` — entry point + all subcommand handlers. Impure shell: may use process / console / wall-clock / filesystem. Pure engine logic flows through `ingestEvent` and `reduce` — no re-implementation in the CLI.
+- `sq.ts` — entry point + all subcommand handlers. Impure shell: may use process / console / wall-clock / filesystem. Pure engine logic flows through `ingestEvent` and `reduce` — no re-implementation in the CLI. **Known debt:** this is a ~2k-line God-file (every handler + the argv parser + usage text in one module). It is cohesive and well-covered, so a split is deferred (not a soundness issue); extracting the handlers into per-command modules behind the same dispatch is the future refactor.
   - Global flags: `--zen` (calm mode, ADR-0005) · `--home DIR` (override grove state dir).
-  - Subcommands: `event` · `wrap` · `status` · `recap` · `scan` · `quests` · `pull` · `enhance` · `repair` · `protect` · `craft` · `convert` · `prestige` · `dashboard` · `tui` · `serve` · `share` · `ntfy` · `statusline-ingest` · `statusline install/uninstall` · `init` · `uninstall` · `commit-hook` · `suggest-commit` · `checkpoint` · `help`.
+  - Subcommands: `event` · `wrap` · `status` · `recap` · `scan` · `quests` · `pull` (`--premium` · `--spark <id>` targeted guarantee) · `enhance` · `repair` · `protect` · `craft` · `foil` · `convert` · `prestige` · `dashboard` · `tui` · `serve` · `share` · `ntfy` · `statusline-ingest` · `statusline install/uninstall` · `init` · `uninstall` · `commit-hook` · `suggest-commit` · `checkpoint` · `help`.
+  - Broke/refused player actions (pull/premium/foil/craft/prestige/convert) SKIP the state write — the engine returns the state unchanged on a calm refusal, so the CLI never performs a no-op save (avoids a needless file rewrite + global-lock acquisition).
   - `groveInvocation()`: portable injection-safe CLI re-invocation (bare `sq` when on PATH, else `node '<shQuote(abs-path)>'`).
   - `suggestSubcommand(input)`: Levenshtein "did you mean?" for unknown subcommands.
 
@@ -133,9 +134,12 @@ The impure shell (`store/`, `app/`, `adapters/`, `cli/`, `render/`) is the only 
 
 ## Purity enforcement (CI/test)
 
-A test verifies that `src/engine/` and `src/core/` have zero imports of `node:fs`, `node:path`, `node:child_process`, `process`, `Date.now`, or `Math.random`. The firewall is checked by construction on every test run.
+`src/engine/purity.test.ts` is the purity guarantee: it reads every non-test source file under `src/engine/` and `src/core/` and asserts none reaches for a forbidden capability (`node:fs`, `node:path`, `node:child_process`, `process`, `Date.now`, `Math.random`). The ethics firewall (ADR-0005) is therefore checked by construction on every test run, not merely documented. (Test files are excluded — they legitimately name these tokens to assert their absence.)
+
+## Account-global energy store (BUILT)
+
+Quota/energy is account-WIDE (the 5h/7d usage windows are shared across every repo), so energy + the token-milestone work meter live in ONE shared file `<home>/_global/global.json` with its OWN cross-process lock (`withGlobalLock`). `loadState` merges the global energy/work over the per-repo state; `saveState` splits it back out. Each repo's `state.json` keeps its own cosmetic progress (cards/gear/xp/level/currency/pity/quests/buffs). See `store.ts` + `src/store/store.global.test.ts`.
 
 ## Later phases (ROADMAP, not built)
 
-- **Account-global energy store:** quota is account-wide; the current energy state is per-repo (known limit). A global `~/.grove/global-state.json` with its own lockfile is needed.
 - **Social + leaderboard (M6, ADR-0011):** opt-in, league-based, server-verified outcomes only. Needs a server-verified outcomes backend before it can ship without becoming a dark pattern.

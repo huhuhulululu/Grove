@@ -22,7 +22,14 @@ import {
   prestigeCost,
   PULL_COST,
   PREMIUM_PULL_COST,
+  FOIL_COST,
+  SPARK_THRESHOLD,
+  pityProgress,
+  sparkProgress,
+  missingCardIdsForPlayer,
+  realizedLegendaryShinyRate,
 } from '../engine/reduce'
+import { SOFT_PITY, HARD_PITY } from '../engine/gacha'
 
 // ---------------------------------------------------------------------------
 // Small pure helpers
@@ -53,16 +60,18 @@ function headerSection(state: GameState): string {
   const needed = xpForLevel(level)
   const xpPct = pct(needed > 0 ? (xp / needed) * 100 : 0)
   const rank = prestigeRank(state)
+  // data-bind ids let the live SSE client patch these facts in place (R8: no full
+  // location.reload). The server-rendered values are the initial paint.
   return `
   <header class="hero">
     <h1>🌳 Grove</h1>
-    <div class="level">Level ${level}</div>
-    <div class="bar xp"><div class="fill" style="width:${xpPct}%"></div></div>
-    <div class="xpnums">${xp}/${needed} XP</div>
+    <div class="level">Level <span data-bind="level">${level}</span></div>
+    <div class="bar xp"><div class="fill" data-bind-style="xpPct" style="width:${xpPct}%"></div></div>
+    <div class="xpnums"><span data-bind="xp">${xp}</span>/<span data-bind="xpNeeded">${needed}</span> XP</div>
     <div class="wallet">
-      <span>🌰 ${currency} seeds</span>
-      <span>🔧 ${shards} shards</span>
-      <span>✦ Prestige ${rank}</span>
+      <span>🌰 <span data-bind="seeds">${currency}</span> seeds</span>
+      <span>🔧 <span data-bind="shards">${shards}</span> shards</span>
+      <span>✦ Prestige <span data-bind="prestige">${rank}</span></span>
     </div>
   </header>`
 }
@@ -89,11 +98,13 @@ function energySection(state: GameState): string {
 }
 
 function energyRow(icon: string, label: string, value: number): string {
+  // data-bind keys are the lower-cased label (vigor / weekly→sap handled by caller).
+  const key = label.toLowerCase() === 'vigor' ? 'vigor' : 'sap'
   return `
     <div class="erow">
       <span class="elabel">${icon} ${esc(label)}</span>
-      <span class="bar"><span class="fill" style="width:${value}%"></span></span>
-      <span class="epct">${value}%</span>
+      <span class="bar"><span class="fill" data-bind-style="${key}" style="width:${value}%"></span></span>
+      <span class="epct"><span data-bind="${key}Pct">${value}</span>%</span>
     </div>`
 }
 
@@ -162,6 +173,35 @@ function economySection(state: GameState): string {
   return section('💰 Economy', body)
 }
 
+/**
+ * ODDS section (R8) — the honesty/odds at the decision point (ADR-0002): pity
+ * progress toward the hard guarantee, the PUBLISHED realized legendary+shiny rate,
+ * spark progress for the targeted premium guarantee, how many cards are left, and
+ * the foil shard-sink option. So a web viewer sees WHY a pull/save matters too.
+ */
+function oddsSection(state: GameState): string {
+  const pity = pityProgress(state)
+  const spark = sparkProgress(state)
+  const missing = missingCardIdsForPlayer(state).length
+  const realizedPer100 = (realizedLegendaryShinyRate() * 100).toFixed(1)
+
+  const pityStatus = pity.softActive
+    ? pity.hardNext
+      ? 'hard NEXT'
+      : 'soft on'
+    : `${pity.pullsToHard} to hard`
+  const sparkStatus = spark.guaranteedNext ? ' · guarantee armed' : ''
+  const leftStr = missing > 0 ? `${missing} cards left to collect` : 'collection complete'
+
+  const body = `
+    <div class="econrow">🎯 pity <span data-bind="pity">${pity.sinceLegendary}/${pity.hardPity} · ${esc(pityStatus)}</span></div>
+    <div class="econrow">legendary+shiny ~${realizedPer100} per 100 pulls</div>
+    <div class="econrow">✦ spark <span data-bind="spark">${spark.spark}/${spark.threshold}${esc(sparkStatus)}</span></div>
+    <div class="econrow"><span data-bind="cardsLeft">${esc(leftStr)}</span></div>
+    <div class="muted">✨ foil any owned card · ${FOIL_COST} shards (sq foil)</div>`
+  return section('🎲 Odds', body)
+}
+
 /** Wrap a titled card section. */
 function section(title: string, body: string): string {
   return `
@@ -216,27 +256,86 @@ const STYLE = `
   footer { text-align: center; color: #484f58; font-size: .8rem; margin-top: 1.5rem; }
 `
 
-// The client subscribes to /events; on each snapshot it re-fetches the rendered
-// fragment by reloading just the body grid. We keep it tiny: the SSE payload is
-// the full state JSON, but the simplest robust live update is to refetch the page
-// HTML and swap the dynamic grid. To stay dependency-free and pure on the server,
-// the client just reloads the document on a debounced change signal.
-const SCRIPT = `
+/**
+ * The live-update client (R8 — granular DOM patch, NOT a full location.reload).
+ *
+ * Each SSE message carries the full state JSON; the client PARSES it and patches
+ * the `data-bind` facts in place (level / xp / seeds / shards / prestige / pity /
+ * spark / energy). This kills the jarring whole-page reload churn — the page stays
+ * scrolled and focused while the numbers update live. It re-derives the few
+ * computed facts with the SAME published constants the server uses (ADR-0002):
+ * the xpForLevel formula and the SOFT/HARD pity + SPARK thresholds are inlined
+ * (interpolated below from the engine constants) so there is no drift. Fields that
+ * need the card catalogue (cards-left) change only on a pull and are left to the
+ * next natural reconnect; everything a viewer watches second-to-second is patched.
+ */
+function buildScript(): string {
+  return `
   (function () {
     if (typeof EventSource === 'undefined') return;
+    var SOFT = ${SOFT_PITY}, HARD = ${HARD_PITY}, SPARK = ${SPARK_THRESHOLD};
+    function xpForLevel(level){ return Math.min(2000, Math.round(50 * Math.pow(Math.max(1, level), 1.5))); }
+    function setText(name, value){
+      var el = document.querySelector('[data-bind="' + name + '"]');
+      if (el) el.textContent = value;
+    }
+    function setWidth(name, value){
+      var el = document.querySelector('[data-bind-style="' + name + '"]');
+      if (el) el.style.width = value + '%';
+    }
+    function pct(n){ return Math.max(0, Math.min(100, Math.round(n))); }
+    function patch(s){
+      try {
+        var p = s.player || {};
+        var level = p.level || 1, xp = p.xp || 0;
+        var needed = xpForLevel(level);
+        setText('level', level);
+        setText('xp', xp);
+        setText('xpNeeded', needed);
+        setWidth('xpPct', pct(needed > 0 ? (xp / needed) * 100 : 0));
+        setText('seeds', p.currency || 0);
+        setText('shards', p.shards || 0);
+        // prestige rank = count of prestige:mark buffs (exact rank ids).
+        var buffs = s.buffs || [];
+        var rank = 0, re = /^prestige:mark(:\\d+)?$/;
+        for (var i = 0; i < buffs.length; i++){ if (re.test(buffs[i].id)) rank++; }
+        setText('prestige', rank);
+        // pity
+        var since = (s.pity && s.pity.sinceLegendary) || 0;
+        var pityStatus = since >= SOFT ? (since + 1 >= HARD ? 'hard NEXT' : 'soft on') : (Math.max(0, HARD - since) + ' to hard');
+        setText('pity', since + '/' + HARD + ' · ' + pityStatus);
+        // spark
+        var spark = s.spark || 0;
+        var armed = spark >= SPARK ? ' · guarantee armed' : '';
+        setText('spark', spark + '/' + SPARK + armed);
+        // energy
+        var en = s.energy || {};
+        if (en.known && typeof en.vigor === 'number'){
+          setText('vigorPct', pct(en.vigor));
+          setWidth('vigor', pct(en.vigor));
+        }
+        if (en.known && typeof en.sap === 'number'){
+          setText('sapPct', pct(en.sap));
+          setWidth('sap', pct(en.sap));
+        }
+      } catch (e) { /* a malformed snapshot is ignored; the next one will patch */ }
+    }
     var es = new EventSource('/events');
-    var first = true;
     var timer = null;
-    es.onmessage = function () {
-      // The very first message is the initial snapshot (page already reflects it).
-      if (first) { first = false; return; }
-      // Debounce rapid file-change bursts, then reload to show the fresh render.
+    es.onmessage = function (ev) {
+      // Debounce rapid file-change bursts, then apply the latest JSON to the DOM.
       if (timer) clearTimeout(timer);
-      timer = setTimeout(function () { location.reload(); }, 150);
+      var data = ev.data;
+      timer = setTimeout(function () {
+        var s;
+        try { s = JSON.parse(data); } catch (e) { return; }
+        patch(s);
+      }, 120);
     };
     es.onerror = function () { /* browser auto-reconnects */ };
   })();
 `
+}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -246,13 +345,15 @@ const SCRIPT = `
  * Render the complete, self-contained HTML dashboard for `state`.
  *
  * PURE: no I/O. The returned document inlines all CSS/JS (no external assets) and
- * subscribes to `/events` for live reloads.
+ * subscribes to `/events`, patching the live facts into the DOM in place (R8 — no
+ * full page reload).
  */
 export function renderPage(state: GameState): string {
   const body = [
     headerSection(state),
     `<div class="grid">`,
     energySection(state),
+    oddsSection(state),
     collectionSection(state),
     gearSection(state),
     questsSection(state),
@@ -273,7 +374,7 @@ export function renderPage(state: GameState): string {
     ${body}
     <footer>live · local-first · read-only</footer>
   </div>
-  <script>${SCRIPT}</script>
+  <script>${buildScript()}</script>
 </body>
 </html>`
 }

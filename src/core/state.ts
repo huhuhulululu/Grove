@@ -99,6 +99,29 @@ export interface GameState {
   /** anti-burnout energy derived from Claude Code's usage quota */
   energy: EnergyState
   /**
+   * R8 RENEWABLE CONTENT AXIS (economy A-blocker). Card ids the player has spent
+   * shards to cosmetically FOIL-upgrade (`foilCard`). Every owned card is a further
+   * shard sink target, so a completed collection is never "done". Cosmetic-only
+   * (ADR-0005) — a foiled card confers ZERO power, it is pure flair. Optional/
+   * defaulted so legacy states and existing GameState literals stay valid; read as
+   * `?? []`.
+   */
+  foiled?: string[]
+  /**
+   * R8 TARGETED 'SPARK' PREMIUM (economy A-blocker). A counter that ticks up on each
+   * premium pull that does NOT land the chosen `sparkTarget`; once it reaches
+   * SPARK_THRESHOLD the next premium pull GUARANTEES the target (then resets to 0).
+   * So saving for premium is choosing a TARGET, not just better EV. Cosmetic-only
+   * (ADR-0005); threshold published (ADR-0002). Optional/defaulted; read as `?? 0`.
+   */
+  spark?: number
+  /**
+   * The card id the spark counter is building toward (the chosen GUARANTEE target).
+   * Set by the player/surface when they pick a premium target; the guarantee fires
+   * only if this is still a missing card. Optional; read as `?? undefined`.
+   */
+  sparkTarget?: string
+  /**
    * Gear ids armed with a one-shot "protect" (R3). The NEXT enhance on a protected
    * gear turns a would-be COSMETIC break into a downgrade instead; the id is then
    * consumed. Purely cosmetic risk-management — never touches real artifacts (ADR-0005).
@@ -151,5 +174,7 @@ export function initialState(): GameState {
     energy: { known: false, vigor: 100, sap: 100 },
     work: { workMeter: 0, lastCostUsd: 0, windowKey: 0, milestonesInWindow: 0 },
     protectedGear: [],
+    foiled: [],
+    spark: 0,
   }
 }

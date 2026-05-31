@@ -13,6 +13,8 @@
  */
 
 import type { GameState } from '../core/state'
+import type { Rarity } from '../core/rewards'
+import { rarityRank, RARITIES } from '../core/rewards'
 import {
   CARD_SETS,
   cardIdsInSet,
@@ -65,6 +67,12 @@ export interface CollectionVM {
   /** true when the set is gated above the player's level (can't be filled yet). */
   locked: boolean
   unlockLevel: number
+  /**
+   * representative rarity for the row's colour tint — the HIGHEST rarity of any
+   * card OWNED in the set (so the row brightens as you collect its top cards).
+   * `common` when nothing is owned yet (a neutral tint).
+   */
+  rarity: Rarity
 }
 
 /** One gear row with its active-effect label (ADR-0008). */
@@ -77,6 +85,8 @@ export interface GearVM {
   protectedNow: boolean
   /** terse per-gear effect text, or null when broken / no mapped effect. */
   effect: string | null
+  /** the gear's rarity — drives its rarity-as-colour row tint. */
+  rarity: Rarity
 }
 
 /** One quest-board row. */
@@ -156,20 +166,31 @@ export function tuiModel(state: GameState): TuiModel {
   return { header, collection, gear, quests, economy }
 }
 
-/** One row per card set: owned/total, completion, and lock state by level. */
+/** One row per card set: owned/total, completion, lock state, and a colour rarity. */
 function buildCollection(state: GameState): CollectionVM[] {
-  const ownedIds = new Set(state.cards.map((c) => c.id))
+  const ownedById = new Map(state.cards.map((c) => [c.id, c]))
   const level = Math.max(1, state.player.level)
 
   return Object.keys(CARD_SETS).map((set) => {
     const unlockLevel = setUnlockLevel(set)
     const allIds = cardIdsInSet(set)
     const total = allIds.length
-    const owned = allIds.filter((id) => ownedIds.has(id)).length
+    const ownedCards = allIds.map((id) => ownedById.get(id)).filter((c) => c !== undefined)
+    const owned = ownedCards.length
     const locked = unlockLevel > level
     const complete = !locked && total > 0 && owned === total
-    return { set, owned, total, complete, locked, unlockLevel }
+    const rarity = topRarity(ownedCards.map((c) => c.rarity))
+    return { set, owned, total, complete, locked, unlockLevel, rarity }
   })
+}
+
+/** The highest rarity among `rarities`, or `common` when the list is empty. */
+function topRarity(rarities: Rarity[]): Rarity {
+  let best: Rarity = RARITIES[0] // common
+  for (const r of rarities) {
+    if (rarityRank(r) > rarityRank(best)) best = r
+  }
+  return best
 }
 
 /** One row per owned gear, with its active-effect label + flags. */
@@ -182,6 +203,7 @@ function buildGear(state: GameState): GearVM[] {
     broken: g.broken,
     protectedNow: protectedSet.has(g.id),
     effect: gearEffectText(g),
+    rarity: g.rarity,
   }))
 }
 

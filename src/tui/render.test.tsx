@@ -12,6 +12,8 @@ import React from 'react'
 import { render } from 'ink-testing-library'
 import { initialState } from '../core/state'
 import type { GameState } from '../core/state'
+import { cardFromDef, ALL_CARD_DEFS } from '../core/cards'
+import { makeGear } from '../engine/gear'
 import { mulberry32 } from '../core/rng'
 import { PULL_COST } from '../engine/reduce'
 import { loadState, saveState, withStateLock } from '../store/store'
@@ -72,6 +74,34 @@ describe('<App> — live Ink component', () => {
     // And the App renders that persisted state's header.
     const { lastFrame, unmount } = render(<App dir={dir} initial={persisted} seed={42} />)
     expect(lastFrame() ?? '').toContain('🌰 0 seeds')
+    unmount()
+  })
+
+  it('renders rarity-tinted collection + gear rows without crashing (animate off)', () => {
+    // A legendary card + a rare gear exercise the rarity-as-colour row paths.
+    const legendary = cardFromDef(ALL_CARD_DEFS.find((d) => d.rarity === 'legendary')!)
+    const gear = { ...makeGear(mulberry32(2)), name: 'Commit Hammer', level: 4, broken: false, rarity: 'rare' as const }
+    const state: GameState = {
+      ...initialState(),
+      player: { xp: 0, level: 12, currency: 0, shards: 0 },
+      cards: [legendary],
+      gear: [gear],
+    }
+    saveState(dir, state)
+
+    const { lastFrame, unmount } = render(<App dir={dir} initial={state} seed={1} animate={false} />)
+    const frame = lastFrame() ?? ''
+    // The set the legendary belongs to + the gear name both render.
+    expect(frame).toContain(legendary.set)
+    expect(frame).toContain('Commit Hammer')
+    unmount()
+  })
+
+  it('mounts with animate enabled without throwing (the reveal-stepper wiring)', () => {
+    const state: GameState = { ...initialState(), player: { xp: 0, level: 1, currency: 0, shards: 0 } }
+    saveState(dir, state)
+    const { lastFrame, unmount } = render(<App dir={dir} initial={state} seed={1} animate />)
+    expect(lastFrame() ?? '').toMatch(/GROVE/)
     unmount()
   })
 })

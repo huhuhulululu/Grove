@@ -18,7 +18,14 @@ import { rarityRank } from '../core/rewards'
 import type { Rng } from '../core/rng'
 
 import { applyXp, levelUpSeedBonus } from './xp'
-import { pull as pull_, makeCard, SOFT_PITY, PREMIUM_RARITY_ODDS } from './gacha'
+import {
+  pull as pull_,
+  makeCard,
+  SOFT_PITY,
+  HARD_PITY,
+  PREMIUM_RARITY_ODDS,
+  REALIZED_LEGENDARY_SHINY_RATE,
+} from './gacha'
 import { addCard, grantDupComp, craftableCardId, missingCardIds, SHARDS_PER_CRAFT } from './collection'
 import type { Rarity } from '../core/rewards'
 import { makeGear, activeGearBonus } from './gear'
@@ -94,6 +101,27 @@ export const PULL_COST = 45
  * cosmetic-only (ADR-0005).
  */
 export const PREMIUM_PULL_COST = 225
+
+/**
+ * R8 TARGETED 'SPARK' PREMIUM (economy A-blocker). Number of premium pulls that
+ * MISS the chosen `sparkTarget` before the next premium pull GUARANTEES it. So
+ * saving 225 seeds is no longer a flat better-EV gamble — it is choosing a TARGET
+ * the game promises to deliver within a bounded number of pulls. Published /
+ * inspectable (ADR-0002); the guaranteed card is cosmetic-only (ADR-0005).
+ *
+ * Worst-case premium-seed cost to a chosen card = SPARK_THRESHOLD * PREMIUM_PULL_COST
+ * (the threshold-th miss plus the guarantee), so the player can reason about it.
+ */
+export const SPARK_THRESHOLD = 8
+
+/**
+ * R8 RENEWABLE CONTENT AXIS (economy A-blocker). Shards to cosmetically FOIL one
+ * OWNED card (`foilCard`). Every owned card becomes a further shard sink target, so
+ * a completed collection still has a runway. Set in the same shard economy as a
+ * craft (SHARDS_PER_CRAFT) but cheaper — foil is a repeatable polish, not a new
+ * card. Published / inspectable (ADR-0002); cosmetic-only, ZERO power (ADR-0005).
+ */
+export const FOIL_COST = 30
 
 /**
  * Seeds an ENDGAME prestige cosmetic costs (R5 endgame sink, game-design P2). A
@@ -209,6 +237,11 @@ function cloneState(state: GameState): GameState {
     energy: { ...state.energy },
     work: { ...state.work },
     protectedGear: [...state.protectedGear],
+    // R8 optional renewable/spark fields — preserve them through a clone so a
+    // no-op refusal never silently drops a foiled list or spark progress.
+    ...(state.foiled !== undefined ? { foiled: [...state.foiled] } : {}),
+    ...(state.spark !== undefined ? { spark: state.spark } : {}),
+    ...(state.sparkTarget !== undefined ? { sparkTarget: state.sparkTarget } : {}),
   }
 }
 
@@ -639,10 +672,37 @@ export function pullPremium(
     message: `-${PREMIUM_PULL_COST} 🌰 · premium pull`,
   })
 
+  // --- R8 SPARK: a chosen target the premium banner GUARANTEES after enough misses.
+  const spark = state.spark ?? 0
+  const target = state.sparkTarget
+  const missing = missingCardIdsForPlayer(state)
+  const guaranteeFires = spark >= SPARK_THRESHOLD && target !== undefined && missing.includes(target)
+
+  if (guaranteeFires) {
+    // Force the chosen missing card (deterministic spark guarantee). Reset spark to 0.
+    const def = ALL_CARD_DEFS.find((d) => d.id === target)!
+    const card = cardFromDef(def)
+    const next = applyPulledCard(
+      { ...state, player: { ...state.player, currency: spent }, spark: 0 },
+      card,
+      def.rarity,
+      `✦ SPARK guarantee · ${rarityMark(def.rarity)}${card.name} · ${def.rarity}`,
+      rng,
+      rewards,
+    )
+    return { state: next, rewards }
+  }
+
+  // Normal premium roll.
   const { rarity, pity } = pull_(state.pity, rng, PREMIUM_RARITY_ODDS)
   const card = makeCard(rarity, rng, state.player.level)
+  // Did this pull land the chosen target? If so the spark resets; otherwise it ticks
+  // up (capped at SPARK_THRESHOLD so the guarantee stays armed). With no target the
+  // counter still advances so the surface can show "saving toward a spark".
+  const hitTarget = target !== undefined && card.id === target
+  const nextSpark = hitTarget ? 0 : Math.min(SPARK_THRESHOLD, spark + 1)
   const next = applyPulledCard(
-    { ...state, player: { ...state.player, currency: spent }, pity },
+    { ...state, player: { ...state.player, currency: spent }, pity, spark: nextSpark },
     card,
     rarity,
     `✦ premium · ${rarityMark(rarity)}${card.name} · ${rarity}`,
@@ -855,6 +915,187 @@ export function buyPrestige(
     },
     rewards,
   }
+}
+
+// ---------------------------------------------------------------------------
+// foil — SPEND shards to cosmetically FOIL an OWNED card (the renewable axis).
+// ---------------------------------------------------------------------------
+
+/**
+ * Spend FOIL_COST shards to mark an OWNED card cosmetically 'foiled' (R8 renewable
+ * content axis — a completed collection is never "done"). The CLI exposes this as
+ * `sq foil [cardId]`.
+ *
+ *  - `cardId` omitted → foil the FIRST owned, not-yet-foiled card (sensible default).
+ *  - `cardId` given → it MUST be a card the player OWNS and has NOT already foiled;
+ *    an unowned / already-foiled id is refused calmly (no debit, never shaming).
+ *  - Too few shards, or nothing left to foil → friendly refusal, NO debit.
+ *
+ * On success: debit the shards and append the id to `foiled`. Cosmetic-only
+ * (ADR-0005): a foiled card confers ZERO power — it is pure flair. PURE & IMMUTABLE
+ * — no I/O, no wall-clock, no rng (the upgrade is fully deterministic).
+ */
+export function foilCard(
+  state: GameState,
+  cardId?: string,
+): { state: GameState; rewards: Reward[] } {
+  const rewards: Reward[] = []
+  const haveShards = state.player.shards ?? 0
+  const foiled = state.foiled ?? []
+  const foiledSet = new Set(foiled)
+
+  // Owned card ids the player has NOT yet foiled (preserve owned order → stable default).
+  const ownedIds: string[] = []
+  const seen = new Set<string>()
+  for (const c of state.cards) {
+    if (!seen.has(c.id)) {
+      seen.add(c.id)
+      ownedIds.push(c.id)
+    }
+  }
+  const foilable = ownedIds.filter((id) => !foiledSet.has(id))
+
+  // Resolve the target: explicit (validated) or the first foilable card.
+  let targetId: string | null
+  if (cardId === undefined) {
+    targetId = foilable[0] ?? null
+  } else if (!seen.has(cardId)) {
+    // Not owned at all → can't foil.
+    rewards.push({
+      kind: 'currency',
+      amount: haveShards,
+      message: `can't foil ${cardId} — you don't own it`,
+    })
+    return { state: cloneState(state), rewards }
+  } else if (foiledSet.has(cardId)) {
+    // Owned but already foiled → friendly idempotent refusal, no debit.
+    rewards.push({
+      kind: 'currency',
+      amount: haveShards,
+      message: `${cardId} is already foiled`,
+    })
+    return { state: cloneState(state), rewards }
+  } else {
+    targetId = cardId
+  }
+
+  // Nothing left to foil (owns nothing, or every owned card already foiled).
+  if (targetId === null) {
+    rewards.push({
+      kind: 'currency',
+      amount: haveShards,
+      message:
+        ownedIds.length === 0
+          ? 'nothing to foil — no cards owned yet'
+          : 'nothing left to foil — all owned cards are foiled',
+    })
+    return { state: cloneState(state), rewards }
+  }
+
+  // Affordability — calm refusal, no debit.
+  if (haveShards < FOIL_COST) {
+    rewards.push({
+      kind: 'currency',
+      amount: haveShards,
+      message: `not enough shards — foil needs ${FOIL_COST}, have ${haveShards}`,
+    })
+    return { state: cloneState(state), rewards }
+  }
+
+  const spentShards = haveShards - FOIL_COST
+  const def = ALL_CARD_DEFS.find((d) => d.id === targetId)
+  const name = def?.name ?? targetId
+  rewards.push({
+    kind: 'currency',
+    amount: -FOIL_COST,
+    message: `-${FOIL_COST} shards · foil`,
+  })
+  rewards.push({
+    kind: 'card',
+    rarity: def?.rarity,
+    message: `✦ FOIL · ${name} now shimmers (cosmetic)`,
+  })
+
+  return {
+    state: {
+      ...state,
+      player: { ...state.player, shards: spentShards },
+      foiled: [...foiled, targetId],
+    },
+    rewards,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Decision-point telemetry accessors (R8) — small PURE reads the render/TUI layer
+// surfaces so the player sees WHY a pull/save decision matters. No I/O, no wall-
+// clock, no rng — they only read state + the published gacha constants.
+// ---------------------------------------------------------------------------
+
+/**
+ * Pity progress for the standard/premium banner: the raw `sinceLegendary` counter
+ * against the published SOFT_PITY / HARD_PITY thresholds, plus convenience flags.
+ *  - `softActive` — soft-pity boost is in effect (sinceLegendary >= SOFT_PITY).
+ *  - `hardNext`   — the NEXT pull is the hard-guaranteed one (sinceLegendary+1 >= HARD_PITY).
+ *  - `pullsToHard`— pulls remaining until the hard guarantee (clamped at 0).
+ * PURE — reads only state + published constants.
+ */
+export function pityProgress(state: GameState): {
+  sinceLegendary: number
+  softPity: number
+  hardPity: number
+  softActive: boolean
+  hardNext: boolean
+  pullsToHard: number
+} {
+  const since = state.pity.sinceLegendary
+  return {
+    sinceLegendary: since,
+    softPity: SOFT_PITY,
+    hardPity: HARD_PITY,
+    softActive: since >= SOFT_PITY,
+    hardNext: since + 1 >= HARD_PITY,
+    pullsToHard: Math.max(0, HARD_PITY - since),
+  }
+}
+
+/**
+ * The card ids the player is still MISSING within their UNLOCKED sets (level-scoped).
+ * The render layer surfaces this at the pull/craft/spark decision point. PURE &
+ * deterministic — preserves set/def order so a default target is stable.
+ */
+export function missingCardIdsForPlayer(state: GameState): string[] {
+  return missingCardIds(state.cards, unlockedSets(state.player.level))
+}
+
+/**
+ * Spark progress for the targeted premium banner: the current `spark` counter
+ * against the published SPARK_THRESHOLD, the chosen target (if any), and whether
+ * the NEXT premium pull would fire the guarantee. PURE — reads only state + the
+ * published threshold.
+ */
+export function sparkProgress(state: GameState): {
+  spark: number
+  threshold: number
+  target?: string
+  guaranteedNext: boolean
+} {
+  const spark = state.spark ?? 0
+  return {
+    spark,
+    threshold: SPARK_THRESHOLD,
+    target: state.sparkTarget,
+    guaranteedNext: spark >= SPARK_THRESHOLD,
+  }
+}
+
+/**
+ * The published HONEST, pity-inclusive legendary+shiny rate a player realizes over a
+ * long session (ADR-0002). A tiny accessor so the render layer surfaces the TRUE
+ * long-run odds at the decision point without re-importing the gacha module. PURE.
+ */
+export function realizedLegendaryShinyRate(): number {
+  return REALIZED_LEGENDARY_SHINY_RATE
 }
 
 // ---------------------------------------------------------------------------

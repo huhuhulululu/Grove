@@ -74,6 +74,25 @@ describe('renderPage', () => {
     expect(html).toContain('EventSource')
   })
 
+  it('live-updates via the SSE snapshot WITHOUT a full location.reload()', () => {
+    const html = renderPage(seededState())
+    // R8: the page applies the JSON snapshot to the DOM rather than reloading.
+    expect(html).not.toContain('location.reload')
+    // The client parses the SSE data payload (JSON.parse) and patches the DOM.
+    expect(html).toContain('JSON.parse')
+  })
+
+  it('surfaces ODDS/economy decision-point info (pity, realized odds, spark)', () => {
+    const html = renderPage(seededState())
+    const upper = html.toUpperCase()
+    expect(upper).toContain('ODDS')
+    const lower = html.toLowerCase()
+    expect(lower).toContain('pity')
+    expect(lower).toMatch(/legendary|shiny/)
+    expect(lower).toContain('spark')
+    expect(lower).toContain('foil')
+  })
+
   it('escapes HTML-significant characters in dynamic text (no injection)', () => {
     const base = seededState()
     const evil: GameState = {

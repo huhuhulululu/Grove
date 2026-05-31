@@ -18,7 +18,7 @@ npm i -g grovekit       # or run ad-hoc without installing: npx -p grovekit sq <
 cd my-project
 sq init                 # installs a fail-open post-commit hook + grants a starter; never blocks a commit
 #   🌳 Grove post-commit hook installed.
-#   🪙 starter grant · +40 🌰 seeds — your board isn't empty.
+#   🪙 starter grant · +40 🌰 seeds · your board isn't empty.
 #   Next: git commit like normal, then `sq dashboard` to see your loot.
 
 # 3. Commit like normal — Grove scores good-practice signals in the commit (ADR-0003)
@@ -65,7 +65,8 @@ adapter per tool, no coupling.
 | `sq scan [path]` | Scan a repo for habit signals (grimoire / tests / docs / specs) and reward them |
 | `sq dashboard` | Full in-place board: XP, seeds, gear, quests, buffs, energy |
 | `sq quests` | The habit quest board |
-| `sq pull` | Spend 45 🌰 seeds for one gacha pull · you choose when |
+| `sq pull` | Spend 45 🌰 seeds for one gacha pull · you choose when (`--premium`, `--spark <id>` targeted guarantee) |
+| `sq craft <id>` · `sq foil [id]` | Spend shards to craft a missing card, or cosmetically foil an owned one (renewable sink) |
 | `sq enhance <ref>` · `sq repair <ref>` · `sq protect <ref>` | The gear risk/reward loop (cosmetic only) |
 | `sq suggest-commit` | Read-only: draft a commit message from your staged diff (never commits) |
 | `sq checkpoint` | Non-destructive `git stash create` snapshot + a rest buff |
@@ -110,16 +111,18 @@ Each factor exists *somewhere*; the **product exists nowhere but Grove.** The ma
 ## Shipped vs. roadmap (honest scope)
 
 **Shipped today:** the pure game engine (XP, gacha, gear, collection, quests, energy, crit), persistence,
-the auto-capture git hook, `sq scan`, `sq wrap -- <cmd>` (real exit-code-driven signals — ADR-0003), the
-seeds economy + `sq pull` / `enhance` / `repair` / `protect`, the `sq dashboard`, the navigable Ink TUI
-(`sq tui`), the read-only web/SSE dashboard (`sq serve`), `suggest-commit`, `checkpoint`, the chain-safe
-statusline integration, `--zen` calm mode, the opt-in `sq share` card/badge, and opt-in `sq ntfy` mobile
-push on big moments.
+the auto-capture git hook, `sq scan`, `sq wrap -- <cmd>` (real exit-code-driven signals · ADR-0003), the
+seeds economy + `sq pull` (incl. `--premium` and a targeted `--spark` guarantee) / `enhance` / `repair` /
+`protect` / `craft` / `foil` (a renewable cosmetic shard sink), the `sq dashboard` (with an ODDS panel
+that surfaces pity / realized odds / spark at the decision point), the navigable Ink TUI (`sq tui`), the
+read-only web/SSE dashboard (`sq serve`), `suggest-commit`, `checkpoint`, the chain-safe statusline
+integration, **account-global energy** (the 5h/7d quota windows are shared across all your repos via one
+locked `<home>/_global/global.json`), `--zen` calm mode, the opt-in `sq share` card/badge, and opt-in
+`sq ntfy` mobile push on big moments.
 
-**Roadmap (not yet built):** account-global energy (quota is account-wide; energy is currently stored
-per-repo); friend streaks / co-op; and the opt-in, league-based **global leaderboard** — which needs a
-**server-verified outcomes backend** (local state is forgeable) before it can ship without becoming a
-dark pattern, so it stays deferred (ADR-0011).
+**Roadmap (not yet built):** friend streaks / co-op; and the opt-in, league-based **global leaderboard** ·
+which needs a **server-verified outcomes backend** (local state is forgeable) before it can ship without
+becoming a dark pattern, so it stays deferred (ADR-0011).
 
 ## Build from source
 

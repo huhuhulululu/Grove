@@ -56,11 +56,30 @@ function stateJson(dir: string): string {
   return JSON.stringify(loadState(dir))
 }
 
-/** Send a one-shot response with a content-type and body. */
+/**
+ * Safe response headers for every reply (R8 security, defense-in-depth).
+ *
+ * The page is fully SELF-CONTAINED (inline CSS + inline JS, no remote assets), so
+ * a tight CSP that allows ONLY same-origin + inline + the SSE connection costs
+ * nothing and blocks any injected remote resource. `nosniff` stops content-type
+ * confusion; `no-store` keeps a stale (and potentially sensitive) snapshot out of
+ * disk caches; `frame-ancestors 'none'` blocks click-jacking. The view is read-
+ * only and local, but this is cheap belt-and-suspenders.
+ */
+const SECURITY_HEADERS: Record<string, string> = {
+  'x-content-type-options': 'nosniff',
+  'cache-control': 'no-store',
+  'content-security-policy':
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; " +
+    "connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  'referrer-policy': 'no-referrer',
+}
+
+/** Send a one-shot response with a content-type, the security headers, and a body. */
 function send(res: http.ServerResponse, status: number, type: string, body: string): void {
   res.writeHead(status, {
     'content-type': type,
-    'cache-control': 'no-store',
+    ...SECURITY_HEADERS,
   })
   res.end(body)
 }
@@ -199,7 +218,7 @@ function openSseStream(
 ): void {
   res.writeHead(200, {
     'content-type': 'text/event-stream; charset=utf-8',
-    'cache-control': 'no-store',
+    ...SECURITY_HEADERS,
     connection: 'keep-alive',
   })
   // Initial snapshot so a freshly-connected page renders without waiting for a change.

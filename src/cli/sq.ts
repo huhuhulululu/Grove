@@ -27,7 +27,7 @@ import { spawnSync } from 'node:child_process'
 import { shQuote } from '../adapters/shquote'
 import { stateDir, groveHome } from '../store/paths'
 import { ingestEvent } from '../app/ingest'
-import { loadState, saveState, readEvents, withStateLock } from '../store/store'
+import { loadState, saveState, readEvents, withStateLock, rotateBackups } from '../store/store'
 import { buildRecap } from '../app/recap'
 import { formatReward, formatStatus, formatRecap, formatQuests } from '../render/format'
 import { EVENT_TYPES } from '../core/events'
@@ -50,9 +50,11 @@ import {
   pullPremium,
   craftCard,
   buyPrestige,
+  foilCard,
   PULL_COST,
   PREMIUM_PULL_COST,
   PRESTIGE_COST,
+  FOIL_COST,
 } from '../engine/reduce'
 import { convertShards, SHARDS_PER_CRAFT, SHARD_TO_SEED } from '../engine/collection'
 import { runTui } from '../tui/app'
@@ -67,6 +69,7 @@ import { pushWorthy, ntfyTopic, sendNtfy } from '../adapters/ntfy'
 import type { NtfyNotification } from '../adapters/ntfy'
 import { renderShareCard, renderReadmeBadge } from '../render/share'
 import type { Reward } from '../core/rewards'
+import type { GameState } from '../core/state'
 
 // ---------------------------------------------------------------------------
 // Minimal argv parser
@@ -165,7 +168,7 @@ function parsePositiveIntFlag(value: string | undefined, fallback: number): numb
 /** Every top-level subcommand sq accepts (drives did-you-mean suggestions). */
 const SUBCOMMANDS = [
   'event', 'status', 'recap', 'scan', 'quests', 'pull', 'enhance', 'repair',
-  'protect', 'craft', 'convert', 'prestige', 'dashboard', 'tui', 'serve',
+  'protect', 'craft', 'foil', 'convert', 'prestige', 'dashboard', 'tui', 'serve',
   'statusline-ingest', 'statusline', 'init', 'uninstall', 'commit-hook',
   'suggest-commit', 'checkpoint', 'wrap', 'share', 'ntfy', 'help',
 ] as const
@@ -317,9 +320,11 @@ Subcommands:
       Show the Pillar-B quest board with status glyphs and active buffs.
       ✓ done  ◆ active  · not yet started
 
-  pull [--premium] [--seed N] [--home DIR]
+  pull [--premium] [--spark <cardId>] [--seed N] [--home DIR]
       Spend ${PULL_COST} 🌰 seeds for one gacha pull (the core decision · you choose WHEN).
       --premium  Spend ${PREMIUM_PULL_COST} 🌰 for a PREMIUM pull (better odds; the escalating sink).
+      --spark    (with --premium) Choose a missing card to build a GUARANTEE toward ·
+                 after enough premium misses the next premium pull is guaranteed to be it.
       Earn seeds by shipping outcomes (commits, green tests, merges, docs).
       Refuses calmly when you can't afford it. Cosmetic only (ADR-0005).
 
@@ -328,6 +333,12 @@ Subcommands:
       duplicate pull banks rarity-scaled shards). With no id, crafts the first
       missing card in your unlocked sets. Refuses calmly when short on shards or
       nothing is left to craft. Cosmetic only (ADR-0005).
+
+  foil [cardId] [--home DIR]
+      Spend ${FOIL_COST} shards to cosmetically FOIL an OWNED card (a renewable polish · a
+      completed collection still has a target). With no id, foils the first
+      not-yet-foiled owned card. Refuses calmly when short on shards or nothing
+      is left to foil. Cosmetic only, confers ZERO power (ADR-0005).
 
   convert [n] [--home DIR]
       Trade banked shards back into 🌰 seeds at ${SHARD_TO_SEED} 🌰 per shard (the dead-shard
@@ -914,9 +925,19 @@ function playReveal(frames: string[]): void {
 function handlePull(flags: Record<string, string>, dir: string, zen: boolean): number {
   const premium = flags['premium'] === 'true'
   const cost = premium ? PREMIUM_PULL_COST : PULL_COST
+  // --spark <id>: the missing card a PREMIUM banner builds its guarantee toward
+  // (the engine reads state.sparkTarget). Choosing a target = the save-vs-spend
+  // reason the targeted premium gives (SPARK_THRESHOLD misses → guaranteed).
+  const sparkTarget = premium ? flags['spark'] : undefined
 
   const result = withStateLock(dir, () => {
-    const state = loadState(dir)
+    const loaded = loadState(dir)
+    // Set/refresh the spark target up front (impure shell, immutable update) so the
+    // premium roll below sees it; a no-op when the player passed no --spark.
+    const state: GameState =
+      sparkTarget !== undefined && sparkTarget !== ''
+        ? { ...loaded, sparkTarget }
+        : loaded
     const affordable = state.player.currency >= cost
     const seedFlag = flags['seed']
     const seed =
@@ -926,7 +947,15 @@ function handlePull(flags: Record<string, string>, dir: string, zen: boolean): n
     const rng = mulberry32(seed)
 
     const { state: next, rewards } = premium ? pullPremium(state, rng) : enginePull(state, rng)
-    saveState(dir, next)
+    // ROBUSTNESS (R8 code-review): when the player is broke the engine returns the
+    // state UNCHANGED (no draw, no debit) — persisting it is a pure no-op write
+    // (touches the file mtime + re-acquires the global lock for nothing). Skip the
+    // save UNLESS the player actually chose a (new) spark target, which IS a real
+    // state change worth persisting even on a refused pull.
+    const targetChanged = state.sparkTarget !== loaded.sparkTarget
+    if (affordable || targetChanged) {
+      saveState(dir, next)
+    }
     return { rewards, affordable }
   })
 
@@ -980,13 +1009,53 @@ function handleCraft(positional: string[], flags: Record<string, string>, dir: s
     const rng = mulberry32(seed)
 
     const { state: next, rewards } = craftCard(state, cardId, rng)
-    saveState(dir, next)
-    return { rewards, crafted: next.cards.length > before }
+    const crafted = next.cards.length > before
+    // ROBUSTNESS (R8): a refused craft (short on shards / nothing left / locked id)
+    // returns state UNCHANGED — skip the no-op write. A successful craft debits
+    // shards + appends a card, so persist that.
+    if (crafted) {
+      saveState(dir, next)
+    }
+    return { rewards, crafted }
   })
 
   if (zen) {
     // Calm: the engine ran & persisted; one quiet line either way.
     calmConfirm(result.crafted ? 'crafted' : 'craft skipped')
+    return 0
+  }
+
+  for (const reward of result.rewards) {
+    console.log(formatReward(reward))
+  }
+  return 0
+}
+
+/**
+ * `sq foil [cardId]` · spend FOIL_COST shards to cosmetically FOIL an OWNED card
+ * (R8 renewable content axis — a completed collection still has a runway). Loads
+ * state under the lock, runs the PURE engine `foilCard` (debits shards, or refuses
+ * calmly when short / unowned / already foiled / nothing left), persists ONLY when
+ * the foil actually applied (no no-op write), and renders the reward. Respects --zen.
+ */
+function handleFoil(positional: string[], dir: string, zen: boolean): number {
+  const cardId = positional[0]
+
+  const result = withStateLock(dir, () => {
+    const state = loadState(dir)
+    const beforeFoiled = (state.foiled ?? []).length
+    const { state: next, rewards } = foilCard(state, cardId)
+    const foiled = (next.foiled ?? []).length > beforeFoiled
+    // ROBUSTNESS (R8): a refused foil returns state UNCHANGED — skip the no-op
+    // write. A successful foil debits shards + appends to foiled[], so persist it.
+    if (foiled) {
+      saveState(dir, next)
+    }
+    return { rewards, foiled }
+  })
+
+  if (zen) {
+    calmConfirm(result.foiled ? 'foiled' : 'foil skipped')
     return 0
   }
 
@@ -1007,8 +1076,13 @@ function handlePrestige(flags: Record<string, string>, dir: string, zen: boolean
     const state = loadState(dir)
     const before = state.buffs.length
     const { state: next, rewards } = buyPrestige(state)
-    saveState(dir, next)
-    return { rewards, bought: next.buffs.length > before }
+    const bought = next.buffs.length > before
+    // ROBUSTNESS (R8): a refused prestige (broke) returns state UNCHANGED — skip
+    // the no-op write. A purchase debits seeds + adds a rank buff, so persist it.
+    if (bought) {
+      saveState(dir, next)
+    }
+    return { rewards, bought }
   })
 
   if (zen) {
@@ -1040,8 +1114,13 @@ function handleConvert(positional: string[], dir: string, zen: boolean): number 
     const state = loadState(dir)
     const before = state.player.shards ?? 0
     const { state: next, rewards } = convertShards(state, n)
-    saveState(dir, next)
-    return { rewards, converted: before - (next.player.shards ?? 0) }
+    const converted = before - (next.player.shards ?? 0)
+    // ROBUSTNESS (R8): a refused convert (no shards / nothing to convert) returns
+    // state UNCHANGED — skip the no-op write. A real convert moves shards→seeds.
+    if (converted > 0) {
+      saveState(dir, next)
+    }
+    return { rewards, converted }
   })
 
   if (zen) {
@@ -1315,6 +1394,10 @@ function handleStatuslineInstall(flags: Record<string, string>, dir: string): nu
   const ingestCmd = `${groveInvocation()} statusline-ingest`
   const result = installStatusline(settingsPath, wrapperPath, ingestCmd)
 
+  // R8 hygiene: the installer writes a timestamped settings.json.bak.<ts> each
+  // install; rotate so only the newest few survive (never an unbounded pile).
+  rotateBackups(path.dirname(settingsPath), 'settings.json.bak.')
+
   if (result.action === 'already-installed') {
     console.log('  Grove statusline wrapper is already installed (no change).')
   } else {
@@ -1339,6 +1422,9 @@ function handleStatuslineInstall(flags: Record<string, string>, dir: string): nu
 function handleStatuslineUninstall(flags: Record<string, string>): number {
   const settingsPath = flags['settings'] ?? defaultSettingsPath()
   const result = uninstallStatusline(settingsPath)
+
+  // R8 hygiene: cap the timestamped settings backups here too (keep newest few).
+  rotateBackups(path.dirname(settingsPath), 'settings.json.bak.')
 
   if (result.action === 'not-installed') {
     console.log('  Grove statusline wrapper was not installed (nothing to remove).')
@@ -1913,6 +1999,9 @@ export function run(argv: string[]): number {
 
     case 'craft':
       return handleCraft(rest, flags, dir, zen)
+
+    case 'foil':
+      return handleFoil(rest, dir, zen)
 
     case 'prestige':
       return handlePrestige(flags, dir, zen)

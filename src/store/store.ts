@@ -255,15 +255,67 @@ function migrateWork(
   }
 }
 
+// ---------------------------------------------------------------------------
+// File-rotation / hygiene (R8) — timestamped sidecar files (settings backups,
+// corrupt-state backups) and the append-only event log are capped so they never
+// grow without bound (a disk-hygiene + minor info-exposure concern). Keep the
+// NEWEST few; drop the rest. Best-effort: a rotation failure never breaks I/O.
+// ---------------------------------------------------------------------------
+
+/** How many newest timestamped backups to keep (settings + corrupt-state). */
+export const BACKUP_KEEP = 3
+
+/** Soft cap on events.jsonl line count — trimmed to the newest this many. */
+export const EVENTS_MAX_LINES = 5000
+
+/**
+ * Keep only the newest `keep` files in `dir` whose name starts with `prefix`;
+ * delete the older ones. Ordering is by mtime (newest first), tie-broken by name
+ * (the timestamp suffix sorts lexicographically too). Best-effort & total: a stat
+ * or unlink failure is swallowed so a backup-rotation hiccup never breaks a write.
+ * PURE-of-throw — exported so the CLI can rotate after a statusline install/uninstall.
+ */
+export function rotateBackups(dir: string, prefix: string, keep: number = BACKUP_KEEP): void {
+  try {
+    const matches = fs
+      .readdirSync(dir)
+      .filter((f) => f.startsWith(prefix))
+      .map((name) => {
+        let mtimeMs = 0
+        try {
+          mtimeMs = fs.statSync(path.join(dir, name)).mtimeMs
+        } catch {
+          /* gone between readdir and stat — treat as oldest */
+        }
+        return { name, mtimeMs }
+      })
+      // Newest first (mtime desc, then name desc so the ts-suffix breaks ties).
+      .sort((a, b) => b.mtimeMs - a.mtimeMs || (a.name < b.name ? 1 : -1))
+
+    for (const { name } of matches.slice(Math.max(0, keep))) {
+      try {
+        fs.unlinkSync(path.join(dir, name))
+      } catch {
+        /* already gone — fine */
+      }
+    }
+  } catch {
+    // dir unreadable → nothing to rotate.
+  }
+}
+
 /**
  * Back up a corrupt state file alongside it as `state.json.corrupt.<ts>` so the
- * bad data is never silently discarded. Best-effort: a failure to back up must
- * never prevent recovery.
+ * bad data is never silently discarded, then prune old corrupt backups so they
+ * can't accumulate forever. Best-effort: a failure to back up must never prevent
+ * recovery.
  */
 function backupCorrupt(file: string, raw: string): void {
   try {
     const backup = `${file}.corrupt.${Date.now()}`
     fs.writeFileSync(backup, raw, 'utf8')
+    // Keep only the newest BACKUP_KEEP corrupt backups (disk hygiene).
+    rotateBackups(path.dirname(file), `${path.basename(file)}.corrupt.`)
   } catch {
     // Best-effort only.
   }
@@ -409,12 +461,46 @@ export function saveState(dir: string, state: GameState): void {
   withGlobalLock(dir, () => writeGlobal(dir, state))
 }
 
-/** Append a single event as a JSON line to `${dir}/events.jsonl`. */
+/** Append a single event as a JSON line to `${dir}/events.jsonl`, capping growth. */
 export function appendEvent(dir: string, event: GroveEvent): void {
   fs.mkdirSync(dir, { recursive: true })
   const file = path.join(dir, 'events.jsonl')
   fs.appendFileSync(file, JSON.stringify(event) + '\n', 'utf8')
+  capEventLog(file)
 }
+
+/**
+ * Cap `events.jsonl` growth (R8 hygiene): if the log exceeds EVENTS_MAX_LINES,
+ * rewrite it keeping only the NEWEST EVENTS_MAX_LINES lines (the oldest are
+ * dropped — recap/seed-derivation only need recent history, and the cosmetic
+ * state.json is the durable record). Best-effort & atomic (tmp-then-rename) so a
+ * crash mid-trim never leaves a torn log. A failure is swallowed — the append
+ * already succeeded, so a trim hiccup must never break the ingest path.
+ */
+function capEventLog(file: string): void {
+  try {
+    const raw = fs.readFileSync(file, 'utf8')
+    const lines = raw.split('\n')
+    // Trailing '' from the final newline is not a real line.
+    const realCount = lines[lines.length - 1] === '' ? lines.length - 1 : lines.length
+    // Trim only once we're a MARGIN over the cap, then back down to the cap. This
+    // amortizes the rewrite over MARGIN appends (O(1) avg) instead of rewriting the
+    // whole file on every append once at the limit.
+    if (realCount <= EVENTS_MAX_LINES + EVENTS_TRIM_MARGIN) return
+
+    const kept = lines
+      .filter((l) => l.trim() !== '')
+      .slice(-EVENTS_MAX_LINES)
+    const tmp = `${file}.tmp`
+    fs.writeFileSync(tmp, kept.join('\n') + '\n', 'utf8')
+    fs.renameSync(tmp, file)
+  } catch {
+    // Best-effort: the append already landed; a trim failure is non-fatal.
+  }
+}
+
+/** Slack above EVENTS_MAX_LINES before a trim fires (amortizes the rewrite). */
+export const EVENTS_TRIM_MARGIN = 1000
 
 /**
  * Read all events from `${dir}/events.jsonl`.

@@ -87,6 +87,22 @@ describe('tuiModel — collection grid', () => {
     expect(forest.owned).toBe(forest.total)
     expect(forest.complete).toBe(true)
   })
+
+  it('exposes a representative rarity per set (the highest-rarity card OWNED) for colour', () => {
+    // Own forest.sapling (common) + forest.elder (epic) → the row rarity is epic.
+    const state: GameState = {
+      ...initialState(),
+      cards: [card('forest.sapling'), card('forest.elder')],
+    }
+    const forest = tuiModel(state).collection.find((s) => s.set === 'forest')!
+    expect(forest.rarity).toBe('epic')
+  })
+
+  it('a set with no cards owned reports the lowest rarity (common) — a neutral tint', () => {
+    const forest = tuiModel(initialState()).collection.find((s) => s.set === 'forest')!
+    expect(forest.owned).toBe(0)
+    expect(forest.rarity).toBe('common')
+  })
 })
 
 describe('tuiModel — gear list with active effects', () => {
@@ -112,6 +128,14 @@ describe('tuiModel — gear list with active effects', () => {
     expect(m.gear[1]!.broken).toBe(true)
     // Broken gear confers nothing.
     expect(m.gear[1]!.effect).toBeNull()
+  })
+
+  it('exposes each gear row rarity (for the rarity-as-colour tint)', () => {
+    const rng = mulberry32(1)
+    const hammer = { ...makeGear(rng), name: 'Commit Hammer', level: 5, broken: false, rarity: 'legendary' as const }
+    const state: GameState = { ...initialState(), gear: [hammer] }
+    const m = tuiModel(state)
+    expect(m.gear[0]!.rarity).toBe('legendary')
   })
 
   it('is empty when no gear is owned', () => {

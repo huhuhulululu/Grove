@@ -121,10 +121,12 @@ export const SPARK_THRESHOLD = 8
  * dear). So foiling a finished collection is a SHAPED late-game climb (polish the
  * commons early, save the legendaries for last), not a uniform sink.
  *
- * Tuned ≈ 1.5× the matching SHARDS_BY_RARITY tier so a foil is a repeatable polish in
- * the SAME shard economy — never as dear as a fresh craft (SHARDS_PER_CRAFT). Every
- * rarity stays a positive integer. Published / inspectable (ADR-0002); cosmetic-only,
- * ZERO power (ADR-0005).
+ * Tuned ≈ 3× the matching SHARDS_BY_RARITY tier (3/1, 6/2, 12/4, 24/8, 48/16, 72/24)
+ * so a foil is a repeatable polish in the SAME shard economy. Most foils stay cheaper
+ * than a fresh craft (SHARDS_PER_CRAFT = 60); the top shiny tier (72) is the deliberate
+ * exception · the single dearest polish in the game, an endgame flex you earn last.
+ * Every rarity stays a positive integer. Published / inspectable (ADR-0002);
+ * cosmetic-only, ZERO power (ADR-0005).
  */
 export const FOIL_COST_BY_RARITY: Record<Rarity, number> = {
   common: 3,

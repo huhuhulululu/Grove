@@ -36,7 +36,7 @@ import {
   PULL_COST,
   PREMIUM_PULL_COST,
   PRESTIGE_COST,
-  FOIL_COST,
+  FOIL_COST_BY_RARITY,
 } from '../engine/reduce'
 import { SHARDS_PER_CRAFT, SHARD_TO_SEED } from '../engine/collection'
 
@@ -276,8 +276,9 @@ Subcommands:
       nothing is left to craft. Cosmetic only (ADR-0005).
 
   foil [cardId] [--home DIR]
-      Spend ${FOIL_COST} shards to cosmetically FOIL an OWNED card (a renewable polish · a
-      completed collection still has a target). With no id, foils the first
+      Spend ${FOIL_COST_BY_RARITY.common} to ${FOIL_COST_BY_RARITY.shiny} shards (scaled by the card's rarity) to cosmetically
+      FOIL an OWNED card (a renewable polish · a completed collection still has a
+      target). With no id, foils the first
       not-yet-foiled owned card. Refuses calmly when short on shards or nothing
       is left to foil. Cosmetic only, confers ZERO power (ADR-0005).
 

@@ -27,7 +27,7 @@ import {
   prestigeCost,
   PULL_COST,
   PREMIUM_PULL_COST,
-  FOIL_COST,
+  FOIL_COST_BY_RARITY,
   pityProgress,
   sparkProgress,
   missingCardIdsForPlayer,
@@ -394,7 +394,9 @@ function renderOdds(state: GameState, width: number): string {
   const leftLine = missing > 0 ? `${missing} cards left to collect` : 'collection complete'
 
   // The foil shard sink — a completed collection still has a renewable target.
-  const foilLine = `✨ foil any owned card · ${FOIL_COST} shards (sq foil)`
+  // Cost scales with the card's rarity (commons cheap, shiny dearest), so surface
+  // the CURVE, not just the floor (R10).
+  const foilLine = `✨ foil any owned card · ${FOIL_COST_BY_RARITY.common} to ${FOIL_COST_BY_RARITY.shiny} shards by rarity (sq foil)`
 
   return [
     boxTop(width),

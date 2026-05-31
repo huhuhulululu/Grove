@@ -26,8 +26,10 @@ import {
 } from '../../engine/reduce'
 import { convertShards, SHARD_TO_SEED } from '../../engine/collection'
 import { renderEnhanceOdds, renderEnhanceResult, renderEnhanceFrames, renderPullFrames } from '../../render/enhance'
+import { pickSalientReward, salientRarity } from '../../tui/juice'
 import { mulberry32, hashStringToSeed } from '../../core/rng'
 import type { GameState } from '../../core/state'
+import type { Reward, Rarity } from '../../core/rewards'
 import {
   parseIntFlag,
   parsePositiveIntFlag,
@@ -36,6 +38,18 @@ import {
   resolveGearRef,
   printRewards,
 } from './shared'
+
+/**
+ * The rarity whose escalation the pull reveal should play · the SALIENT drop's
+ * tier, so a shiny pull builds longer/brighter than a common (the rarity-scaled
+ * suspense in render/enhance.ts `buildRevealFrames`). Surfaces R9's escalation on
+ * the PRIMARY documented CLI command, matching the Ink TUI (src/tui/app.tsx) so a
+ * common and a shiny no longer look identical on the shell. Pure; exported for the
+ * surface guard (economy.reveal.test.ts). `undefined` → the neutral default build.
+ */
+export function revealRarityFor(rewards: Reward[]): Rarity | undefined {
+  return salientRarity(pickSalientReward(rewards)) ?? undefined
+}
 
 /**
  * Seed price to arm a one-shot enhance protection. (Enhance & repair prices are
@@ -110,8 +124,9 @@ export function handlePull(flags: Record<string, string>, dir: string, zen: bool
     return 0
   }
 
-  // Affordable: play the pack-opening suspense, then reveal the drop.
-  playReveal(renderPullFrames())
+  // Affordable: play the pack-opening suspense (escalating with the salient drop's
+  // rarity · a shiny builds longer than a common), then reveal the drop.
+  playReveal(renderPullFrames(revealRarityFor(result.rewards)))
   printRewards(result.rewards)
   return 0
 }
@@ -228,7 +243,9 @@ export function handleEnhance(
   // only when an attempt happened. Mirrors the pull reveal (playReveal is
   // TTY-only and skipped in pipes/tests, so output stays deterministic).
   console.log(renderEnhanceOdds(before))
-  playReveal(renderEnhanceFrames())
+  // The dice-roll suspense escalates with the gear's rarity (a legendary piece
+  // builds longer than a common), matching the pull reveal + the Ink TUI.
+  playReveal(renderEnhanceFrames(before.rarity))
   console.log(renderEnhanceResult(before, outcome.after, outcome.result))
 
   return 0

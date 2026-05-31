@@ -28,6 +28,7 @@ import {
   PREMIUM_PULL_COST,
   PRESTIGE_COST,
   FOIL_COST,
+  FOIL_COST_BY_RARITY,
 } from '../engine/reduce'
 import {
   SHARDS_PER_CRAFT,
@@ -263,6 +264,9 @@ describe('help text never drifts from the live engine cost constants (P2)', () =
       REPAIR_COST_PER_LEVEL,
       PROTECT_COST,
       FOIL_COST, // R8: `sq foil` surfaces FOIL_COST shards in the help text.
+      // R10: foil cost is rarity-scaled; help shows the curve's floor & ceiling
+      // (e.g. "3 to 72 shards"), so every tier is a legit live cost.
+      ...Object.values(FOIL_COST_BY_RARITY),
     ])
     // The stale drift values must NOT appear (unless one equals a live cost — e.g.
     // FOIL_COST is now 30, a legit live cost, so 30 is allowed via liveCosts).
@@ -294,6 +298,9 @@ describe('help text never drifts from the live engine cost constants (P2)', () =
       REPAIR_COST_PER_LEVEL,
       PROTECT_COST,
       FOIL_COST, // R8: `sq foil` surfaces FOIL_COST shards in the help text.
+      // R10: foil cost is rarity-scaled; help shows the curve's floor & ceiling
+      // (e.g. "3 to 72 shards"), so every tier is a legit live cost.
+      ...Object.values(FOIL_COST_BY_RARITY),
     ])
     // Match a number immediately tied to a spend/cost/currency cue.
     const costRe = /(?:Spend|costs?|cost)\s+(\d+)|(\d+)\s*(?:🌰|shards?)/g

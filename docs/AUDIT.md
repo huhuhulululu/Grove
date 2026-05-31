@@ -157,3 +157,23 @@ R9 targets the (now mostly concrete) remaining A-blockers:
 - **code-review → A**: complete the juice refusal regex (drops 2 refusal messages); implement granular SSE update (no full reload).
 - **economy → A** (all low): rarity-scale FOIL_COST + a "fully-foiled" capstone; sharpen spark vs craft (lower threshold or foil-finish guarantee).
 - **game-design → A** (the craft item): rarity-SCALED reveal frames (escalating anticipation for rarer drops, not identical dots) + better pack-open frames; light TUI panel motion (XP-bar fill / row pulse) — the last bit is subjective and may not fully converge.
+
+## Re-score ⑧ (after R9) — 5/10 straight A (ai-eng, security, ethics, qa, strategy); 5 at A-
+R9 landed (rarity-scaled reveal craft + escalating frames, TUI XP-bar/row motion, FOIL curve + foiled-set
+capstone + spark→foil-finish, sq.ts 2101→585-line split, GOALS fix, granular SSE). ⑧ found the 5 remaining
+A- lenses share ONE root cause — the recurring engine‖cli/doc DISCONNECT: R9 changed engine semantics
+(rarity-scaled foil cost, rarity-scaled reveal) but the SURFACES didn't all follow. R10 closes it (all low/medium):
+- **game-design (FEEL) → A**: the escalating reveal was wired in the Ink TUI only; `sq pull`/`sq enhance`
+  (the PRIMARY documented CLI) still played the flat default build (a common looked identical to a shiny).
+  R10: `revealRarityFor(rewards)` feeds the salient drop's tier to renderPullFrames/renderEnhanceFrames at
+  both CLI call sites (+ surface guard economy.reveal.test.ts).
+- **economy → A**: reduce.ts foil-curve comment made two FALSE claims about its own constants (said ≈1.5×,
+  actually 3.0×; said "never as dear as a craft", but shiny=72 > craft=60). R10: comment corrected to the
+  real curve + the shiny-tier exception named (published-cost contract, ADR-0002).
+- **code-review + product/UX → A**: `sq help` / dashboard / web all advertised the flat 3-shard floor for a
+  now-rarity-scaled (3→72) cost. R10: all three surface the CURVE ("3 to 72 shards by rarity"); cost-drift
+  guard's liveCosts extended with the foil curve.
+- **architecture → A**: ARCHITECTURE.md still described sq.ts as a "~2k-line God-file / deferred refactor".
+  R10: rewritten to the shipped layout (585-line thin dispatch + commands/* groups); date bumped to R9.
+Evidence: **1357 tests pass** (65 files, +economy.reveal), tsc clean, build 178.83KB, bin help/dashboard
+show the curve. → 打分⑨ to confirm all 10 reach straight A.

@@ -1,7 +1,7 @@
 # Grove — Architecture (technical source of truth)
 
 > When this doc disagrees with the code, the code wins — then update this doc.
-> Last updated: 2026-05-31 (R6, after engine-depth + cli/ux round).
+> Last updated: 2026-05-31 (R9, after the sq.ts God-file split + economy/feel curve round).
 
 ## Data flow
 
@@ -118,7 +118,13 @@ Failing events (`success:false`): eventCount advances + buffs expire silently; *
 
 ## CLI (`src/cli/`)
 
-- `sq.ts` — entry point + all subcommand handlers. Impure shell: may use process / console / wall-clock / filesystem. Pure engine logic flows through `ingestEvent` and `reduce` — no re-implementation in the CLI. **Known debt:** this is a ~2k-line God-file (every handler + the argv parser + usage text in one module). It is cohesive and well-covered, so a split is deferred (not a soundness issue); extracting the handlers into per-command modules behind the same dispatch is the future refactor.
+- `sq.ts` — thin dispatch entry (~585 lines, R9): argv parse + global-flag handling + `USAGE_TEXT` + the dispatch `switch` + `run`/`runAsync` + the run-as-script guard. Impure shell: may use process / console / wall-clock / filesystem. **No business logic lives here** — handlers were extracted (R9) into per-command modules behind the same dispatch, and `sq.ts` re-exports their public surface so every test/import path is unchanged. Pure engine logic flows through `ingestEvent` and `reduce` — never re-implemented in the CLI.
+- `commands/` — the extracted handler groups (R9), each an impure shell over the pure engine:
+  - `shared.ts` — cross-handler helpers (`isZen`, `playReveal` (TTY-only), `printRewards`, gear-ref resolution, flag parsing, `groveInvocation`, push).
+  - `economy.ts` — the spend-side loop: `pull` (`--premium` · `--spark`), `enhance`, `repair`, `protect`, `craft`, `foil`, `convert`, `prestige`. `revealRarityFor(rewards)` picks the salient drop's tier so the pull/enhance reveal escalates by rarity on the CLI surface (matching the Ink TUI).
+  - `view.ts` — read surfaces: `status`, `recap`, `scan`, `quests`, `dashboard`, `tui`, `serve`.
+  - `hooks.ts` — chain-safe integration: `init`, `uninstall`, `commit-hook`, `suggest-commit`, `checkpoint`, `statusline install/uninstall/ingest`.
+  - `share.ts` — `event`, `wrap` (real exit-code signal, ADR-0003), `share`, `ntfy`.
   - Global flags: `--zen` (calm mode, ADR-0005) · `--home DIR` (override grove state dir).
   - Subcommands: `event` · `wrap` · `status` · `recap` · `scan` · `quests` · `pull` (`--premium` · `--spark <id>` targeted guarantee) · `enhance` · `repair` · `protect` · `craft` · `foil` · `convert` · `prestige` · `dashboard` · `tui` · `serve` · `share` · `ntfy` · `statusline-ingest` · `statusline install/uninstall` · `init` · `uninstall` · `commit-hook` · `suggest-commit` · `checkpoint` · `help`.
   - Broke/refused player actions (pull/premium/foil/craft/prestige/convert) SKIP the state write — the engine returns the state unchanged on a calm refusal, so the CLI never performs a no-op save (avoids a needless file rewrite + global-lock acquisition).

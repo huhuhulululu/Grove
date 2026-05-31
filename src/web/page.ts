@@ -22,7 +22,7 @@ import {
   prestigeCost,
   PULL_COST,
   PREMIUM_PULL_COST,
-  FOIL_COST,
+  FOIL_COST_BY_RARITY,
   SPARK_THRESHOLD,
   pityProgress,
   sparkProgress,
@@ -198,7 +198,7 @@ function oddsSection(state: GameState): string {
     <div class="econrow">legendary+shiny ~${realizedPer100} per 100 pulls</div>
     <div class="econrow">✦ spark <span data-bind="spark">${spark.spark}/${spark.threshold}${esc(sparkStatus)}</span></div>
     <div class="econrow"><span data-bind="cardsLeft">${esc(leftStr)}</span></div>
-    <div class="muted">✨ foil any owned card · ${FOIL_COST} shards (sq foil)</div>`
+    <div class="muted">✨ foil any owned card · ${FOIL_COST_BY_RARITY.common} to ${FOIL_COST_BY_RARITY.shiny} shards by rarity (sq foil)</div>`
   return section('🎲 Odds', body)
 }
 

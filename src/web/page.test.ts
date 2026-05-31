@@ -74,6 +74,25 @@ describe('renderPage', () => {
     expect(html).toContain('EventSource')
   })
 
+  it('includes the collapsible "How to play" tutorial (default open), localized', () => {
+    const en = renderPage(seededState())
+    // English: a <details> guide with the title + a couple of section bodies.
+    expect(en).toContain('<details class="guide"')
+    expect(en).toContain('How to play')
+    expect(en).toContain('The loop')
+    expect(en).toContain('Commands')
+    // collapse-state persistence wired (local only, no network).
+    expect(en).toContain('grove-guide')
+
+    // Localized: zh-CN + ja render translated tutorial copy.
+    const zh = renderPage(seededState(), 'zh-CN')
+    expect(zh).toContain('怎么玩')
+    expect(zh).toContain('核心循环')
+    const ja = renderPage(seededState(), 'ja')
+    expect(ja).toContain('遊び方')
+    expect(ja).toContain('ループ')
+  })
+
   it('live-updates via the SSE snapshot WITHOUT a full location.reload()', () => {
     const html = renderPage(seededState())
     // R8: the page applies the JSON snapshot to the DOM rather than reloading.

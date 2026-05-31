@@ -267,4 +267,17 @@ export const ja: Catalog = {
   'cli.ntfy.save_failed': '  ntfy トピックを保存できません · GROVE_HOME の権限を確認。',
   'cli.ntfy.subscribe': '  ntfy アプリを入れてそのトピックを購読すると大事な瞬間に通知が届く。',
   'cli.ntfy.big_moments': '  大事な瞬間のみ(レベルアップ、レジェンダリー、宝箱)。いつでも `sq ntfy off`。',
+
+  // guide.* — ウェブ「遊び方」チュートリアル
+  'guide.title': '遊び方',
+  'guide.intro': 'AI コーディングの上の静かなゲーム · 実作業を出荷 → ルート、良い習慣 → クエスト。装飾のみ · コードには一切触れない。',
+  'guide.loop.h': 'ループ',
+  'guide.loop.b': '出荷(コミット · テスト緑 · PR マージ)→ 🌰 シード獲得 → 抽選 & ギア強化 → カード収集、レベルアップ。',
+  'guide.earn.h': '稼ぐ',
+  'guide.earn.b': 'コミット、テスト緑(sq wrap)、マージ、ドキュメント、CLAUDE.md 作成(クエスト)。',
+  'guide.panels.h': 'ボードの読み方',
+  'guide.panels.b': 'XP · シード/シャード · 確率(天井 & スパーク)· コレクション · ギア · クエスト · バフ · エナジー。',
+  'guide.commands.h': 'コマンド',
+  'guide.commands.b': 'sq init · sq dashboard · sq pull · sq enhance · このライブページ。',
+  'guide.ethos': '設計上は装飾のみ · コードを害さない · 静かに、無理なく。',
 }

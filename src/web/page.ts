@@ -221,6 +221,29 @@ function oddsSection(state: GameState, locale: Locale): string {
   return section(t(locale, 'ui.web.odds'), body)
 }
 
+/**
+ * The "How to play" tutorial — a native <details> collapsible (no JS needed to
+ * open/close; the script only remembers the collapsed state in localStorage).
+ * Default-open so a first-time visitor is onboarded; returning visitors who
+ * collapse it stay collapsed. Fully localized via guide.* keys.
+ */
+function guideSection(locale: Locale): string {
+  const item = (h: string, b: string): string =>
+    `<div class="grow"><b>${esc(t(locale, h))}</b> ${esc(t(locale, b))}</div>`
+  return `
+  <details class="guide" id="guide" open>
+    <summary>❓ ${esc(t(locale, 'guide.title'))}</summary>
+    <div class="gbody">
+      <p class="muted gintro">${esc(t(locale, 'guide.intro'))}</p>
+      ${item('guide.loop.h', 'guide.loop.b')}
+      ${item('guide.earn.h', 'guide.earn.b')}
+      ${item('guide.panels.h', 'guide.panels.b')}
+      ${item('guide.commands.h', 'guide.commands.b')}
+      <p class="ethos">${esc(t(locale, 'guide.ethos'))}</p>
+    </div>
+  </details>`
+}
+
 /** Wrap a titled card section. */
 function section(title: string, body: string): string {
   return `
@@ -272,6 +295,15 @@ const STYLE = `
   .epct { width: 3rem; text-align: right; color: #8b949e; }
   .econrow { padding: .15rem 0; }
   .cta { margin-top: .4rem; color: #7ee787; }
+  .guide { max-width: 920px; margin: 0 auto 1.25rem; background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: .4rem 1rem; }
+  .guide summary { cursor: pointer; color: #58a6ff; font-weight: 600; padding: .35rem 0; list-style: none; }
+  .guide summary::-webkit-details-marker { display: none; }
+  .guide[open] summary { border-bottom: 1px solid #21262d; margin-bottom: .5rem; }
+  .guide .gbody { padding: 0 0 .3rem; }
+  .guide .gintro { margin: 0 0 .5rem; }
+  .guide .grow { padding: .25rem 0; }
+  .guide .grow b { color: #7ee787; margin-right: .35rem; }
+  .guide .ethos { color: #8b949e; margin: .6rem 0 0; }
   footer { text-align: center; color: #484f58; font-size: .8rem; margin-top: 1.5rem; }
 `
 
@@ -372,6 +404,14 @@ function buildScript(locale: Locale): string {
         }
       } catch (e) { /* a malformed snapshot is ignored; the next one will patch */ }
     }
+    // Remember whether the visitor collapsed the "How to play" guide (local only).
+    var g = document.getElementById('guide');
+    if (g) {
+      try { if (localStorage.getItem('grove-guide') === 'closed') g.open = false; } catch (e) {}
+      g.addEventListener('toggle', function () {
+        try { localStorage.setItem('grove-guide', g.open ? 'open' : 'closed'); } catch (e) {}
+      });
+    }
     var es = new EventSource('/events');
     var timer = null;
     es.onmessage = function (ev) {
@@ -403,6 +443,7 @@ function buildScript(locale: Locale): string {
 export function renderPage(state: GameState, locale: Locale = 'en'): string {
   const body = [
     headerSection(state, locale),
+    guideSection(locale),
     `<div class="grid">`,
     energySection(state, locale),
     oddsSection(state, locale),

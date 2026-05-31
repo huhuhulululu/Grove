@@ -267,4 +267,17 @@ export const zhCN: Catalog = {
   'cli.ntfy.save_failed': '  无法保存 ntfy 主题 · 请检查 GROVE_HOME 权限。',
   'cli.ntfy.subscribe': '  安装 ntfy 应用并订阅该主题,即可收到重要时刻提醒。',
   'cli.ntfy.big_moments': '  仅重要时刻(升级、传说、宝箱)。随时可 `sq ntfy off`。',
+
+  // guide.* — 网页「怎么玩」教程
+  'guide.title': '怎么玩',
+  'guide.intro': '一层平静的 AI 编码游戏 · 交付真实工作 → 战利品,好习惯 → 任务。纯装饰,绝不动你的代码。',
+  'guide.loop.h': '核心循环',
+  'guide.loop.b': '交付(提交 · 测试转绿 · 合并 PR)→ 赚 🌰 种子 → 抽卡 & 练装备 → 收集卡牌、升级。',
+  'guide.earn.h': '怎么赚',
+  'guide.earn.b': '提交、测试转绿(sq wrap)、合并、写文档、写一份 CLAUDE.md(任务)。',
+  'guide.panels.h': '看板怎么读',
+  'guide.panels.b': 'XP · 种子/碎片 · 概率(保底 & 火花)· 收藏 · 装备 · 任务 · 增益 · 精力。',
+  'guide.commands.h': '命令',
+  'guide.commands.b': 'sq init · sq dashboard · sq pull · sq enhance · 这个实时页面。',
+  'guide.ethos': '设计即装饰 · 绝不伤害你的代码 · 平静不肝。',
 }

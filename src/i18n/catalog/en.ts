@@ -318,4 +318,19 @@ export const en: Catalog = {
   'cli.ntfy.save_failed': '  could not save the ntfy topic · check your GROVE_HOME permissions.',
   'cli.ntfy.subscribe': '  Install the ntfy app and subscribe to that topic to get big-moment alerts.',
   'cli.ntfy.big_moments': '  Big moments only (level-ups, legendaries, chests). Run `sq ntfy off` anytime.',
+
+  // -------------------------------------------------------------------------
+  // guide.* — the web "How to play" tutorial (src/web/page.ts guideSection)
+  // -------------------------------------------------------------------------
+  'guide.title': 'How to play',
+  'guide.intro': 'A calm game over your AI-coding · ship real work → loot, good habits → quests. Cosmetic only; your code is never touched.',
+  'guide.loop.h': 'The loop',
+  'guide.loop.b': 'Ship (commit · green tests · merged PR) → earn 🌰 seeds → spend on pulls & gear → collect cards, level up.',
+  'guide.earn.h': 'Earn',
+  'guide.earn.b': 'Commits, green tests (sq wrap), merges, docs, a written CLAUDE.md (quests).',
+  'guide.panels.h': 'Reading the board',
+  'guide.panels.b': 'XP · seeds/shards · ODDS (pity & spark) · collection · gear · quests · buffs · energy.',
+  'guide.commands.h': 'Commands',
+  'guide.commands.b': 'sq init · sq dashboard · sq pull · sq enhance · this live page.',
+  'guide.ethos': 'Cosmetic by design · never harms your code · calm, no grind.',
 }

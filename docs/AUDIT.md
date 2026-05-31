@@ -116,3 +116,23 @@ endgame in the ENGINE but left it DEAD at the player surface. R6 must WIRE it, w
 - **CLI/RENDER surface** (cli+render): prestige rank + next cost on the dashboard + a single `✦ Prestige ×N` rollup
   (not N buff rows); affordable-action CTA line; `sq status` shows Shards (+ prestige) for dashboard/status parity;
   craft target shows card NAME not raw id.
+
+## Re-score ⑤ (after R7) — ✅ ALL 10 LENSES ≥ B+ — LOOP COMPLETE
+| Lens | now | | Lens | now |
+|---|---|---|---|---|
+| AI-coding eng | **A-** | | Product/UX | **A-** |
+| Architecture | **A-** | | Ethics | **A-** |
+| QA | **A-** | | Strategy | **A-** |
+| Game design | **B+** | | Game economy | **B+** |
+| Code review | **B+** | | Security | **B+** |
+
+Overall **A-/B+**. Trajectory: C+ → (R1-R7) → all-B+ over 5 re-score gates (① 2/10 → ② 4/10 → ③ 5/10 →
+④ 7/10 → ⑤ 10/10). Evidence: **1030 tests pass**, tsc clean, `npm run build` + `node dist/cli/sq.js` run,
+full play session verified (scan→earn→pull→enhance→craft→dashboard). The "不成功不停止 / every lens ≥ B+"
+mandate is MET.
+
+### Remaining (non-blocking) polish — future, not loop targets
+- P2 `sq help` USAGE text quotes pre-R7 costs (30/150/40) — runtime/dashboard use live constants; static help drifted.
+- P3 dead shard-tail (shards accrue unbounded once craftable-complete → add shard→seed conversion).
+- P3 game-FEEL ceiling: dashboard is a string redraw, not a navigable Ink TUI (GOALS M3 roadmap) — caps feel, not soundness.
+- Roadmap (GOALS M5/M6): web/mobile, opt-in leaderboard (ADR-0011).

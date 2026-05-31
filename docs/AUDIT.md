@@ -177,3 +177,25 @@ A- lenses share ONE root cause — the recurring engine‖cli/doc DISCONNECT: R9
   R10: rewritten to the shipped layout (585-line thin dispatch + commands/* groups); date bumped to R9.
 Evidence: **1357 tests pass** (65 files, +economy.reveal), tsc clean, build 178.83KB, bin help/dashboard
 show the curve. → 打分⑨ to confirm all 10 reach straight A.
+
+## Re-score ⑨ (after R10) — 9/10 straight A; only product/UX A- (NEW R10 regression)
+R10's surface-convergence fixes verified in code by every lens: FEEL→A (revealRarityFor wires the escalating
+reveal onto the CLI; legendary pull plays strictly more frames than common), economy→A (foil-curve comment now
+honest: ≈3×, shiny=72 named exception), ai-eng/architecture/code-review→A (curve surfaced live everywhere; sq.ts
+split doc accurate; CLI→tui-helper coupling judged acceptable — type-only app import, no Ink in bundle), security/
+ethics/qa/strategy→A. The lone A-: R10 itself widened the dashboard foil line to ~59 cells, overflowing the box
+inner budget (width-4=56) so boxRow() truncated the "(sq foil)" CTA.
+
+## Re-score ⑩ (after R10.1) — 10/10 STRAIGHT A ✅
+R10.1 shortened the foil line to "✨ foil owned card · 3-72 shards by rarity (sq foil)" (52 cells, fits 56 with
+margin; keeps owned-semantics + curve + CTA) + a regression test locking the CTA at default width. ⑩ confirmed
+product/UX→A (runtime-verified: CTA intact + border-aligned at widths 56/60/70/80) and a dedicated regression-
+safety sweep→A (width fits at every reachable width; the guard test would fail on the pre-fix string; the
+pre-existing foil test still passes; "3-72" uses ASCII hyphen, no copy-lint issue).
+
+**FINAL: all 10 lenses STRAIGHT A.** Trajectory: C+ → all-B+ (gates ①②④⑤) → all-A- (⑥) → 5/10 A (⑦) →
+5/10 A (⑧) → 9/10 A (⑨) → **10/10 A (⑩)**. Evidence: **1358 tests pass** (65 files), tsc --noEmit clean,
+`npm run build` 178.83KB ESM + `node dist/cli/sq.js` runs. The "再打分冲 A · 不到 A 不停" mandate is MET.
+Recurring lesson (re-confirmed this round): semantic changes in the engine must be chased onto EVERY player
+surface in the SAME pass (the engine‖cli/doc disconnect) — and widening a display string can overflow a
+fixed-width box, so re-measure box rows after copy edits.

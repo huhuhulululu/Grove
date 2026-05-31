@@ -9,11 +9,12 @@
  */
 
 import type { GameState } from '../core/state'
-import { CARD_SETS, cardIdsInSet } from '../core/cards'
+import { CARD_SETS, cardIdsInSet, setUnlockLevel, unlockedSets, nextSetUnlock } from '../core/cards'
 import { QUESTS } from '../core/quests'
 import { xpForLevel } from '../engine/xp'
 import { gearEffectText } from '../engine/gear'
 import { WORK_MILESTONE } from '../engine/reduce'
+import { craftableCardId } from '../engine/collection'
 import { displayWidth, padToWidth, truncateToWidth } from './width'
 
 // ---------------------------------------------------------------------------
@@ -238,11 +239,28 @@ function renderHeader(state: GameState, width: number): string {
   // R3 economy: surface the seeds balance — the currency a pull spends.
   const seedsLine = `🌰 ${state.player.currency} seeds`
 
+  // R6 P1: the dup-tail shards were invisible at the surface. Surface the balance
+  // and — when enough to craft — the craft target (the endgame horizon).
+  const shards = state.player.shards ?? 0
+  const craftTarget = craftableCardId(state.cards, unlockedSets(level), shards)
+  const shardsLine = craftTarget !== null
+    ? `🔧 ${shards} shards · craftable: ${craftTarget} (sq craft)`
+    : `🔧 ${shards} shards`
+
+  // R6 P1: the next-set unlock horizon — a forward goal so leveling reads as
+  // progress toward richer pulls (omitted once everything is unlocked).
+  const horizon = nextSetUnlock(level)
+  const horizonRows = horizon !== null
+    ? [boxRow(`next set: ${horizon.set} @ L${horizon.level}`, width)]
+    : []
+
   return [
     boxTop(width),
     boxRow(titleContent, width),
     boxRow(xpLine, width),
     boxRow(seedsLine, width),
+    boxRow(shardsLine, width),
+    ...horizonRows,
     boxBottom(width),
   ].join('\n')
 }
@@ -280,8 +298,16 @@ function renderWork(state: GameState, width: number): string {
 function renderCollection(state: GameState, width: number): string {
   // Count distinct owned card ids per set
   const ownedIds = new Set(state.cards.map((c) => c.id))
+  const level = state.player.level
 
   const rows = Object.keys(CARD_SETS).map((setName) => {
+    const unlockLevel = setUnlockLevel(setName)
+    // R6 P1: a set gated above the player's level isn't attainable yet — label it
+    // with its unlock level (🔒) instead of a misleading "relics 0/6" that reads
+    // like it can be filled now.
+    if (unlockLevel > Math.max(1, level)) {
+      return boxRow(`${setName}  🔒 L${unlockLevel}`, width)
+    }
     const allIds = cardIdsInSet(setName)
     const owned = allIds.filter((id) => ownedIds.has(id)).length
     const total = allIds.length

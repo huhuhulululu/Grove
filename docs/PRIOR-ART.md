@@ -29,6 +29,44 @@ No public project is a superset of Grove — each owns ~one slice and breaks on 
 | **Official /buddy** (Anthropic, closed) | companion/rarity/stats-from-identity; feature reqs #41684/#41895/#41908 = a community wishlist | design only: deterministic-from-identity starter, 5-stat model; **read /buddy state to coexist, not collide** |
 | **Gamekins** (Jenkins/IntelliJ plugin, ICSE 2022) | **closest OUTCOME-GATING precedent** — gamifies VERIFIED coverage/mutation/build challenges | cite as prior art; it's CI/JVM, not CLI/AI/loot — different platform |
 
+## Head-to-head: Grove vs. nearest rivals
+
+| | **Grove (grovekit)** | **claude-quest** | **claude-code-tamagotchi** | **Habitica** | **Gamekins** |
+|---|---|---|---|---|---|
+| **What it gamifies** | Verified coding outcomes + good-habit signals (spec, CLAUDE.md, docs) | Claude Code setup actions | Claude Code tool invocations | Generic life habits / to-dos | CI coverage & mutation scores |
+| **Loot / gear / gacha** | ✅ Full: pull, enhance, prestige, shards, sets | ❌ No | ❌ No | ✅ RPG gear (generic) | ❌ No |
+| **Outcome-gated rewards** | ✅ Exit-code verified (`sq wrap`), git-diff scanned | Partial (CC-setup) | ❌ Activity, not outcomes | Partial (manual check-off) | ✅ CI-verified |
+| **AI-tool agnostic** | ✅ Claude / Cursor / Aider / Codex / Copilot / Gemini | ❌ Claude Code only | ❌ Claude Code only | ✅ (generic) | ❌ JVM / Jenkins only |
+| **Energy from AI quota** | ✅ 5h/7d Vigor/Weekly → rest-beats, safe pacing | ❌ | ❌ | ❌ | ❌ |
+| **Ethics firewall** | ✅ Pure engine, never touches real code/commits | Unclear | ❌ Punishes violations | ✅ Cosmetic only | Partial |
+| **Local-first, no server** | ✅ | ❌ Cloud KV | Partial | ❌ Server required | ❌ Server required |
+| **Safe workflow power-ups** | ✅ suggest-commit (crit), checkpoint (low-energy) | ❌ | ❌ | ❌ | ❌ |
+| **`--zen` calm mode** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Never auto-runs tests** | ✅ (ADR-0003) | N/A | N/A | N/A | ❌ Runs CI |
+| **Active community / stars** | 0 (pre-launch) | Small | ~424★ | Large | Academic |
+
+### What each rival owns (and where Grove doesn't compete)
+
+- **claude-quest** — closest thesis (~30%): XP/achievements for Claude Code setup. But cloud-only, no loot/energy, CC-specific. Grove competes on the fusion, not the setup-reward angle.
+- **claude-code-tamagotchi** — best plumbing (PreToolUse → SQLite → statusline), but **inverted philosophy**: it *punishes* violations; Grove *rewards outcomes*. The pipeline is reference; the philosophy is the moat.
+- **Habitica** — the canonical outcome→loot/XP north star for *generic habits*. No coding awareness, no AI-quota energy, no ethics firewall, server-required. Grove borrows the "play to win, not pay to win" rule; it does not compete on the habit-tracking surface.
+- **Gamekins** — the closest *outcome-gating* precedent (CI coverage/mutation challenges, ICSE 2022). CI/JVM, not CLI/AI/loot. Proves the thesis is academically sound; different platform and audience.
+
+### The fusion moat (what no single rival does)
+
+Grove = **(outcome-gated loot/gear/gacha)** × **(Claude-Code quota → game energy)** × **(safe useful effects under an ethics firewall)** × **(local-first tool-agnostic)**.
+
+Each factor exists *somewhere*. **The product exists nowhere but Grove.** Specifically unoccupied by all rivals simultaneously:
+
+1. Rewarding *verified* coding outcomes *and* spec/doc/CLAUDE.md authorship as first-class — not just activity counts.
+2. Mapping the live 5h/7d `rate_limits` into a *game energy* metaphor (the usage cluster shows it as a plain gauge; the game cluster is blind to quota).
+3. Safe "useful" effects (`suggest-commit`, `checkpoint`) as rewards under a pure-function ethics firewall — real help, structurally harmless.
+4. A `--zen` calm mode that strips spectacle while the engine still records state — so heavy workloads can opt out of stimulation without losing progress.
+
+### Risk: Anthropic /buddy commoditizing the companion surface
+
+The official `/buddy` feature (#41684) is the only well-resourced competitor. Its structural constraint: identity-deterministic, Claude-Code-only. Grove's moat is the *tool-agnostic fusion* + outcome-gating that a Claude-only, identity-deterministic companion structurally cannot match. Lead with the fusion in all positioning; de-emphasize pure collection/companion angles.
+
 ## Grove's gap (what nobody fuses — the differentiation)
 Grove = **(outcome-gated loot/gear/quests) × (Claude-Code quota→energy) × (safe useful effects) × (local-first
 tool-agnostic) × (pure-engine ethics firewall).** Each factor exists *somewhere*; the **product exists nowhere but

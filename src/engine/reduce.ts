@@ -19,9 +19,10 @@ import type { Rng } from '../core/rng'
 
 import { applyXp, levelUpSeedBonus } from './xp'
 import { pull as pull_, makeCard, SOFT_PITY, PREMIUM_RARITY_ODDS } from './gacha'
-import { addCard, shardsForDuplicate } from './collection'
+import { addCard, grantDupComp, craftableCardId, missingCardIds, SHARDS_PER_CRAFT } from './collection'
 import type { Rarity } from '../core/rewards'
 import { makeGear, activeGearBonus } from './gear'
+import { cardFromDef, unlockedSets, ALL_CARD_DEFS, setUnlockLevel, SET_UNLOCK_LEVEL } from '../core/cards'
 import {
   applyQuests,
   activeMultiplier,
@@ -29,7 +30,6 @@ import {
   activeSeedBonus,
   activeStreakMultiplier,
   SET_BONUS_SEED,
-  DUP_COMP_SEEDS,
 } from './quests'
 
 // ---------------------------------------------------------------------------
@@ -205,6 +205,25 @@ function xpAmount(type: GroveEvent['type'], magnitude: number): number {
 }
 
 /**
+ * Push one celebratory 'set unlocked' reward per card set whose SET_UNLOCK_LEVEL
+ * falls in `(oldLevel, newLevel]` — i.e. a set the player JUST unlocked by leveling
+ * up. Terse, dev-grounded, never shaming (ADR-0009 / docs/TONE.md). Ordered by the
+ * unlock level so multi-level jumps read sensibly. Pure (only pushes to `rewards`).
+ */
+function pushSetUnlockRewards(oldLevel: number, newLevel: number, rewards: Reward[]): void {
+  const crossed = Object.entries(SET_UNLOCK_LEVEL)
+    .filter(([, lvl]) => lvl > oldLevel && lvl <= newLevel)
+    .sort((a, b) => a[1] - b[1])
+  for (const [set, lvl] of crossed) {
+    rewards.push({
+      kind: 'buff',
+      buff: `set:unlocked:${set}`,
+      message: `🔓 ${set} set unlocked · L${lvl}`,
+    })
+  }
+}
+
+/**
  * Award XP onto a working state, pushing an 'xp' reward and any 'levelup'
  * rewards. Returns a NEW state (the input working state is not mutated).
  *
@@ -251,12 +270,20 @@ function grantXp(
       }
   rewards.push(xpReward)
 
+  const oldLevel = player.level - levelUps
   for (let i = 0; i < levelUps; i++) {
     rewards.push({
       kind: 'levelup',
-      amount: player.level - levelUps + i + 1,
-      message: `Level ${player.level - levelUps + i + 1}`,
+      amount: oldLevel + i + 1,
+      message: `Level ${oldLevel + i + 1}`,
     })
+  }
+
+  // R6 set-unlock reward (P1): a level-up that crosses a SET_UNLOCK_LEVEL must NOT
+  // be silent — push a celebratory line per newly-unlocked set so the new-content
+  // beat is visible. Cosmetic-only (ADR-0005): unlocking just widens the pull pool.
+  if (levelUps > 0) {
+    pushSetUnlockRewards(oldLevel, player.level, rewards)
   }
 
   // R5: a level-up FEEDS the economy (leveling was display-only). Each level-up
@@ -274,29 +301,6 @@ function grantXp(
   }
 
   return { ...state, player: leveled }
-}
-
-/**
- * Compensate a duplicate pull (audit P1 + R5 dup tail). A dupe never feels
- * worthless: DUP_COMP_SEEDS seeds (flat) PLUS rarity-scaled SHARDS banked toward
- * crafting a chosen missing card — so a completed collection still has a horizon.
- * Returns a NEW state and pushes one terse, non-shaming 'currency' reward.
- */
-function grantDupComp(state: GameState, rarity: Rarity, rewards: Reward[]): GameState {
-  const shards = shardsForDuplicate(rarity)
-  rewards.push({
-    kind: 'currency',
-    amount: DUP_COMP_SEEDS,
-    message: `+${DUP_COMP_SEEDS} 🌰 · +${shards} shards · dupe`,
-  })
-  return {
-    ...state,
-    player: {
-      ...state.player,
-      currency: state.player.currency + DUP_COMP_SEEDS,
-      shards: (state.player.shards ?? 0) + shards,
-    },
-  }
 }
 
 /**
@@ -601,53 +605,189 @@ export function pullPremium(
   return { state: next, rewards }
 }
 
-/** The buff id a purchased prestige grants. */
+// ---------------------------------------------------------------------------
+// craft — SPEND shards on a chosen missing card (the dup-tail SINK).
+// ---------------------------------------------------------------------------
+
+/**
+ * Spend SHARDS_PER_CRAFT shards to craft ONE chosen missing card (the SPEND side
+ * of the dup tail — shards were write-only/unspendable before R6). The CLI exposes
+ * this as `sq craft [cardId]`.
+ *
+ *  - `cardId` omitted → craft the CHEAPEST (first) missing card within the player's
+ *    UNLOCKED sets (`craftableCardId`), so a default `sq craft` always does the
+ *    sensible thing.
+ *  - `cardId` given → it MUST be a currently-missing card within an unlocked set
+ *    (validated against `missingCardIds`); an owned / locked / unknown id is
+ *    refused calmly (no debit, never shaming).
+ *  - Too few shards, or nothing left to craft → friendly refusal, NO debit.
+ *
+ * On success: debit the shards, append the card with set-completion handling
+ * (same shared path as a pull — a completed set still fires its bonus), and tag
+ * the 'card' reward as crafted. A crafted card targets a MISSING id, so it is
+ * never a duplicate. Cosmetic-only (ADR-0005). PURE & IMMUTABLE — no I/O, no
+ * wall-clock; rng only feeds a set-completion bonus legendary.
+ */
+export function craftCard(
+  state: GameState,
+  cardId?: string,
+  rng: Rng = () => 0,
+): { state: GameState; rewards: Reward[] } {
+  const rewards: Reward[] = []
+  const haveShards = state.player.shards ?? 0
+  const sets = unlockedSets(state.player.level)
+
+  // Resolve the craft target: the explicit id (validated) or the default cheapest.
+  const missing = missingCardIds(state.cards, sets)
+  let targetId: string | null
+  if (cardId === undefined) {
+    targetId = craftableCardId(state.cards, sets, haveShards)
+  } else {
+    // An explicit id must be a currently-missing card within an unlocked set.
+    targetId = missing.includes(cardId) ? cardId : null
+  }
+
+  // Nothing craftable: distinguish "can't craft THIS id" from "nothing left at all".
+  if (targetId === null) {
+    if (cardId !== undefined && !missing.includes(cardId)) {
+      const reason = setUnlockLevel(defSet(cardId)) > Math.max(1, state.player.level)
+        ? `🔒 ${cardId} is in a locked set — can't craft yet`
+        : `can't craft ${cardId} — already owned or not craftable`
+      rewards.push({ kind: 'currency', amount: haveShards, message: reason })
+      return { state: { ...state, player: { ...state.player } }, rewards }
+    }
+    if (haveShards < SHARDS_PER_CRAFT) {
+      rewards.push({
+        kind: 'currency',
+        amount: haveShards,
+        message: `not enough shards — craft needs ${SHARDS_PER_CRAFT}, have ${haveShards}`,
+      })
+      return { state: { ...state, player: { ...state.player } }, rewards }
+    }
+    // Enough shards but nothing missing → collection (unlocked) complete.
+    rewards.push({
+      kind: 'currency',
+      amount: haveShards,
+      message: 'nothing left to craft — collection complete',
+    })
+    return { state: { ...state, player: { ...state.player } }, rewards }
+  }
+
+  // A target exists; ensure the shards are actually affordable (the explicit-id
+  // path skipped the affordability check above).
+  if (haveShards < SHARDS_PER_CRAFT) {
+    rewards.push({
+      kind: 'currency',
+      amount: haveShards,
+      message: `not enough shards — craft needs ${SHARDS_PER_CRAFT}, have ${haveShards}`,
+    })
+    return { state: { ...state, player: { ...state.player } }, rewards }
+  }
+
+  const def = ALL_CARD_DEFS.find((d) => d.id === targetId)!
+  const card = cardFromDef(def)
+  const spentShards = haveShards - SHARDS_PER_CRAFT
+
+  rewards.push({
+    kind: 'currency',
+    amount: -SHARDS_PER_CRAFT,
+    message: `-${SHARDS_PER_CRAFT} shards · craft`,
+  })
+
+  const next = applyPulledCard(
+    { ...state, player: { ...state.player, shards: spentShards } },
+    card,
+    def.rarity,
+    `🛠 crafted · ${rarityMark(def.rarity)}${card.name} · ${def.rarity}`,
+    rng,
+    rewards,
+  )
+
+  return { state: next, rewards }
+}
+
+/** The set a card id belongs to (for the locked-set refusal message). */
+function defSet(cardId: string): string {
+  return ALL_CARD_DEFS.find((d) => d.id === cardId)?.set ?? cardId
+}
+
+/** The buff id the FIRST prestige rank grants (legacy/back-compat constant). */
 export const PRESTIGE_BUFF_ID = 'prestige:mark'
 
 /**
- * Spend PRESTIGE_COST seeds for a one-time ENDGAME cosmetic prestige (the late-game
- * seed sink). Grants a permanent cosmetic 'prestige' buff (a renderer flair) —
- * NO power/xp (ADR-0005). Idempotent-friendly: a player who already owns it, or is
- * broke, gets a friendly refusal with NO debit (never shaming). PURE & IMMUTABLE.
+ * The buff id for prestige RANK `rank` (rank ≥ 1). Rank 1 keeps the legacy
+ * `prestige:mark` id for back-compat; higher ranks suffix the rank number. Each
+ * rank is a DISTINCT cosmetic flair the renderer can show.
+ */
+export function prestigeBuffId(rank: number): string {
+  return rank <= 1 ? PRESTIGE_BUFF_ID : `${PRESTIGE_BUFF_ID}:${rank}`
+}
+
+/**
+ * How much each successive prestige rank escalates over the base. Rank N (0-indexed
+ * current rank → buying the (N+1)th) costs PRESTIGE_COST + N*PRESTIGE_COST_STEP, so
+ * the late-game sink keeps deepening (a recurring target, never "spent forever").
+ */
+export const PRESTIGE_COST_STEP = 250
+
+/** The player's current prestige rank = the count of prestige buffs owned. PURE. */
+export function prestigeRank(state: GameState): number {
+  return state.buffs.filter((b) => b.id.startsWith(PRESTIGE_BUFF_ID)).length
+}
+
+/**
+ * Seed cost to buy the NEXT prestige rank when the current rank is `rank`. The
+ * first rank (rank 0 → 1) costs PRESTIGE_COST; each further rank adds
+ * PRESTIGE_COST_STEP, so the sink escalates and recurs. Published (ADR-0002). PURE.
+ */
+export function prestigeCost(rank: number): number {
+  return PRESTIGE_COST + Math.max(0, Math.floor(rank)) * PRESTIGE_COST_STEP
+}
+
+/**
+ * Spend seeds to buy the NEXT ENDGAME prestige RANK (R6 tiered/renewable, game-
+ * design P2). Prestige is no longer a one-time idempotent buff: each purchase
+ * grants a NEW distinct cosmetic flair at an ESCALATING cost (prestigeCost(rank)),
+ * so the late-game seed sink RECURS — a finished collection always has a target.
+ * Cosmetic-only (ADR-0005): each prestige buff is `kind:'rest'`, read by NO XP/
+ * seed/crit/streak selector, so prestige confers ZERO economic power. Broke →
+ * friendly refusal, NO debit (never shaming). PURE & IMMUTABLE.
  */
 export function buyPrestige(
   state: GameState,
 ): { state: GameState; rewards: Reward[] } {
   const rewards: Reward[] = []
 
-  if (state.buffs.some((b) => b.id === PRESTIGE_BUFF_ID)) {
-    rewards.push({
-      kind: 'buff',
-      buff: PRESTIGE_BUFF_ID,
-      message: 'prestige already earned',
-    })
-    return { state: { ...state, player: { ...state.player } }, rewards }
-  }
+  const rank = prestigeRank(state)
+  const cost = prestigeCost(rank)
 
-  if (state.player.currency < PRESTIGE_COST) {
+  if (state.player.currency < cost) {
     rewards.push({
       kind: 'currency',
       amount: state.player.currency,
-      message: `not enough 🌰 — prestige costs ${PRESTIGE_COST}, have ${state.player.currency}`,
+      message: `not enough 🌰 — prestige ${rank + 1} costs ${cost}, have ${state.player.currency}`,
     })
     return { state: { ...state, player: { ...state.player } }, rewards }
   }
 
-  const spent = state.player.currency - PRESTIGE_COST
+  const nextRank = rank + 1
+  const spent = state.player.currency - cost
+  const buffId = prestigeBuffId(nextRank)
+
   rewards.push({
     kind: 'currency',
-    amount: -PRESTIGE_COST,
-    message: `-${PRESTIGE_COST} 🌰 · prestige`,
+    amount: -cost,
+    message: `-${cost} 🌰 · prestige ${nextRank}`,
   })
   rewards.push({
     kind: 'buff',
-    buff: PRESTIGE_BUFF_ID,
-    message: '✦ Prestige earned (permanent cosmetic)',
+    buff: buffId,
+    message: `✦ Prestige ${nextRank} earned (permanent cosmetic)`,
   })
 
   // kind:'rest' is purely cosmetic — NOT read by any XP/seed/crit selector — so
   // prestige confers ZERO economic effect (ADR-0005: cosmetic-only, no power).
-  const buff: Buff = { id: PRESTIGE_BUFF_ID, label: 'Prestige', kind: 'rest' }
+  const buff: Buff = { id: buffId, label: `Prestige ${nextRank}`, kind: 'rest' }
   return {
     state: {
       ...state,

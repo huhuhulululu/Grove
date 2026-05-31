@@ -23,8 +23,14 @@ import type { Rng } from '../core/rng'
 
 import { GRIMOIRE_FILES, GRIMOIRE_LEAN_MAX_LINES, DOC_STREAK_TIERS, docStreakTier } from '../core/quests'
 import { pull, makeCard } from './gacha'
-import { addCard, shardsForDuplicate } from './collection'
-import type { Rarity } from '../core/rewards'
+import { addCard, grantDupComp, DUP_COMP_SEEDS } from './collection'
+
+/**
+ * Compensation seeds for a duplicate pull. Re-exported from collection.ts (the
+ * single source of truth after the R6 dedup) so existing `./quests` importers
+ * keep working.
+ */
+export { DUP_COMP_SEEDS }
 
 // ---------------------------------------------------------------------------
 // R3 tunables — auras / streaks / dup-comp / set bonus are now REAL effects.
@@ -42,9 +48,6 @@ export const STREAK_STEP = 0.1
 
 /** The Test Streak multiplier bonus is capped here (factor max; 1+cap = ceiling). */
 export const STREAK_CAP = 1.0
-
-/** Compensation seeds granted when a pull yields an already-owned (duplicate) card. */
-export const DUP_COMP_SEEDS = 10
 
 /** Permanent +seeds aura the Clean Build quest (lint_clean) confers. */
 export const CLEAN_BUILD_SEED_BONUS = 0.05
@@ -131,30 +134,6 @@ function setQuest(
 ): QuestProgress[] {
   const without = quests.filter((q) => q.id !== id)
   return [...without, { id, status, completions }]
-}
-
-/**
- * Compensate a duplicate pull (audit P1 + R5 dup tail). A dupe is never worthless:
- *  - DUP_COMP_SEEDS seeds (flat, immediate), and
- *  - rarity-scaled SHARDS banked toward crafting a chosen missing card (the
- *    endgame horizon — a completed collection still advances).
- * Returns a NEW state and pushes one terse, non-shaming 'currency' reward. PURE.
- */
-function grantDupComp(state: GameState, rarity: Rarity, rewards: Reward[]): GameState {
-  const shards = shardsForDuplicate(rarity)
-  rewards.push({
-    kind: 'currency',
-    amount: DUP_COMP_SEEDS,
-    message: `+${DUP_COMP_SEEDS} 🌰 · +${shards} shards · dupe`,
-  })
-  return {
-    ...state,
-    player: {
-      ...state.player,
-      currency: state.player.currency + DUP_COMP_SEEDS,
-      shards: (state.player.shards ?? 0) + shards,
-    },
-  }
 }
 
 /**

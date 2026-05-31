@@ -67,7 +67,11 @@ export function formatReward(r: Reward): string {
     extras.push(`(${r.amount})`)
   }
 
-  if (r.card) {
+  // R6 P3: the engine's card message already embeds the card name (e.g.
+  // "Sapling · common", "✦ Refactor Blade · legendary", "🛠 crafted · …"). Only
+  // append "[name]" when the message does NOT already carry it — otherwise the
+  // loot line double-prints the name ("🃏 Sapling · common [Sapling]").
+  if (r.card && !r.message.includes(r.card.name)) {
     extras.push(`[${r.card.name}]`)
   }
 

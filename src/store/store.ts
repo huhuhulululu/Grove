@@ -25,22 +25,18 @@ function sleepSync(ms: number): void {
 }
 
 /**
- * Run `fn` while holding an exclusive cross-process lock for `dir`.
+ * Run `fn` while holding an exclusive cross-process lock at `${lockDir}/.lock`.
  *
- * The lock is a `${dir}/.lock` file created atomically with `wx` (exclusive
+ * The lock is a `${lockDir}/.lock` file created atomically with `wx` (exclusive
  * create — fails if it already exists). On contention we retry with a small
  * backoff for up to ~LOCK_TIMEOUT_MS. A lock whose file mtime is older than
  * ~LOCK_STALE_MS is assumed abandoned (a process that crashed before releasing)
  * and is stolen. The lock is always released (close + unlink) in a `finally`,
- * even if `fn` throws.
- *
- * This serializes the load→reduce→save→appendEvent read-modify-write so two
- * concurrent ingests (e.g. the post-commit hook + the statusline pipe) cannot
- * lose each other's updates.
+ * even if `fn` throws. Shared by both the per-repo and the account-global locks.
  */
-export function withStateLock<T>(dir: string, fn: () => T): T {
-  fs.mkdirSync(dir, { recursive: true })
-  const lockPath = path.join(dir, '.lock')
+function withLockDir<T>(lockDir: string, fn: () => T): T {
+  fs.mkdirSync(lockDir, { recursive: true })
+  const lockPath = path.join(lockDir, '.lock')
 
   const deadline = Date.now() + LOCK_TIMEOUT_MS
   let fd: number | undefined
@@ -94,6 +90,35 @@ export function withStateLock<T>(dir: string, fn: () => T): T {
   }
 }
 
+/**
+ * Run `fn` while holding the per-repo exclusive lock (`${dir}/.lock`).
+ *
+ * This serializes the load→reduce→save→appendEvent read-modify-write so two
+ * concurrent ingests (e.g. the post-commit hook + the statusline pipe) cannot
+ * lose each other's updates.
+ */
+export function withStateLock<T>(dir: string, fn: () => T): T {
+  return withLockDir(dir, fn)
+}
+
+/**
+ * Run `fn` while holding the ACCOUNT-GLOBAL exclusive lock (`<home>/_global/.lock`).
+ *
+ * R6 P1: the account-wide energy/work file (`<home>/_global/global.json`) is
+ * shared across every repo and process, yet `writeGlobal` ran only under the
+ * PER-REPO lock — two different repos hold DIFFERENT per-repo locks, so their
+ * concurrent global read-modify-writes could clobber each other (the R2
+ * lost-update guarantee regressed for the shared file). This gives the global
+ * file its OWN cross-process lock, keyed off `<home>/_global` so EVERY repo under
+ * the same home contends on the SAME lock. Same atomic-create + backoff +
+ * stale-steal semantics as withStateLock.
+ *
+ * `dir` is any per-repo state dir; the global lock dir is its sibling `_global`.
+ */
+export function withGlobalLock<T>(dir: string, fn: () => T): T {
+  return withLockDir(globalLockDir(dir), fn)
+}
+
 // ---------------------------------------------------------------------------
 // GameState schema + versioned migration
 // ---------------------------------------------------------------------------
@@ -105,6 +130,10 @@ const GameStateSchema = z.object({
     xp: z.number(),
     level: z.number(),
     currency: z.number(),
+    // R6 schema P0: the R5 dup-tail shards must PERSIST and VALIDATE (was absent,
+    // so a saved state with shards round-tripped only by accident). Optional so
+    // legacy states (pre-shards) still validate; migrate() fills a default 0.
+    shards: z.number().optional(),
   }),
   cards: z.array(
     z.object({
@@ -148,6 +177,7 @@ const MigratableSchema = z.object({
     xp: z.number(),
     level: z.number(),
     currency: z.number().optional(),
+    shards: z.number().optional(),
   }),
   cards: z.array(z.unknown()).optional(),
   gear: z.array(z.unknown()).optional(),
@@ -173,6 +203,11 @@ function migrate(raw: Record<string, unknown>): GameState {
         typeof player['currency'] === 'number'
           ? (player['currency'] as number)
           : defaults.player.currency,
+      // R6 schema P0: legacy states predating the dup tail get a fresh shards 0.
+      shards:
+        typeof player['shards'] === 'number'
+          ? (player['shards'] as number)
+          : (defaults.player.shards ?? 0),
     },
     cards: Array.isArray(raw['cards']) ? (raw['cards'] as GameState['cards']) : defaults.cards,
     gear: Array.isArray(raw['gear']) ? (raw['gear'] as GameState['gear']) : defaults.gear,
@@ -258,9 +293,14 @@ const GlobalSchema = z.object({
   }),
 })
 
+/** The shared-global directory for a per-repo state `dir` (sibling `_global`). */
+function globalLockDir(dir: string): string {
+  return path.join(path.dirname(dir), '_global')
+}
+
 /** The shared-global file path for a per-repo state `dir` (sibling `_global` dir). */
 function globalFile(dir: string): string {
-  return path.join(path.dirname(dir), '_global', 'global.json')
+  return path.join(globalLockDir(dir), 'global.json')
 }
 
 /**
@@ -362,8 +402,11 @@ export function saveState(dir: string, state: GameState): void {
   fs.writeFileSync(tmp, JSON.stringify(state), 'utf8')
   fs.renameSync(tmp, file)
 
-  // Split energy/work out to the shared global store (account-wide).
-  writeGlobal(dir, state)
+  // Split energy/work out to the shared global store (account-wide). Guarded by
+  // the GLOBAL lock (R6 P1): the global file is shared across repos/processes, so
+  // its write must serialize on its OWN lock, not the per-repo lock (which differs
+  // per repo and so couldn't protect the shared file from cross-repo clobber).
+  withGlobalLock(dir, () => writeGlobal(dir, state))
 }
 
 /** Append a single event as a JSON line to `${dir}/events.jsonl`. */

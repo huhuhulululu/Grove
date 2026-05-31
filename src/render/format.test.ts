@@ -184,6 +184,50 @@ describe('formatReward', () => {
     const result = formatReward(r)
     expect(result).toContain('(4)')
   })
+
+  // ---- card-name double-print (R6 P3) ---------------------------------------
+
+  it('does NOT print the card name twice when the message already carries it', () => {
+    // The engine's card message embeds the name (e.g. "Sapling · common"), so the
+    // renderer must NOT also append "[Sapling]" — that doubles the name.
+    const r: Reward = {
+      kind: 'card',
+      card: { id: 'forest.sapling', name: 'Sapling', rarity: 'common', set: 'forest' },
+      rarity: 'common',
+      message: 'Sapling · common',
+    }
+    const result = formatReward(r)
+    expect(result).toContain('Sapling') // present once
+    // The trailing "[Sapling]" suffix must be gone — name appears exactly once.
+    expect(result).not.toContain('[Sapling]')
+    expect(result.split('Sapling').length - 1).toBe(1)
+  })
+
+  it('still appends [name] when the message does NOT already contain the card name', () => {
+    // Defensive: a card reward whose message omits the name still surfaces it,
+    // so no drop is ever nameless.
+    const r: Reward = {
+      kind: 'card',
+      card: { id: 'forest.oak', name: 'Oak', rarity: 'uncommon', set: 'forest' },
+      rarity: 'uncommon',
+      message: '🛠 crafted · uncommon',
+    }
+    const result = formatReward(r)
+    expect(result).toContain('Oak')
+    expect(result).toContain('[Oak]')
+  })
+
+  it('does not double-print a marked legendary card line (✦ Name · legendary)', () => {
+    const r: Reward = {
+      kind: 'card',
+      card: { id: 'tools.refactor-blade', name: 'Refactor Blade', rarity: 'legendary', set: 'tools' },
+      rarity: 'legendary',
+      message: '✦ Refactor Blade · legendary',
+    }
+    const result = formatReward(r)
+    expect(result.split('Refactor Blade').length - 1).toBe(1)
+    expect(result).not.toContain('[Refactor Blade]')
+  })
 })
 
 // ---------------------------------------------------------------------------

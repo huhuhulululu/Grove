@@ -11,7 +11,8 @@
     "sq": "./dist/cli/sq.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsup",

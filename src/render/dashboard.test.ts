@@ -196,6 +196,134 @@ describe('renderDashboard — SEEDS', () => {
 })
 
 // ---------------------------------------------------------------------------
+// SHARDS balance — the dup-tail currency (R6 P1; was invisible at the surface)
+// ---------------------------------------------------------------------------
+
+describe('renderDashboard — SHARDS', () => {
+  it('shows the shards balance from player.shards', () => {
+    const state: GameState = {
+      ...initialState(),
+      player: { ...initialState().player, shards: 23 },
+    }
+    const out = renderDashboard(state)
+    const shardsLine = out.split('\n').find((l) => l.toLowerCase().includes('shard'))
+    expect(shardsLine).toBeDefined()
+    expect(shardsLine).toContain('23')
+  })
+
+  it('shows 0 shards for a fresh state (never a fabricated number)', () => {
+    const out = renderDashboard(initialState())
+    const shardsLine = out.split('\n').find((l) => l.toLowerCase().includes('shard'))
+    expect(shardsLine).toBeDefined()
+    expect(shardsLine).toMatch(/\b0\b/)
+  })
+
+  it('treats a legacy state with undefined shards as 0', () => {
+    const state: GameState = {
+      ...initialState(),
+      player: { xp: 0, level: 1, currency: 0 }, // no shards field
+    }
+    const out = renderDashboard(state)
+    const shardsLine = out.split('\n').find((l) => l.toLowerCase().includes('shard'))
+    expect(shardsLine).toBeDefined()
+    expect(shardsLine).toMatch(/\b0\b/)
+  })
+
+  it('surfaces a craft target when shards reach the craft threshold', () => {
+    // 40 shards = SHARDS_PER_CRAFT, level 1 → forest.sapling is the first missing.
+    const state: GameState = {
+      ...initialState(),
+      player: { ...initialState().player, shards: 40 },
+    }
+    const out = renderDashboard(state)
+    const lower = out.toLowerCase()
+    // A craftable hint must appear (the player can craft now).
+    expect(lower).toMatch(/craft/)
+  })
+
+  it('does NOT surface a craft target when shards are below the threshold', () => {
+    const state: GameState = {
+      ...initialState(),
+      player: { ...initialState().player, shards: 5 },
+    }
+    const out = renderDashboard(state)
+    // No "craftable / craft now" target line when there aren't enough shards.
+    expect(out.toLowerCase()).not.toMatch(/craft now|craftable/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// NEXT-UNLOCK horizon — surface the forward goal (R6 P1)
+// ---------------------------------------------------------------------------
+
+describe('renderDashboard — next-unlock horizon', () => {
+  it('shows the next set unlock at level 1 (syntax @ L3)', () => {
+    const out = renderDashboard(initialState()) // level 1
+    const lower = out.toLowerCase()
+    expect(lower).toContain('next set')
+    expect(lower).toContain('syntax')
+    expect(out).toMatch(/L3|level 3/i)
+  })
+
+  it('advances the horizon as the player levels (L3 → deploy @ L4)', () => {
+    const state: GameState = { ...initialState(), player: { xp: 0, level: 3, currency: 0 } }
+    const out = renderDashboard(state)
+    const lower = out.toLowerCase()
+    expect(lower).toContain('next set')
+    expect(lower).toContain('deploy')
+    expect(out).toMatch(/L4|level 4/i)
+  })
+
+  it('omits / closes the horizon once everything is unlocked (level 10+)', () => {
+    const state: GameState = { ...initialState(), player: { xp: 0, level: 10, currency: 0 } }
+    const out = renderDashboard(state)
+    // Nothing left to unlock → no "next set: X @ L" forward line.
+    expect(out.toLowerCase()).not.toMatch(/next set: \w/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// COLLECTION locked-set labeling — don't show 'relics 0/6' as if attainable (R6 P1)
+// ---------------------------------------------------------------------------
+
+describe('renderDashboard — COLLECTION locked-set labels', () => {
+  it('labels a locked set with its unlock level instead of a bare 0/N', () => {
+    const out = renderDashboard(initialState()) // level 1 — relics (L10) locked
+    const relicsLine = out.split('\n').find((l) => l.toLowerCase().includes('relics'))
+    expect(relicsLine).toBeDefined()
+    // It must carry the lock marker + the unlock level — NOT a bare attainable 0/6.
+    expect(relicsLine).toMatch(/🔒|L10|level 10/i)
+  })
+
+  it('does NOT show a locked set as a normal 0/N collectable line', () => {
+    const out = renderDashboard(initialState())
+    const relicsLine = out.split('\n').find((l) => l.toLowerCase().includes('relics'))
+    expect(relicsLine).toBeDefined()
+    // A locked set must not read like an attainable "relics 0/6".
+    expect(relicsLine).not.toMatch(/\b0\/6\b/)
+  })
+
+  it('shows unlocked sets with their normal N/total progress', () => {
+    const out = renderDashboard(initialState()) // forest/tools/creatures are L1
+    const forestLine = out.split('\n').find((l) => l.toLowerCase().includes('forest'))
+    expect(forestLine).toBeDefined()
+    expect(forestLine).toContain('0/5')
+    // An unlocked set must NOT carry the lock marker.
+    expect(forestLine).not.toContain('🔒')
+  })
+
+  it('reveals a set as normal progress once the player reaches its unlock level', () => {
+    const state: GameState = { ...initialState(), player: { xp: 0, level: 10, currency: 0 } }
+    const out = renderDashboard(state)
+    const relicsLine = out.split('\n').find((l) => l.toLowerCase().includes('relics'))
+    expect(relicsLine).toBeDefined()
+    // At L10 relics is unlocked → shows 0/6, no lock marker.
+    expect(relicsLine).toContain('0/6')
+    expect(relicsLine).not.toContain('🔒')
+  })
+})
+
+// ---------------------------------------------------------------------------
 // WORK METER panel — token-milestone floor progress (ADR-0010)
 // ---------------------------------------------------------------------------
 

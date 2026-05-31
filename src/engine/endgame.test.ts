@@ -217,13 +217,17 @@ describe('buyPrestige() — the endgame seed sink (a finished collection still s
     expect(msg).not.toMatch(/fail|lazy|shame|stupid/i)
   })
 
-  it('is idempotent: a second purchase neither debits nor re-grants (no double charge)', () => {
-    const first = buyPrestige(fund(PRESTIGE_COST * 3))
+  it('is RENEWABLE: a second purchase grants a NEW distinct rank (R6 tiered prestige)', () => {
+    // R6 made prestige tiered/renewable (game-design P2): the late-game seed sink
+    // recurs. A second purchase buys rank 2 (escalated cost), a DISTINCT flair —
+    // no longer the R5 one-time idempotent buff. (Detailed contract: prestige.test.ts.)
+    const first = buyPrestige(fund(PRESTIGE_COST * 4))
     const second = buyPrestige(first.state)
-    // currency unchanged the second time
-    expect(second.state.player.currency).toBe(first.state.player.currency)
-    // still exactly one prestige buff
-    expect(second.state.buffs.filter((b) => b.id === PRESTIGE_BUFF_ID).length).toBe(1)
+    // the second purchase DID debit (renewable, not idempotent)
+    expect(second.state.player.currency).toBeLessThan(first.state.player.currency)
+    // the legacy rank-1 buff persists, and a second distinct prestige buff now exists
+    expect(second.state.buffs.some((b) => b.id === PRESTIGE_BUFF_ID)).toBe(true)
+    expect(second.state.buffs.filter((b) => b.id.startsWith('prestige:mark')).length).toBe(2)
   })
 
   it('never mutates the input state', () => {

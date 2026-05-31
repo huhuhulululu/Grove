@@ -18,7 +18,7 @@ import * as path from 'node:path'
 import * as os from 'node:os'
 import { initialState } from '../core/state'
 import type { GameState } from '../core/state'
-import { loadState, saveState } from './store'
+import { loadState, saveState, withGlobalLock } from './store'
 
 // Each test gets a fresh HOME holding multiple per-repo state dirs, so the shared
 // `<home>/_global/global.json` is isolated per test.
@@ -193,5 +193,85 @@ describe('account-global — transparency & back-compat', () => {
     expect(bLoaded.cards).toEqual([])
     // …but already reflects the account-wide energy.
     expect(bLoaded.energy.vigor).toBe(21)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// R6 P1: the account-wide global file needs its OWN cross-process lock (the R2
+// guarantee regressed for the shared file). withGlobalLock guards the global
+// read-modify-write so two repos/processes can't lose each other's energy/work.
+// ---------------------------------------------------------------------------
+
+/** The shared-global lock dir for a per-repo state `dir`: `<home>/_global`. */
+function globalDir(repo: string): string {
+  return path.join(path.dirname(repo), '_global')
+}
+
+describe('withGlobalLock — the account-wide global file has its own cross-process lock', () => {
+  it('runs the callback and returns its result', () => {
+    const home = makeHome()
+    const repoA = repoDir(home, 'projA-aaaa')
+    expect(withGlobalLock(repoA, () => 'value')).toBe('value')
+  })
+
+  it('holds the lock at <home>/_global/.lock during the callback', () => {
+    const home = makeHome()
+    const repoA = repoDir(home, 'projA-aaaa')
+    let seen = false
+    withGlobalLock(repoA, () => {
+      seen = fs.existsSync(path.join(globalDir(repoA), '.lock'))
+    })
+    expect(seen).toBe(true)
+  })
+
+  it('releases the global lock after the callback returns', () => {
+    const home = makeHome()
+    const repoA = repoDir(home, 'projA-aaaa')
+    withGlobalLock(repoA, () => undefined)
+    expect(fs.existsSync(path.join(globalDir(repoA), '.lock'))).toBe(false)
+  })
+
+  it('releases the global lock even when the callback throws', () => {
+    const home = makeHome()
+    const repoA = repoDir(home, 'projA-aaaa')
+    expect(() => withGlobalLock(repoA, () => { throw new Error('boom') })).toThrow('boom')
+    expect(fs.existsSync(path.join(globalDir(repoA), '.lock'))).toBe(false)
+  })
+
+  it('two repos under one home share ONE global lock (the file is account-wide)', () => {
+    const home = makeHome()
+    const repoA = repoDir(home, 'projA-aaaa')
+    const repoB = repoDir(home, 'projB-bbbb')
+    // Both repos resolve the SAME global lock dir.
+    let lockPathA = ''
+    let lockPathB = ''
+    withGlobalLock(repoA, () => { lockPathA = path.join(globalDir(repoA), '.lock') })
+    withGlobalLock(repoB, () => { lockPathB = path.join(globalDir(repoB), '.lock') })
+    expect(lockPathA).toBe(lockPathB)
+  })
+
+  it('steals a STALE global lock rather than hanging', () => {
+    const home = makeHome()
+    const repoA = repoDir(home, 'projA-aaaa')
+    const gdir = globalDir(repoA)
+    fs.mkdirSync(gdir, { recursive: true })
+    const lockPath = path.join(gdir, '.lock')
+    fs.writeFileSync(lockPath, String(process.pid), 'utf8')
+    const old = new Date(Date.now() - 60_000)
+    fs.utimesSync(lockPath, old, old)
+    expect(withGlobalLock(repoA, () => 'ran')).toBe('ran')
+    expect(fs.existsSync(lockPath)).toBe(false)
+  })
+
+  it('saveState holds the global lock while writing global.json (RMW is guarded)', () => {
+    const home = makeHome()
+    const repoA = repoDir(home, 'projA-aaaa')
+    // Plant a fresh (non-stale) lock to block the global write path; saveState
+    // must wait/steal, never corrupt. We assert it completes and the file lands.
+    saveState(repoA, stateWith({ energy: { known: true, vigor: 64, sap: 64 } }))
+    // After save, no lock leaks behind.
+    expect(fs.existsSync(path.join(globalDir(repoA), '.lock'))).toBe(false)
+    expect(fs.existsSync(path.join(globalDir(repoA), 'global.json'))).toBe(true)
+    expect(loadState(repoA).energy.vigor).toBe(64)
   })
 })

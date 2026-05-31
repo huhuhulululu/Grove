@@ -1,4 +1,6 @@
 import type { Card, Rarity } from '../core/rewards'
+import type { GameState } from '../core/state'
+import type { Reward } from '../core/rewards'
 import { cardIdsInSet } from '../core/cards'
 
 // ---------------------------------------------------------------------------
@@ -25,6 +27,36 @@ export const SHARDS_PER_CRAFT = 40
 /** Shards a duplicate of the given rarity is worth (rarer dupe → more shards). */
 export function shardsForDuplicate(rarity: Rarity): number {
   return SHARDS_BY_RARITY[rarity]
+}
+
+/** Compensation seeds granted when a pull yields an already-owned (duplicate) card. */
+export const DUP_COMP_SEEDS = 10
+
+/**
+ * Compensate a duplicate pull (audit P1 + R5 dup tail). THE single shared helper
+ * (R6 dedup: was copy-pasted verbatim in reduce.ts and quests.ts). A dupe is never
+ * worthless:
+ *  - DUP_COMP_SEEDS seeds (flat, immediate), and
+ *  - rarity-scaled SHARDS banked toward crafting a chosen missing card (the
+ *    endgame horizon — a completed collection still advances).
+ * Returns a NEW state and pushes one terse, non-shaming 'currency' reward. PURE
+ * & IMMUTABLE. Cosmetic-only (ADR-0005); shard scale published (ADR-0002).
+ */
+export function grantDupComp(state: GameState, rarity: Rarity, rewards: Reward[]): GameState {
+  const shards = shardsForDuplicate(rarity)
+  rewards.push({
+    kind: 'currency',
+    amount: DUP_COMP_SEEDS,
+    message: `+${DUP_COMP_SEEDS} 🌰 · +${shards} shards · dupe`,
+  })
+  return {
+    ...state,
+    player: {
+      ...state.player,
+      currency: state.player.currency + DUP_COMP_SEEDS,
+      shards: (state.player.shards ?? 0) + shards,
+    },
+  }
 }
 
 /**

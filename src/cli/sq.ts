@@ -28,7 +28,6 @@ import { shQuote } from '../adapters/shquote'
 import { stateDir } from '../store/paths'
 import { ingestEvent } from '../app/ingest'
 import { loadState, saveState, readEvents, withStateLock } from '../store/store'
-import { pull as enginePull } from '../engine/reduce'
 import { buildRecap } from '../app/recap'
 import { formatReward, formatStatus, formatRecap, formatQuests } from '../render/format'
 import { EVENT_TYPES } from '../core/events'
@@ -36,8 +35,15 @@ import type { GroveEvent } from '../core/events'
 import { scanRepo } from '../detect/pillarb'
 import { QUESTS } from '../core/quests'
 import { installPostCommit, uninstallPostCommit } from '../adapters/githook'
-import { enhance, repairGear } from '../engine/gear'
-import { PULL_COST } from '../engine/reduce'
+import { enhance, repairGear, enhanceCost, repairCost } from '../engine/gear'
+import {
+  pull as enginePull,
+  pullPremium,
+  craftCard,
+  buyPrestige,
+  PULL_COST,
+  PREMIUM_PULL_COST,
+} from '../engine/reduce'
 import { renderDashboard } from '../render/dashboard'
 import { renderEnhanceOdds, renderEnhanceResult, renderPullFrames } from '../render/enhance'
 import { mulberry32, hashStringToSeed } from '../core/rng'
@@ -66,7 +72,7 @@ interface ParsedArgs {
  */
 // Flags that carry NO value (boolean-only). A flag in this set is set to
 // 'true' unconditionally, never consuming the following positional token.
-const BOOL_FLAGS = new Set(['zen', 'no-clear'])
+const BOOL_FLAGS = new Set(['zen', 'no-clear', 'premium'])
 
 function parseArgs(argv: string[]): ParsedArgs {
   const positional: string[] = []
@@ -142,8 +148,8 @@ function parsePositiveIntFlag(value: string | undefined, fallback: number): numb
 /** Every top-level subcommand sq accepts (drives did-you-mean suggestions). */
 const SUBCOMMANDS = [
   'event', 'status', 'recap', 'scan', 'quests', 'pull', 'enhance', 'repair',
-  'protect', 'dashboard', 'statusline-ingest', 'statusline', 'init', 'uninstall',
-  'commit-hook', 'suggest-commit', 'checkpoint', 'wrap', 'help',
+  'protect', 'craft', 'prestige', 'dashboard', 'statusline-ingest', 'statusline',
+  'init', 'uninstall', 'commit-hook', 'suggest-commit', 'checkpoint', 'wrap', 'help',
 ] as const
 
 /** Classic Levenshtein edit distance (pure). */
@@ -277,20 +283,35 @@ Subcommands:
       Show the Pillar-B quest board with status glyphs and active buffs.
       ✓ done  ◆ active  · not yet started
 
-  pull [--seed N] [--home DIR]
+  pull [--premium] [--seed N] [--home DIR]
       Spend 30 🌰 seeds for one gacha pull (the core decision — you choose WHEN).
+      --premium  Spend 150 🌰 for a PREMIUM pull (better odds; the escalating sink).
       Earn seeds by shipping outcomes (commits, green tests, merges, docs).
       Refuses calmly when you can't afford it. Cosmetic only (ADR-0005).
 
+  craft [cardId] [--home DIR]
+      Spend 40 shards to craft ONE chosen missing card (the dup-tail SINK — every
+      duplicate pull banks rarity-scaled shards). With no id, crafts the first
+      missing card in your unlocked sets. Refuses calmly when short on shards or
+      nothing is left to craft. Cosmetic only (ADR-0005).
+
+  prestige [--home DIR]
+      Spend seeds to buy the next ENDGAME prestige rank — a permanent cosmetic
+      flair at an escalating, recurring cost (the late-game seed sink: a finished
+      collection always has a target). Refuses calmly when broke. Cosmetic-only,
+      confers ZERO power (ADR-0005).
+
   enhance <ref> [--seed N] [--home DIR]
-      Spend 20 🌰 seeds to attempt to enhance a piece of cosmetic gear (risk + reward).
-      <ref> can be a gear id, a 1-based index, or 'first'.
+      Spend seeds to attempt to enhance a piece of cosmetic gear (risk + reward).
+      Cost SCALES with the gear's level (20 at +0, +8 per level), so chasing a
+      high +N is a deepening sink. <ref> can be a gear id, a 1-based index, or 'first'.
       If the gear is PROTECTED (sq protect), a would-be break softens to a downgrade.
       Refuses calmly when you can't afford it. Cosmetic only — real code is NEVER affected (ADR-0005).
 
   repair <ref> [--home DIR]
-      Spend 50 🌰 seeds to un-break a cosmetic gear (its level is preserved).
-      <ref> can be a gear id, a 1-based index, or 'first'.
+      Spend seeds to un-break a cosmetic gear (its level is preserved). Cost SCALES
+      with the gear's level (50 at +0, +10 per level) — a broken +12 costs far more
+      than a +1. <ref> can be a gear id, a 1-based index, or 'first'.
       Refuses calmly when you can't afford it. Cosmetic only (ADR-0005).
 
   protect <ref> [--home DIR]
@@ -720,10 +741,14 @@ function handleEnhance(
     }
     const cur = fresh.gear[idx]!
 
-    // CONSISTENCY (audit re-score①): enhance now COSTS seeds, like repair/protect.
+    // R6 P0: price the attempt with the engine's LEVEL-SCALING enhanceCost (was a
+    // flat 20 the CLI ignored — chasing a high +N must be a deepening sink).
+    const cost = enhanceCost(cur.level)
+
+    // CONSISTENCY (audit re-score①): enhance COSTS seeds, like repair/protect.
     // Refuse calmly when broke — no roll, no debit, no state change.
-    if (fresh.player.currency < ENHANCE_COST) {
-      return { kind: 'broke' as const, have: fresh.player.currency }
+    if (fresh.player.currency < cost) {
+      return { kind: 'broke' as const, have: fresh.player.currency, cost }
     }
 
     // One-shot protection: armed via `sq protect`. Consumed by THIS attempt
@@ -749,7 +774,7 @@ function handleEnhance(
       ...fresh,
       gear: newGear,
       protectedGear: newProtected,
-      player: { ...fresh.player, currency: fresh.player.currency - ENHANCE_COST },
+      player: { ...fresh.player, currency: fresh.player.currency - cost },
     })
     return { kind: 'enhanced' as const, after: enhanced, result: res }
   })
@@ -761,7 +786,7 @@ function handleEnhance(
   }
 
   if (outcome.kind === 'broke') {
-    console.log(`  not enough 🌰 — enhance costs ${ENHANCE_COST}, have ${outcome.have}.`)
+    console.log(`  not enough 🌰 — enhance costs ${outcome.cost}, have ${outcome.have}.`)
     console.log('  earn more 🌰 by shipping — commits, green tests, merges, docs.')
     return 0
   }
@@ -779,18 +804,12 @@ function handleEnhance(
   return 0
 }
 
-/** Seed price to repair a broken gear (the engine delegates pricing to the CLI). */
-const REPAIR_COST = 50
-
-/** Seed price to arm a one-shot enhance protection. */
-const PROTECT_COST = 40
-
 /**
- * Seed price for ONE enhance attempt. Added in the audit re-score① consistency
- * pass: repair (50) and protect (40) cost seeds, so a free enhance was an
- * inconsistency that let a player risk-free-grind levels. Modest by design.
+ * Seed price to arm a one-shot enhance protection. (Enhance & repair prices are
+ * now LEVEL-SCALING — see the engine's enhanceCost(level) / repairCost(gear),
+ * which R6 wired in place of the old flat ENHANCE_COST/REPAIR_COST constants.)
  */
-const ENHANCE_COST = 20
+const PROTECT_COST = 40
 
 /**
  * Sleep `ms` milliseconds WITHOUT a CPU-burning busy-loop, in a synchronous
@@ -821,25 +840,29 @@ function playReveal(frames: string[]): void {
 }
 
 /**
- * `sq pull` — spend seeds for one gacha pull (the core R3 decision).
+ * `sq pull [--premium]` — spend seeds for one gacha pull (the core R3 decision).
  *
- * Loads state under the cross-process lock, runs the PURE engine `pull` (which
- * debits PULL_COST seeds and threads pity, or refuses when broke), persists, and
- * prints the rewards behind a pack-opening reveal. Time-seeded for variety, or a
- * fixed --seed for tests. When broke, prints a friendly earn-more-by-shipping hint.
+ * Loads state under the cross-process lock, runs the PURE engine `pull` (or
+ * `pullPremium` with `--premium` — the escalating seed SINK at PREMIUM_PULL_COST,
+ * better odds), persists, and prints the rewards behind a pack-opening reveal.
+ * Time-seeded for variety, or a fixed --seed for tests. When broke, prints a
+ * friendly earn-more-by-shipping hint.
  */
 function handlePull(flags: Record<string, string>, dir: string, zen: boolean): number {
+  const premium = flags['premium'] === 'true'
+  const cost = premium ? PREMIUM_PULL_COST : PULL_COST
+
   const result = withStateLock(dir, () => {
     const state = loadState(dir)
-    const affordable = state.player.currency >= PULL_COST
+    const affordable = state.player.currency >= cost
     const seedFlag = flags['seed']
     const seed =
       seedFlag !== undefined
         ? parseIntFlag(seedFlag, 0)
-        : hashStringToSeed(`pull:${state.eventCount}:${String(Date.now())}`)
+        : hashStringToSeed(`pull:${premium ? 'p:' : ''}${state.eventCount}:${String(Date.now())}`)
     const rng = mulberry32(seed)
 
-    const { state: next, rewards } = enginePull(state, rng)
+    const { state: next, rewards } = premium ? pullPremium(state, rng) : enginePull(state, rng)
     saveState(dir, next)
     return { rewards, affordable }
   })
@@ -847,7 +870,7 @@ function handlePull(flags: Record<string, string>, dir: string, zen: boolean): n
   if (!result.affordable) {
     if (zen) {
       // Calm refusal — no spectacle, no earn-more nudge.
-      calmConfirm(`pull skipped · not enough 🌰 (need ${PULL_COST})`)
+      calmConfirm(`pull skipped · not enough 🌰 (need ${cost})`)
       return 0
     }
     // The engine already pushed the calm 'not enough' reward; surface it + a hint.
@@ -860,12 +883,77 @@ function handlePull(flags: Record<string, string>, dir: string, zen: boolean): n
 
   if (zen) {
     // Calm: the pull happened & persisted; suppress the reveal + loot line.
-    calmConfirm('pull done')
+    calmConfirm(premium ? 'premium pull done' : 'pull done')
     return 0
   }
 
   // Affordable: play the pack-opening suspense, then reveal the drop.
   playReveal(renderPullFrames())
+  for (const reward of result.rewards) {
+    console.log(formatReward(reward))
+  }
+  return 0
+}
+
+/**
+ * `sq craft [cardId]` — spend shards to craft one chosen missing card (the SPEND
+ * side of the dup tail; shards were write-only before R6). Loads state under the
+ * lock, runs the PURE engine `craftCard` (debits SHARDS_PER_CRAFT, or refuses when
+ * short / nothing left), persists, and renders the rewards. Respects --zen.
+ */
+function handleCraft(positional: string[], flags: Record<string, string>, dir: string, zen: boolean): number {
+  const cardId = positional[0]
+  const seedFlag = flags['seed']
+
+  const result = withStateLock(dir, () => {
+    const state = loadState(dir)
+    const before = state.cards.length
+    // rng only feeds a possible set-completion bonus legendary; time-seeded for
+    // variety, fixed --seed for tests.
+    const seed =
+      seedFlag !== undefined
+        ? parseIntFlag(seedFlag, 0)
+        : hashStringToSeed(`craft:${state.eventCount}:${String(Date.now())}`)
+    const rng = mulberry32(seed)
+
+    const { state: next, rewards } = craftCard(state, cardId, rng)
+    saveState(dir, next)
+    return { rewards, crafted: next.cards.length > before }
+  })
+
+  if (zen) {
+    // Calm: the engine ran & persisted; one quiet line either way.
+    calmConfirm(result.crafted ? 'crafted' : 'craft skipped')
+    return 0
+  }
+
+  for (const reward of result.rewards) {
+    console.log(formatReward(reward))
+  }
+  return 0
+}
+
+/**
+ * `sq prestige` — spend seeds to buy the next ENDGAME prestige rank (the
+ * escalating, recurring late-game sink). Loads state under the lock, runs the
+ * PURE engine `buyPrestige` (debits prestigeCost(rank), or refuses when broke),
+ * persists, and renders the rewards. Cosmetic-only (ADR-0005). Respects --zen.
+ */
+function handlePrestige(flags: Record<string, string>, dir: string, zen: boolean): number {
+  const result = withStateLock(dir, () => {
+    const state = loadState(dir)
+    const before = state.buffs.length
+    const { state: next, rewards } = buyPrestige(state)
+    saveState(dir, next)
+    return { rewards, bought: next.buffs.length > before }
+  })
+
+  if (zen) {
+    // Calm: the engine ran & persisted; one quiet line either way.
+    calmConfirm(result.bought ? 'prestige earned' : 'prestige skipped')
+    return 0
+  }
+
   for (const reward of result.rewards) {
     console.log(formatReward(reward))
   }
@@ -885,8 +973,10 @@ function resolveGearRef(gear: { id: string }[], ref: string): number {
 }
 
 /**
- * `sq repair <ref>` — spend REPAIR_COST seeds to un-break a cosmetic gear
- * (level preserved). Refuses calmly when broke. Cosmetic only (ADR-0005).
+ * `sq repair <ref>` — spend repairCost(gear) seeds to un-break a cosmetic gear
+ * (level preserved). R6 P0: the price now SCALES with the gear's level (engine
+ * repairCost) — a broken +12 costs far more than a +1, instead of the old flat
+ * 50. Refuses calmly when broke. Cosmetic only (ADR-0005).
  */
 function handleRepair(positional: string[], flags: Record<string, string>, dir: string, zen: boolean): number {
   const ref = positional[0]
@@ -904,17 +994,19 @@ function handleRepair(positional: string[], flags: Record<string, string>, dir: 
 
     const gear = state.gear[idx]!
     if (!gear.broken) return { kind: 'notbroken' as const, gear }
-    if (state.player.currency < REPAIR_COST) {
-      return { kind: 'broke' as const, have: state.player.currency }
+    // R6 P0: level-scaling repair price (was a flat 50 the CLI ignored).
+    const cost = repairCost(gear)
+    if (state.player.currency < cost) {
+      return { kind: 'broke' as const, have: state.player.currency, cost }
     }
 
     const { gear: repairedGear } = repairGear(state, gear.id)
     saveState(dir, {
       ...state,
       gear: repairedGear,
-      player: { ...state.player, currency: state.player.currency - REPAIR_COST },
+      player: { ...state.player, currency: state.player.currency - cost },
     })
-    return { kind: 'repaired' as const, gear }
+    return { kind: 'repaired' as const, gear, cost }
   })
 
   switch (outcome.kind) {
@@ -928,14 +1020,14 @@ function handleRepair(positional: string[], flags: Record<string, string>, dir: 
       console.log(`  ${outcome.gear.name} +${outcome.gear.level} isn't broken — nothing to repair.`)
       return 0
     case 'broke':
-      console.log(`  not enough 🌰 — repair costs ${REPAIR_COST}, have ${outcome.have}.`)
+      console.log(`  not enough 🌰 — repair costs ${outcome.cost}, have ${outcome.have}.`)
       console.log('  earn more 🌰 by shipping — commits, green tests, merges, docs.')
       return 0
     case 'repaired':
       if (zen) {
         calmConfirm(`repaired ${outcome.gear.name} +${outcome.gear.level}`)
       } else {
-        console.log(`  🔧 REPAIRED · ${outcome.gear.name} +${outcome.gear.level} · -${REPAIR_COST} 🌰`)
+        console.log(`  🔧 REPAIRED · ${outcome.gear.name} +${outcome.gear.level} · -${outcome.cost} 🌰`)
       }
       return 0
   }
@@ -1489,6 +1581,12 @@ export function run(argv: string[]): number {
 
     case 'protect':
       return handleProtect(rest, flags, dir, zen)
+
+    case 'craft':
+      return handleCraft(rest, flags, dir, zen)
+
+    case 'prestige':
+      return handlePrestige(flags, dir, zen)
 
     case 'dashboard':
       return handleDashboard(flags, dir)

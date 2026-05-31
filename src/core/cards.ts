@@ -54,7 +54,7 @@ export const CARD_SETS: Record<string, CardDef[]> = {
     { id: 'syntax.quine', name: 'Quine', rarity: 'legendary', set: 'syntax' },
   ],
 
-  // -- Level 6 — "Deploy" (infra / shipping flavour) --------------------------
+  // -- Level 4 — "Deploy" (infra / shipping flavour; R6 mid-game beat) --------
   deploy: [
     { id: 'deploy.commit', name: 'Green Commit', rarity: 'common', set: 'deploy' },
     { id: 'deploy.pipeline', name: 'Pipeline', rarity: 'common', set: 'deploy' },
@@ -87,7 +87,10 @@ export const SET_UNLOCK_LEVEL: Record<string, number> = {
   tools: 1,
   creatures: 1,
   syntax: 3,
-  deploy: 6,
+  // R6 cadence retune (game-design P1): deploy shifted 6→4 so a new-content beat
+  // lands in the ~day-5..8 window (L4 ≈ day-5.4 at the audit's ~83 XP/day model),
+  // filling the old day-2.3→day-9 dead zone. relics stays the L10 late-game prize.
+  deploy: 4,
   relics: 10,
 }
 

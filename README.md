@@ -72,6 +72,23 @@ adapter per tool, no coupling.
 | `sq statusline install` / `uninstall` | Chain Grove onto your Claude Code statusline (energy meter) |
 | `sq status` / `sq recap` | Plain-text state / session recap |
 
+## Positioning: Grove vs. nearest rivals
+
+Grove is the first to **fuse** verified-outcome gamification with AI-assisted coding, AI-quota energy, loot/gear/gacha, local-first privacy, and an ethics firewall — in one tool-agnostic CLI.
+
+| | Grove | claude-quest | claude-code-tamagotchi | Habitica | Gamekins |
+|---|---|---|---|---|---|
+| Outcome-gated rewards (verified) | ✅ exit-code + git diff | Partial | ❌ activity | Manual | ✅ CI-only |
+| Loot / gear / gacha | ✅ | ❌ | ❌ | ✅ generic | ❌ |
+| AI-tool agnostic | ✅ all tools | ❌ CC only | ❌ CC only | ✅ generic | ❌ JVM |
+| AI-quota → game energy | ✅ Vigor/Weekly | ❌ | ❌ | ❌ | ❌ |
+| Ethics firewall (pure engine) | ✅ structural | Unclear | ❌ punishes | ✅ cosmetic | Partial |
+| Local-first, no server | ✅ | ❌ cloud | Partial | ❌ | ❌ |
+| Safe workflow power-ups | ✅ suggest-commit, checkpoint | ❌ | ❌ | ❌ | ❌ |
+| Calm / zen mode | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+Each factor exists *somewhere*; the **product exists nowhere but Grove.** The main structural risk is Anthropic's own `/buddy` — the moat there is tool-agnostic outcome-gating that a Claude-only identity-deterministic companion cannot match. Full competitive analysis: [`docs/PRIOR-ART.md`](docs/PRIOR-ART.md).
+
 ## Shipped vs. roadmap (honest scope)
 
 **Shipped today:** the pure game engine (XP, gacha, gear, collection, quests, energy, crit), persistence,

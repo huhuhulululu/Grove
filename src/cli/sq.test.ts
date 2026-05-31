@@ -1789,7 +1789,8 @@ describe('repair subcommand', () => {
   }
 
   it('debits seeds and un-breaks the gear (deterministic by gear ref)', () => {
-    const gearId = seedBrokenGear(100)
+    // Fund above the LEVEL-SCALING repair price (R6: repairCost(8)=50+8*10=130).
+    const gearId = seedBrokenGear(300)
     const before = loadState(stateDir(tmpHome))
     const { code } = captureRun(['repair', gearId, '--home', tmpHome])
     expect(code).toBe(0)
@@ -1813,7 +1814,8 @@ describe('repair subcommand', () => {
   })
 
   it('resolves ref by 1-based index', () => {
-    seedBrokenGear(100)
+    // Fund above the level-scaling repair price (repairCost(8)=130).
+    seedBrokenGear(300)
     const { code } = captureRun(['repair', '1', '--home', tmpHome])
     expect(code).toBe(0)
     const after = loadState(stateDir(tmpHome))
@@ -1821,7 +1823,7 @@ describe('repair subcommand', () => {
   })
 
   it('returns 2 when no ref is given', () => {
-    seedBrokenGear(100)
+    seedBrokenGear(300)
     const { code } = captureRun(['repair', '--home', tmpHome])
     expect(code).toBe(2)
   })
@@ -1918,8 +1920,9 @@ describe('enhance consumes an armed protection', () => {
     const gearId = 'gear.type-saber.5'
     saveState(dir, {
       ...s,
-      // Fund the wallet: enhance now costs seeds (re-score① consistency fix).
-      player: { ...s.player, currency: 100 },
+      // Fund the wallet above the LEVEL-SCALING enhance price (R6:
+      // enhanceCost(14)=20+14*8=132) — enhance now costs seeds (re-score① fix).
+      player: { ...s.player, currency: 300 },
       gear: [{ id: gearId, name: 'Type Saber', level: 14, rarity: 'epic' as const, broken: false }],
       protectedGear: [gearId],
     })

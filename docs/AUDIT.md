@@ -81,3 +81,21 @@ backup rotation · stdin bounds · dev-dep audit (vitest GHSA) · e2e tests that
   wrap can't combine with --zen/--home; first-aha onboarding (`sq init`) + "did you mean?" typo help; dashboard
   wide-emoji alignment; code-review nits (enhance bounds-guard, enhance/repair/protect honor zen, magnitude NaN
   guard, sturdier run-as-script guard, playReveal non-busy-loop). → UX/strategy/code-review.
+
+## Re-score ③ (after R5) — 5/10 at B+; 3 lenses regressed on ONE root cause
+| Lens | ① | ② | ③ | | Lens | ① | ② | ③ |
+|---|---|---|---|---|---|---|---|---|
+| AI-coding eng | C+ | B | **A-** ✅ | | Game economy | C+ | C+ | B- |
+| Architecture | B+ | A- | **B+** ✅ | | Game design | B | B | B |
+| Security | B | B+ | **B+** ✅ | | Code review | B | B | B- ⬇ |
+| Ethics | B+ | A- | **A-** ✅ | | Product/UX | C+ | B | B- ⬇ |
+| QA | B | B+ | **B+** ✅ | | Strategy | B | B | B |
+
+**Root cause of the regressions (lesson: the R5 engine‖cli PARALLEL split disconnected them):** R5 built the
+endgame in the ENGINE but left it DEAD at the player surface. R6 must WIRE it, with engine→cli SEQUENTIAL.
+**R6 targets:**
+- P0 wire `sq craft` (+ a `craftCard` engine fn to SPEND shards) / `sq prestige` / `sq pull --premium`;
+  CLI must use level-scaling `enhanceCost(level)`/`repairCost(gear)` not flat constants; add `shards` to GameStateSchema.
+- P1 global-store needs its OWN lock (R2 guarantee regressed for the account-wide file); surface shards /
+  next-unlock horizon / locked-set labels / set-unlock reward line in the dashboard; README into package `files`.
+- P1/P2 game-design: unlock-cadence day-5..8 beat; tiered/renewable prestige; grantDupComp dedup; card-name double-print.

@@ -30,9 +30,9 @@ function collectionPct(owned: number): number {
 
 /** One-line flex copy that varies by context. Never includes em-dash or deny-list copy. */
 function flexLine(state: GameState, recentRarity?: Rarity): string {
-  if (recentRarity === 'shiny') return '✦ shiny drop!'
-  if (recentRarity === 'legendary') return '🃏 legendary drop!'
-  if (recentRarity === 'epic') return '🃏 epic drop!'
+  if (recentRarity === 'shiny') return '✦ shiny drop'
+  if (recentRarity === 'legendary') return '✦ legendary drop'
+  if (recentRarity === 'epic') return '🃏 epic drop'
 
   const rank = prestigeRank(state)
   if (rank > 0) return `✦ Prestige ×${rank}`

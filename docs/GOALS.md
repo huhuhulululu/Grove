@@ -11,7 +11,7 @@ high interactivity**, and to **reduce CLI text-stream fatigue**. (See ADR-0007.)
 
 **Shipped today (terminal CLI):** the pure engine, persistence, a chained git-hook + `sq wrap` signal
 ingestion, `sq enhance`/`pull`/`protect`/`repair` (the risk/economy loop), a full-screen in-place
-`sq dashboard` (string render, redrawn on demand — NOT yet a navigable Ink TUI), Pillar-B quests,
+`sq dashboard` (string render, redrawn on demand), a navigable Ink TUI (`sq tui`), Pillar-B quests,
 energy/statusline, `suggest-commit`/`checkpoint` utilities, and `--zen` calm mode.
 
 **Shipped since (M3/M5/M6 partial):** the navigable, live-updating Ink TUI (`sq tui`), the read-only
@@ -29,10 +29,10 @@ shareable card / README badge (`sq share`).
 - **M2 — Adapters:** universal chained git-hook adapter + `sq wrap` signal ingestion + Claude Code adapter.
 - **M3 — Interactive surface (front-loaded per ADR-0007):** SHIPPED — interactive gear enhancement
   (`sq enhance`: the risk/tension loop), pack-opening (`sq pull`), and a full-screen in-place
-  `sq dashboard` (level/collection/quests/gear/energy panels, redrawn on demand). *ROADMAP within M3:*
-  a fully navigable, live-updating Ink TUI (the dashboard is a string render today, not yet keyboard-navigable).
-- **M4 — Pillar B breadth:** PARTIAL — 4 flagship quests shipped (CLAUDE.md / spec / doc-sync / tests);
-  the full 8-quest set + renewable variants are ROADMAP.
+  `sq dashboard` (level/collection/quests/gear/energy panels, redrawn on demand), and a navigable
+  live-updating Ink TUI (`sq tui`). *SHIPPED.*
+- **M4 — Pillar B breadth:** SHIPPED — 8 quests shipped (CLAUDE.md / spec / doc-sync / tests + 4 more R5 quests);
+  renewable variants are ROADMAP.
 - **M5 — Multi-platform:** PARTIAL — the read-only web SSE dashboard (`sq serve`) and opt-in ntfy
   mobile push on big moments (`sq ntfy`, default OFF) are SHIPPED; account-global energy sync is ROADMAP.
 - **M6 — Social + launch:** PARTIAL — the opt-in shareable card + README badge (`sq share`) is SHIPPED;

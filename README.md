@@ -6,7 +6,7 @@ and a collection, and nudges good engineering habits as quests. It's a fun skin 
 toolkit: every reward maps to a safe, opt-in workflow power-up (a drafted commit message, a non-destructive
 checkpoint, a refreshed code map). Your code, commits, docs, and git history can **never** be modified or
 penalized by any game outcome — the engine is a pure function and rewards are cosmetic by construction
-(see [`docs/decisions.md`](docs/decisions.md), ADR-0005).
+(see [`docs/decisions.md`](https://github.com/grovekit/grove/blob/main/docs/decisions.md), ADR-0005).
 
 ## 60-second quickstart
 
@@ -105,7 +105,7 @@ Grove is the first to **fuse** verified-outcome gamification with AI-assisted co
 | Safe workflow power-ups | ✅ suggest-commit, checkpoint | ❌ | ❌ | ❌ | ❌ |
 | Calm / zen mode | ✅ | ❌ | ❌ | ❌ | ❌ |
 
-Each factor exists *somewhere*; the **product exists nowhere but Grove.** The main structural risk is Anthropic's own `/buddy` — the moat there is tool-agnostic outcome-gating that a Claude-only identity-deterministic companion cannot match. Full competitive analysis: [`docs/PRIOR-ART.md`](docs/PRIOR-ART.md).
+Each factor exists *somewhere*; the **product exists nowhere but Grove.** The main structural risk is Anthropic's own `/buddy` — the moat there is tool-agnostic outcome-gating that a Claude-only identity-deterministic companion cannot match. Full competitive analysis: [`docs/PRIOR-ART.md`](https://github.com/grovekit/grove/blob/main/docs/PRIOR-ART.md).
 
 ## Shipped vs. roadmap (honest scope)
 
@@ -142,10 +142,10 @@ npm run typecheck       # tsc --noEmit
 ## Docs
 
 - [`CLAUDE.md`](CLAUDE.md) — constraints + layout index
-- [`docs/decisions.md`](docs/decisions.md) — Architecture Decision Records (the firewall, tool-agnostic adapters, hook chaining…)
-- [`docs/GOALS.md`](docs/GOALS.md) — goals & non-goals
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — modules, the pure/impure seam, event schema
-- [`docs/PROJECT-CONTEXT.md`](docs/PROJECT-CONTEXT.md) — current status & milestones
+- [`docs/decisions.md`](https://github.com/grovekit/grove/blob/main/docs/decisions.md) — Architecture Decision Records (the firewall, tool-agnostic adapters, hook chaining…)
+- [`docs/GOALS.md`](https://github.com/grovekit/grove/blob/main/docs/GOALS.md) — goals & non-goals
+- [`docs/ARCHITECTURE.md`](https://github.com/grovekit/grove/blob/main/docs/ARCHITECTURE.md) — modules, the pure/impure seam, event schema
+- [`docs/PROJECT-CONTEXT.md`](https://github.com/grovekit/grove/blob/main/docs/PROJECT-CONTEXT.md) — current status & milestones
 
 ## License
 

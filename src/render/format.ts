@@ -222,7 +222,7 @@ export function formatRecap(recap: RecapData): string {
 
   return [
     '─'.repeat(52),
-    `  RECAP — ${window}`,
+    `  RECAP · ${window}`,
     '─'.repeat(52),
     `  Total events ....... ${total}`,
     '',

@@ -30,7 +30,7 @@ Parallel work must conform to these signatures.
 - `rng.ts` — `mulberry32(seed)`, `hashStringToSeed(s)`, `weightedPick(rng, entries)`. Deterministic & seedable (ADR-0002).
 - `rewards.ts` — `RARITIES`, `Rarity`, `Card`, `Gear`, `Reward`. All rewards are **cosmetic**.
 - `cards.ts` — `CARD_SETS`, `cardDefsByRarity`, `cardIdsInSet`, `cardFromDef`. Card content catalogue.
-- `quests.ts` — `QUESTS` (the 4 Pillar-B quest definitions).
+- `quests.ts` — `QUESTS` (the 8 Pillar-B quest definitions).
 
 ## Engine layer (`src/engine/`) — pure functions, no I/O, immutable
 
@@ -67,7 +67,8 @@ Failing events (`success:false`): eventCount advances + buffs expire silently; *
 ### Economy (seeds, R3/R5)
 
 - **Faucet:** outcome grants + level-up seeds + serendipity windfalls + milestone chests.
-- **Sinks:** `sq pull` (30 🌰), `sq pull --premium` (150 🌰), `sq enhance` (20+ escalating), `sq repair` (50+ escalating), `sq protect` (40 🌰), `sq prestige` (500 🌰).
+- **Sinks:** `sq pull` (45 🌰), `sq pull --premium` (225 🌰), `sq enhance` (20+ escalating), `sq repair` (50+ escalating), `sq protect` (40 🌰), `sq prestige` (500 🌰 +250/rank, escalating), `sq craft` (60 shards → one missing card).
+- **Faucet (shards):** duplicate pulls bank rarity-scaled shards; `sq convert` trades surplus shards → seeds (2 🌰/shard) when the collection is craftable-complete.
 - Escalating enhance/repair costs (level × multiplier) mean late-game gear is a deepening seed sink — preserving save-vs-spend decisions at every stage.
 
 ## Store layer (`src/store/`)
@@ -89,6 +90,7 @@ Failing events (`success:false`): eventCount advances + buffs expire silently; *
 | `statusline-install.ts` | Surgical jq-based statusline wrapper install/uninstall (backs up original; chain-safe). |
 | `git-utils.ts` | `execFileSync`-based git helpers: `stagedDiffStat`, `createStashSnapshot`, `currentBranch`. No shell injection. |
 | `shquote.ts` | POSIX single-quote escape (`shQuote`) for safe path interpolation in generated scripts. |
+| `ntfy.ts` | Opt-in ntfy.sh mobile push (`sq ntfy <topic>` / `sq ntfy off`). Default OFF. Fires only on big moments (level-up, legendary/shiny, milestone, quest/set complete). Transmits cosmetic stats only — never code, cwd, or cost (ADR-0011). |
 
 ## Detect (`src/detect/`)
 
@@ -101,13 +103,24 @@ Failing events (`success:false`): eventCount advances + buffs expire silently; *
 | `dashboard.ts` | Full-screen, in-place dashboard (pure). Sections: ENERGY · WORK · COLLECTION · GEAR · QUESTS · BUFFS. Wide-emoji cell-accurate layout via `width.ts`. |
 | `format.ts` | `formatReward`, `formatStatus`, `formatRecap`, `formatQuests` — terse Diablo loot-grammar lines (ADR-0009). |
 | `enhance.ts` | `renderEnhanceOdds`, `renderEnhanceResult`, `renderPullFrames` — the gear risk reveal + pack-opening animation frames. |
+| `share.ts` | `renderShareCard`, `renderReadmeBadge` — opt-in terse share card + shields.io README badge (`sq share` / `sq share --badge`). Cosmetic only (ADR-0011). |
 | `width.ts` | `displayWidth`, `padToWidth`, `truncateToWidth` — terminal-cell-accurate string layout for wide emoji / CJK. |
+
+## TUI (`src/tui/`)
+
+- `app.tsx` — live-updating, keyboard-navigable Ink TUI (`sq tui`). Panels: XP · seeds · gear · quests · buffs · energy. Keys: arrows/hjkl move focus, `p` pull, `P` premium pull, `e` enhance, `c` craft, `b` prestige, `q` quit. `--once` renders a single frame (non-interactive, for scripting).
+- `model.ts` — pure TUI state model (selected panel, focus ring). No I/O.
+
+## Web (`src/web/`)
+
+- `server.ts` — read-only HTTP + SSE dashboard server (`sq serve`). Streams live game-state updates over SSE; clients reconnect automatically. `--port N` / `--host H` to customize binding.
+- `page.ts` — HTML page template served at `/` (inline SSE client; no external deps).
 
 ## CLI (`src/cli/`)
 
 - `sq.ts` — entry point + all subcommand handlers. Impure shell: may use process / console / wall-clock / filesystem. Pure engine logic flows through `ingestEvent` and `reduce` — no re-implementation in the CLI.
   - Global flags: `--zen` (calm mode, ADR-0005) · `--home DIR` (override grove state dir).
-  - Subcommands: `event` · `wrap` · `status` · `recap` · `scan` · `quests` · `pull` · `enhance` · `repair` · `protect` · `dashboard` · `statusline-ingest` · `statusline install/uninstall` · `init` · `uninstall` · `commit-hook` · `suggest-commit` · `checkpoint` · `help`.
+  - Subcommands: `event` · `wrap` · `status` · `recap` · `scan` · `quests` · `pull` · `enhance` · `repair` · `protect` · `craft` · `convert` · `prestige` · `dashboard` · `tui` · `serve` · `share` · `ntfy` · `statusline-ingest` · `statusline install/uninstall` · `init` · `uninstall` · `commit-hook` · `suggest-commit` · `checkpoint` · `help`.
   - `groveInvocation()`: portable injection-safe CLI re-invocation (bare `sq` when on PATH, else `node '<shQuote(abs-path)>'`).
   - `suggestSubcommand(input)`: Levenshtein "did you mean?" for unknown subcommands.
 
@@ -125,6 +138,4 @@ A test verifies that `src/engine/` and `src/core/` have zero imports of `node:fs
 ## Later phases (ROADMAP, not built)
 
 - **Account-global energy store:** quota is account-wide; the current energy state is per-repo (known limit). A global `~/.grove/global-state.json` with its own lockfile is needed.
-- **Navigable Ink TUI:** the dashboard today is a string render, redrawn on demand. A live-updating, keyboard-navigable TUI is M3 roadmap.
-- **Web SSE dashboard + mobile push (M5):** SSE server + ntfy push for live session display on phone/web.
-- **Social + leaderboard (M6, ADR-0011):** opt-in, league-based, server-verified outcomes only.
+- **Social + leaderboard (M6, ADR-0011):** opt-in, league-based, server-verified outcomes only. Needs a server-verified outcomes backend before it can ship without becoming a dark pattern.

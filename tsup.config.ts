@@ -12,11 +12,11 @@ import { defineConfig } from 'tsup'
  * Output: dist/cli/sq.js — ESM, with a `#!/usr/bin/env node` shebang, marked
  * executable so it can be the package `bin`.
  *
- * ink/react (M3 TUI): tsup externalizes `dependencies` by DEFAULT, which would
- * leave `import ... from 'ink'/'react'` in the bundle and make `sq` depend on
- * node_modules being present. `noExternal` forces them (and React's jsx-runtime)
- * INTO the bundle so `node dist/cli/sq.js help` runs self-contained. zod stays
- * external (loaded from node_modules at runtime) per the original design.
+ * ink/react/react-dom: externalized as regular dependencies (loaded from
+ * node_modules at install time). zod is also external. Both are listed under
+ * `dependencies` in package.json so npm installs them alongside the binary.
+ * The react-devtools-core stub plugin below prevents the (never-taken) dev
+ * code-path from crashing on import resolution.
  */
 export default defineConfig({
   entry: { 'cli/sq': 'src/cli/sq.ts' },
@@ -24,14 +24,10 @@ export default defineConfig({
   format: ['esm'],
   target: 'node20',
   platform: 'node',
-  // Bundle everything (resolve the extensionless internal imports); keep zod as
-  // a real dependency so its package is loaded from node_modules at runtime.
+  // Bundle everything (resolve the extensionless internal imports); keep
+  // dependencies external so they load from node_modules at runtime.
   bundle: true,
-  // zod loads from node_modules at runtime.
-  external: ['zod'],
-  // Pull ink + react into the bundle (they would otherwise be externalized as
-  // dependencies). Regex matches react, react/jsx-runtime, ink, and ink's deps.
-  noExternal: [/^react($|\/)/, /^ink($|\/)/],
+  external: ['zod', 'ink', 'react', 'react-dom', 'react/jsx-runtime'],
   // react-devtools-core is an OPTIONAL, dev-only ink import
   // (ink/build/devtools.js, reached only under DEV=true and not installed).
   // Marking it `external` would leave a static `import 'react-devtools-core'`

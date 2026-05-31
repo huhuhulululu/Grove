@@ -321,13 +321,13 @@ describe('serendipity (奇遇) — surprise bonus on successful outcomes', () =>
     // otherwise never auto-pulls), and tags it with the 奇遇 line.
     const { state, rewards } = reduce(initialState(), ev({ type: 'commit', magnitude: 1 }), mulberry32(SEED_SEREN_PULL))
     expect(state.cards.length).toBe(1) // an EXTRA pull a commit would never give
-    const lucky = rewards.find((r) => r.kind === 'card' && r.message.includes('奇遇'))
+    const lucky = rewards.find((r) => r.kind === 'card' && r.message.includes('lucky drop'))
     expect(lucky).toBeDefined()
   })
 
   it('fires a seed windfall under a different chosen seed', () => {
     const { state, rewards } = reduce(initialState(), ev({ type: 'commit', magnitude: 1 }), mulberry32(SEED_SEREN_WINDFALL))
-    const windfall = rewards.find((r) => r.kind === 'currency' && r.message.includes('奇遇'))
+    const windfall = rewards.find((r) => r.kind === 'currency' && r.message.includes('windfall'))
     expect(windfall).toBeDefined()
     // windfall is ON TOP of the base +5 commit seeds
     expect(state.player.currency).toBeGreaterThan(5)
@@ -336,7 +336,7 @@ describe('serendipity (奇遇) — surprise bonus on successful outcomes', () =>
   it('the common case (non-serendipity seed) adds NO extra pull and NO windfall', () => {
     const { state, rewards } = reduce(initialState(), ev({ type: 'commit', magnitude: 1 }), mulberry32(SEED_NO_SEREN))
     expect(state.cards.length).toBe(0)
-    expect(rewards.some((r) => r.message.includes('奇遇'))).toBe(false)
+    expect(rewards.some((r) => r.message.includes('lucky drop') || r.message.includes('windfall'))).toBe(false)
   })
 
   it('serendipity NEVER fires on a failing event (firewall: no draw at all)', () => {
@@ -350,7 +350,7 @@ describe('serendipity (奇遇) — surprise bonus on successful outcomes', () =>
     // Even on a serendipity seed, a quota frame is ambient — only the cosmetic
     // floor chest can come from it, never a serendipity roll.
     const { rewards } = reduce(initialState(), costFrame({ outputTokens: 1 }), mulberry32(SEED_SEREN_PULL))
-    expect(rewards.some((r) => r.message.includes('奇遇'))).toBe(false)
+    expect(rewards.some((r) => r.message.includes('lucky drop') || r.message.includes('windfall'))).toBe(false)
   })
 })
 

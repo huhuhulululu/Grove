@@ -122,7 +122,7 @@ function enhanceFocused(state: GameState, rng: Rng, index: number): DispatchResu
         {
           kind: 'currency',
           amount: state.player.currency,
-          message: `not enough 🌰 — enhance costs ${cost}, have ${state.player.currency}`,
+          message: `not enough 🌰 · enhance costs ${cost}, have ${state.player.currency}`,
         },
       ],
       changed: false,
@@ -258,7 +258,7 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
   if (e.canCraft) can.push('craft')
   if (e.canPrestige) can.push(`prestige (${e.prestigeCost})`)
   lines.push(`  🌰 ${e.seeds} · 🔧 ${e.shards}`)
-  lines.push(`  can: ${can.length > 0 ? can.join(' · ') : '— earn more by shipping'}`)
+  lines.push(`  can: ${can.length > 0 ? can.join(' · ') : 'earn more by shipping'}`)
   lines.push('')
 
   // -- Key legend -------------------------------------------------------------
@@ -459,7 +459,7 @@ function economyHint(model: TuiModel): string {
   if (e.canPremium) can.push(`premium (${e.premiumCost})`)
   if (e.canCraft) can.push('craft')
   if (e.canPrestige) can.push(`prestige (${e.prestigeCost})`)
-  return `can: ${can.length > 0 ? can.join(' · ') : '— earn more by shipping'}`
+  return `can: ${can.length > 0 ? can.join(' · ') : 'earn more by shipping'}`
 }
 
 // ---------------------------------------------------------------------------

@@ -68,3 +68,45 @@ describe('copy-lint: no cloying deny-list phrases in user-facing copy (ADR-0009)
     expect(DENY_LIST.length).toBeGreaterThan(0)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Em-dash guard (TONE.md: "no-em-dash"). User-facing copy must use ' · ',
+// a period, or parentheses instead of '—'. The deny-list above never checks the
+// '—' character, so em-dashes used to ship silently in the most-read surfaces
+// (e.g. `sq help` / USAGE_TEXT). This asserts the CODE/STRING lines of the
+// copy-bearing surfaces carry no em-dash. Pure code comments are exempt (they
+// are not user-facing); only non-comment lines are scanned.
+//
+// Scope note: the engine/core copy files (reduce.ts, *quests.ts) still carry
+// em-dashes in their reward `message:` strings and are intentionally NOT listed
+// here — they live outside this surface pass and are tracked separately.
+const EM_DASH_FILES = [
+  'src/render/enhance.ts',
+  'src/render/dashboard.ts',
+  'src/render/format.ts',
+  'src/app/recap.ts',
+  'src/cli/sq.ts',
+  'src/render/share.ts',
+]
+
+/** True for a line whose content is purely a comment (//, * , /* ). */
+function isCommentLine(line: string): boolean {
+  const t = line.trimStart()
+  return t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')
+}
+
+describe('copy-lint: no em-dash (—) in user-facing copy (docs/TONE.md)', () => {
+  for (const rel of EM_DASH_FILES) {
+    it(`${rel} has no em-dash in non-comment lines`, () => {
+      const abs = path.join(ROOT, rel)
+      const lines = fs.readFileSync(abs, 'utf-8').split('\n')
+
+      const offenders = lines
+        .map((line, i) => ({ line, n: i + 1 }))
+        .filter(({ line }) => line.includes('—') && !isCommentLine(line))
+        .map(({ line, n }) => `${rel}:${n} ${line.trim()}`)
+
+      expect(offenders, `em-dash in user-facing copy:\n${offenders.join('\n')}`).toEqual([])
+    })
+  }
+})

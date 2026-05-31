@@ -97,7 +97,7 @@ function main(): void {
 
     if (out.rewards.length === 0) {
       const calm = event.success === false
-        ? '      … no drop — and nothing lost. The grove never punishes.'
+        ? '      … no drop · nothing lost (failures never penalize).'
         : '      … a quiet moment (no reward for this signal).'
       console.log(calm)
     } else {
@@ -123,7 +123,7 @@ function main(): void {
   console.log(`  Completed sets ..... ${state.completedSets.length ? state.completedSets.join(', ') : '(none yet)'}`)
   console.log(`  Active buffs ....... ${state.buffs.length ? state.buffs.map((b) => b.label).join(', ') : '(none)'}`)
   console.log(`  Pity (since leg.) .. ${state.pity.sinceLegendary}`)
-  console.log('\n  Same seed → same run, every time. Have a good one. 🌱\n')
+  console.log('\n  Same seed → same run, every time. 🌱\n')
 }
 
 main()

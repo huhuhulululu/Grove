@@ -83,7 +83,7 @@ export function startWebServer(opts: WebServerOptions): WebServerHandle {
     // LAN exposure is opt-in and loud: anyone on the network can READ this view.
     // eslint-disable-next-line no-console
     console.error(
-      '⚠ Grove web bound to 0.0.0.0 — reachable from other devices on your LAN (read-only).',
+      '⚠ Grove web bound to 0.0.0.0 · reachable from other devices on your LAN (read-only).',
     )
   }
 

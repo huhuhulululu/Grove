@@ -220,7 +220,7 @@ describe('reduce — serendipity lucky-pull preserves real pity', () => {
     const { state, rewards } = reduce(s0, ev({ type: 'commit', magnitude: 1 }), mulberry32(SEED_SEREN_NONLEG_PULL))
 
     // Confirm the lucky pull actually fired and was NOT legendary (this seed).
-    const lucky = rewards.find((r) => r.kind === 'card' && r.message.includes('奇遇'))
+    const lucky = rewards.find((r) => r.kind === 'card' && r.message.includes('lucky drop'))
     expect(lucky).toBeDefined()
     expect(lucky!.message).not.toMatch(/legendary|shiny/)
 
@@ -242,7 +242,7 @@ describe('reduce — serendipity lucky-pull preserves real pity', () => {
     // Regression-guard the other branch: a top-tier lucky drop resets pity.
     const s0: GameState = { ...initialState(), pity: { sinceLegendary: 5 } }
     const { state, rewards } = reduce(s0, ev({ type: 'commit', magnitude: 1 }), mulberry32(1))
-    const lucky = rewards.find((r) => r.kind === 'card' && r.message.includes('奇遇'))
+    const lucky = rewards.find((r) => r.kind === 'card' && r.message.includes('lucky drop'))
     expect(lucky).toBeDefined()
     expect(lucky!.message).toMatch(/legendary|shiny/)
     expect(state.pity.sinceLegendary).toBe(0)

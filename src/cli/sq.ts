@@ -1,5 +1,5 @@
 /**
- * sq.ts — Grove CLI entry point.
+ * sq.ts · Grove CLI entry point.
  *
  * Impure shell: may use process / console / wall-clock time (ADR-0005 firewall).
  * The engine's pure GameState updates flow through the existing `reduce` via
@@ -9,7 +9,7 @@
  *   sq [--home <DIR>] [--zen] <subcommand> [flags]
  *
  * --zen (or env GROVE_ZEN=1) is the calm mode (ADR-0005): the engine STILL runs
- * and records state, but the RENDER strips all spectacle — no loot/crit/
+ * and records state, but the RENDER strips all spectacle · no loot/crit/
  * serendipity/milestone lines, no contextual offers, no drop reveals. Commands
  * print a plain, terse confirmation instead.
  *
@@ -58,7 +58,7 @@ import { convertShards, SHARDS_PER_CRAFT, SHARD_TO_SEED } from '../engine/collec
 import { runTui } from '../tui/app'
 import { startWebServer } from '../web/server'
 import { renderDashboard } from '../render/dashboard'
-import { renderEnhanceOdds, renderEnhanceResult, renderPullFrames } from '../render/enhance'
+import { renderEnhanceOdds, renderEnhanceResult, renderEnhanceFrames, renderPullFrames } from '../render/enhance'
 import { mulberry32, hashStringToSeed } from '../core/rng'
 import { parseStatuslinePayload } from '../adapters/statusline'
 import { installStatusline, uninstallStatusline } from '../adapters/statusline-install'
@@ -107,7 +107,7 @@ function parseArgs(argv: string[]): ParsedArgs {
         flags[key] = value
         i++
       } else {
-        // --flag value (next item) — UNLESS the flag is a known boolean flag,
+        // --flag value (next item) · UNLESS the flag is a known boolean flag,
         // in which case it never has a value: --zen wrap means zen=true + wrap
         // is the positional subcommand, not zen=wrap.
         const key = arg.slice(2)
@@ -196,7 +196,7 @@ function editDistance(a: string, b: string): number {
 /**
  * Suggest the closest known subcommand for a mistyped token, or null when
  * nothing is close enough. Threshold scales with the input length so short
- * tokens need a tight match and long ones tolerate a typo or two — keeping a
+ * tokens need a tight match and long ones tolerate a typo or two · keeping a
  * far-off string ("zzzzzzzzzz") from matching anything.
  */
 export function suggestSubcommand(input: string): string | null {
@@ -216,7 +216,7 @@ export function suggestSubcommand(input: string): string | null {
 }
 
 // ---------------------------------------------------------------------------
-// AI-CLI detection (onboarding) — PATH probe, injectable for tests
+// AI-CLI detection (onboarding) · PATH probe, injectable for tests
 // ---------------------------------------------------------------------------
 
 /** Known AI-coding CLIs Grove can ride alongside (ADR-0001, tool-agnostic). */
@@ -235,7 +235,7 @@ export function detectAiClis(opts: DetectAiOpts = {}): string[] {
 
 /**
  * True if an executable named `bin` is resolvable on PATH. Portable (honors
- * PATHEXT on Windows), side-effect-light (no spawn) — mirrors defaultSqOnPath.
+ * PATHEXT on Windows), side-effect-light (no spawn) · mirrors defaultSqOnPath.
  */
 function binOnPath(bin: string): boolean {
   const PATH = process.env['PATH'] ?? ''
@@ -250,7 +250,7 @@ function binOnPath(bin: string): boolean {
       try {
         if (fs.statSync(path.join(d, `${bin}${ext}`)).isFile()) return true
       } catch {
-        // not here — keep scanning
+        // not here · keep scanning
       }
     }
   }
@@ -263,7 +263,7 @@ function binOnPath(bin: string): boolean {
 
 /**
  * Seed price to arm a one-shot enhance protection. (Enhance & repair prices are
- * now LEVEL-SCALING — see the engine's enhanceCost(level) / repairCost(gear),
+ * now LEVEL-SCALING · see the engine's enhanceCost(level) / repairCost(gear),
  * which R6 wired in place of the old flat ENHANCE_COST/REPAIR_COST constants.)
  * Declared here (above USAGE_TEXT) so the help body can interpolate it. Exported
  * so the help-text cost-drift guard can treat it as a backing constant too.
@@ -282,7 +282,7 @@ Usage: sq [--home <DIR>] [--zen] <subcommand> [flags]
 
 Global flags:
   --zen   Calm mode (or env GROVE_ZEN=1). The engine still records state, but
-          output is plain & terse — NO loot/crit/serendipity/milestone lines,
+          output is plain & terse · NO loot/crit/serendipity/milestone lines,
           no contextual offers, no drop reveals. Just a quiet confirmation.
 
 Subcommands:
@@ -305,8 +305,8 @@ Subcommands:
 
   recap [--since session|all]
       Show a recap of events and progress.
-      --since session  (default) — events since the last session_start
-      --since all      — all events
+      --since session  (default) · events since the last session_start
+      --since all      · all events
 
   scan [path] [--home DIR]
       Scan a repo directory for Pillar-B signals (grimoire, tests, docs, specs).
@@ -318,13 +318,13 @@ Subcommands:
       ✓ done  ◆ active  · not yet started
 
   pull [--premium] [--seed N] [--home DIR]
-      Spend ${PULL_COST} 🌰 seeds for one gacha pull (the core decision — you choose WHEN).
+      Spend ${PULL_COST} 🌰 seeds for one gacha pull (the core decision · you choose WHEN).
       --premium  Spend ${PREMIUM_PULL_COST} 🌰 for a PREMIUM pull (better odds; the escalating sink).
       Earn seeds by shipping outcomes (commits, green tests, merges, docs).
       Refuses calmly when you can't afford it. Cosmetic only (ADR-0005).
 
   craft [cardId] [--home DIR]
-      Spend ${SHARDS_PER_CRAFT} shards to craft ONE chosen missing card (the dup-tail SINK — every
+      Spend ${SHARDS_PER_CRAFT} shards to craft ONE chosen missing card (the dup-tail SINK · every
       duplicate pull banks rarity-scaled shards). With no id, crafts the first
       missing card in your unlocked sets. Refuses calmly when short on shards or
       nothing is left to craft. Cosmetic only (ADR-0005).
@@ -336,7 +336,7 @@ Subcommands:
       exactly min(n, banked). Refuses calmly at zero shards. Cosmetic only (ADR-0005).
 
   prestige [--home DIR]
-      Spend ${PRESTIGE_COST} 🌰 seeds to buy the next ENDGAME prestige rank — a permanent
+      Spend ${PRESTIGE_COST} 🌰 seeds to buy the next ENDGAME prestige rank · a permanent
       cosmetic flair at an escalating, recurring cost (the late-game seed sink: a
       finished collection always has a target). Refuses calmly when broke.
       Cosmetic-only, confers ZERO power (ADR-0005).
@@ -346,11 +346,11 @@ Subcommands:
       Cost SCALES with the gear's level (${ENHANCE_COST_BASE} at +0, +${ENHANCE_COST_PER_LEVEL} per level), so chasing a
       high +N is a deepening sink. <ref> can be a gear id, a 1-based index, or 'first'.
       If the gear is PROTECTED (sq protect), a would-be break softens to a downgrade.
-      Refuses calmly when you can't afford it. Cosmetic only — real code is NEVER affected (ADR-0005).
+      Refuses calmly when you can't afford it. Cosmetic only · real code is NEVER affected (ADR-0005).
 
   repair <ref> [--home DIR]
       Spend seeds to un-break a cosmetic gear (its level is preserved). Cost SCALES
-      with the gear's level (${REPAIR_COST_BASE} at +0, +${REPAIR_COST_PER_LEVEL} per level) — a broken +12 costs far more
+      with the gear's level (${REPAIR_COST_BASE} at +0, +${REPAIR_COST_PER_LEVEL} per level) · a broken +12 costs far more
       than a +1. <ref> can be a gear id, a 1-based index, or 'first'.
       Refuses calmly when you can't afford it. Cosmetic only (ADR-0005).
 
@@ -379,7 +379,7 @@ Subcommands:
       Read the Claude Code statusline JSON from STDIN, parse it, and ingest a
       quota_update event to keep the energy system current.
       Prints NOTHING to stdout (designed to run inside the statusline pipe).
-      Always returns 0 — never disrupts the HUD.
+      Always returns 0 · never disrupts the HUD.
 
   statusline install [--settings PATH]
       Install Grove's chain-safe statusline wrapper.
@@ -394,7 +394,7 @@ Subcommands:
   init [--repo DIR]
       Install Grove's post-commit git hook in a repo (chains; never clobbers).
       Defaults to process.cwd() if --repo is omitted.
-      Grove failures NEVER block commits — the hook is fail-open by design.
+      Grove failures NEVER block commits · the hook is fail-open by design.
 
   uninstall [--repo DIR]
       Remove Grove's contribution from the post-commit hook. Other hooks intact.
@@ -405,35 +405,35 @@ Subcommands:
       Scans the repo for Pillar-B signals and ingests events.
 
   suggest-commit [--repo DIR]
-      Read-only: print a suggested commit message from staged diff. No AI —
+      Read-only: print a suggested commit message from staged diff. No AI ·
       type inferred from file paths (test/docs/chore/feat). Copy the output.
       If nothing is staged, prints a hint to run git add first.
 
   checkpoint [-m MSG] [--repo DIR] [--home DIR]
-      📍 Safety-net: snapshot working state via git stash create (read-only —
+      📍 Safety-net: snapshot working state via git stash create (read-only ·
       never modifies tree/index), record to grove state, ingest a checkpoint
       event for the rest-buff reward. Prints how to restore with git stash apply.
 
   share [--badge] [--home DIR]
       Print a terse, copy-pasteable share card (level + collection %). Opt-in &
-      privacy-minimal — only cosmetic stats, NEVER code/cwd/cost (ADR-0011).
+      privacy-minimal · only cosmetic stats, NEVER code/cwd/cost (ADR-0011).
       --badge  Print a markdown shields.io badge for your README instead.
 
   ntfy <topic> | off [--home DIR]
-      Opt-in mobile push (ntfy.sh). Default OFF — no push unless you set a topic.
+      Opt-in mobile push (ntfy.sh). Default OFF · no push unless you set a topic.
       <topic>  Set the topic; install the ntfy.sh app and subscribe to it.
       off      Disable push. Big moments only (level-ups, legendaries, chests);
-      the message carries cosmetic events only — NEVER code/cwd/cost (ADR-0011).
+      the message carries cosmetic events only · NEVER code/cwd/cost (ADR-0011).
 
   help
       Show this help message.
 `.trim()
 
 // ---------------------------------------------------------------------------
-// groveInvocation — compute the portable, injection-safe command to reinvoke sq
+// groveInvocation · compute the portable, injection-safe command to reinvoke sq
 // ---------------------------------------------------------------------------
 
-/** Options for groveInvocation — injectable seams keep it testable & pure-ish. */
+/** Options for groveInvocation · injectable seams keep it testable & pure-ish. */
 export interface GroveInvocationOpts {
   /**
    * Detect a PATH-resolvable `sq` binary. Defaults to scanning `process.env.PATH`.
@@ -446,7 +446,7 @@ export interface GroveInvocationOpts {
 
 /**
  * Return true if an executable named `sq` is resolvable on PATH. Portable
- * (honors PATHEXT on Windows) and side-effect-light — no process spawn.
+ * (honors PATHEXT on Windows) and side-effect-light · no process spawn.
  */
 function defaultSqOnPath(): boolean {
   const PATH = process.env['PATH'] ?? ''
@@ -463,7 +463,7 @@ function defaultSqOnPath(): boolean {
         const st = fs.statSync(candidate)
         if (st.isFile()) return true
       } catch {
-        // not here — keep scanning
+        // not here · keep scanning
       }
     }
   }
@@ -478,8 +478,8 @@ function defaultSqOnPath(): boolean {
  *  - When Grove is installed (a `sq` is on PATH) → returns bare `sq`. No path is
  *    interpolated, so there is no injection surface at all.
  *  - Otherwise → falls back to the BUILT bundle: `node <abs>/dist/cli/sq.js`.
- *    The absolute path is SINGLE-QUOTE / shQuote-escaped — never wrapped in raw
- *    double quotes — so an install path containing `"`, `$()`, or a backtick is
+ *    The absolute path is SINGLE-QUOTE / shQuote-escaped · never wrapped in raw
+ *    double quotes · so an install path containing `"`, `$()`, or a backtick is
  *    a single literal argument and can never be executed.
  *
  * The built bundle lives at `<root>/dist/cli/sq.js`. Both the dev source
@@ -499,7 +499,7 @@ export function groveInvocation(opts: GroveInvocationOpts = {}): string {
 }
 
 // ---------------------------------------------------------------------------
-// Calm mode (--zen / GROVE_ZEN) — see ADR-0005
+// Calm mode (--zen / GROVE_ZEN) · see ADR-0005
 // ---------------------------------------------------------------------------
 
 /**
@@ -515,7 +515,7 @@ function isZen(flags: Record<string, string>): boolean {
 
 /**
  * Print a single plain, terse calm-mode confirmation line. Calm mode strips ALL
- * spectacle (loot/crit/serendipity/milestone/offers/reveals) — the engine still
+ * spectacle (loot/crit/serendipity/milestone/offers/reveals) · the engine still
  * ran and persisted state; this line is the only thing the user sees.
  */
 function calmConfirm(message: string): void {
@@ -547,7 +547,7 @@ function handleEvent(
   }
 
   // Guard NaN: a non-numeric / empty --magnitude (e.g. `--magnitude abc`, `--magnitude=`)
-  // would poison every downstream reward calc with NaN — default to 1 instead.
+  // would poison every downstream reward calc with NaN · default to 1 instead.
   const magnitude = parsePositiveIntFlag(flags['magnitude'], 1)
   const successFlag = flags['success']
   const success = successFlag !== 'false'
@@ -568,11 +568,11 @@ function handleEvent(
   const { rewards } = ingestEvent(dir, raw)
 
   // Push-on-big-moment (opt-in, default OFF, fire-and-forget). Runs regardless of
-  // zen — it is the user's own chosen async channel, not terminal spectacle.
+  // zen · it is the user's own chosen async channel, not terminal spectacle.
   maybePush(rewards)
 
   if (zen) {
-    // Calm: engine ran & persisted; suppress all loot/crit/offers — one quiet line.
+    // Calm: engine ran & persisted; suppress all loot/crit/offers · one quiet line.
     calmConfirm(success ? `${type} recorded` : `${type} recorded (no reward)`)
     return 0
   }
@@ -667,7 +667,7 @@ function handleScan(positional: string[], dir: string, zen: boolean): number {
     return 0
   }
   console.log(
-    `  Scan complete — ${eventCount} signal(s) detected${typeList ? ` (${typeList})` : ''}, ${totalRewards} reward(s).`,
+    `  Scan complete · ${eventCount} signal(s) detected${typeList ? ` (${typeList})` : ''}, ${totalRewards} reward(s).`,
   )
 
   return 0
@@ -684,7 +684,7 @@ const STARTER_SEEDS = 40
 
 /**
  * Grant the first-run starter exactly once. Idempotency is tracked by an
- * `.onboarded` marker file in the grove state dir (the impure shell) — so a
+ * `.onboarded` marker file in the grove state dir (the impure shell) · so a
  * second `init` never re-grants, and the engine state shape is untouched. The
  * grant is COSMETIC seeds only (ADR-0005). Returns true if it granted this call.
  */
@@ -702,7 +702,7 @@ function grantStarterOnce(dir: string): boolean {
       fs.writeFileSync(marker, new Date().toISOString() + '\n', 'utf8')
     } catch {
       // Non-fatal: if the marker can't be written, worst case is a re-grant on
-      // the next init — never a crash, never a blocked install.
+      // the next init · never a crash, never a blocked install.
     }
     return true
   })
@@ -716,28 +716,28 @@ function handleInit(flags: Record<string, string>, dir: string): number {
   if (res.action === 'created') {
     message = `Grove post-commit hook installed.`
   } else if (res.action === 'chained') {
-    message = `Grove chained onto your existing hook — your existing hooks are preserved.`
+    message = `Grove chained onto your existing hook · your existing hooks are preserved.`
   } else {
     message = `Grove hook already installed (no change).`
   }
 
   console.log(`  🌳 ${message}`)
   console.log(`  Hook path: ${res.hookPath}`)
-  console.log(`  Grove failures never block commits — the hook is fail-open by design.`)
+  console.log(`  Grove failures never block commits · the hook is fail-open by design.`)
 
   // First-run starter: a brand-new player gets seeds so the dashboard has loot
   // to show before their first commit lands (avoids the empty-board first-aha).
   const granted = grantStarterOnce(dir)
   if (granted) {
-    console.log(`  🪙 starter grant · +${STARTER_SEEDS} 🌰 seeds — your board isn't empty.`)
+    console.log(`  🪙 starter grant · +${STARTER_SEEDS} 🌰 seeds · your board isn't empty.`)
   }
 
-  // Detect the AI CLIs the user already runs (tool-agnostic — ADR-0001).
+  // Detect the AI CLIs the user already runs (tool-agnostic · ADR-0001).
   const clis = detectAiClis()
   if (clis.length > 0) {
-    console.log(`  Detected: ${clis.join(', ')} — Grove rides alongside, doesn't replace.`)
+    console.log(`  Detected: ${clis.join(', ')} · Grove rides alongside, doesn't replace.`)
   } else {
-    console.log(`  Works with any AI-coding tool (Claude Code, Cursor, Aider, Codex…) — tool-agnostic.`)
+    console.log(`  Works with any AI-coding tool (Claude Code, Cursor, Aider, Codex…) · tool-agnostic.`)
   }
 
   // Clear next-step CTA (the first-aha): one concrete command to run next.
@@ -753,7 +753,7 @@ function handleUninstall(flags: Record<string, string>): number {
   if (res.action === 'removed') {
     message = `Grove hook removed.`
   } else if (res.action === 'unchained') {
-    message = `Grove block removed — your other hooks remain intact.`
+    message = `Grove block removed · your other hooks remain intact.`
   } else {
     message = `Grove hook was not installed (nothing to remove).`
   }
@@ -809,18 +809,18 @@ function handleEnhance(
     const cur = fresh.gear[idx]!
 
     // R6 P0: price the attempt with the engine's LEVEL-SCALING enhanceCost (was a
-    // flat 20 the CLI ignored — chasing a high +N must be a deepening sink).
+    // flat 20 the CLI ignored · chasing a high +N must be a deepening sink).
     const cost = enhanceCost(cur.level)
 
     // CONSISTENCY (audit re-score①): enhance COSTS seeds, like repair/protect.
-    // Refuse calmly when broke — no roll, no debit, no state change.
+    // Refuse calmly when broke · no roll, no debit, no state change.
     if (fresh.player.currency < cost) {
       return { kind: 'broke' as const, have: fresh.player.currency, cost }
     }
 
     // One-shot protection: armed via `sq protect`. Consumed by THIS attempt
     // regardless of outcome (the pure engine softens a would-be break to a
-    // downgrade when protect=true; ADR-0005 — cosmetic only).
+    // downgrade when protect=true; ADR-0005 · cosmetic only).
     const isProtected = fresh.protectedGear.includes(cur.id)
 
     // RNG: time-seeded for variety, or a fixed --seed for tests (NaN-guarded).
@@ -853,8 +853,8 @@ function handleEnhance(
   }
 
   if (outcome.kind === 'broke') {
-    console.log(`  not enough 🌰 — enhance costs ${outcome.cost}, have ${outcome.have}.`)
-    console.log('  earn more 🌰 by shipping — commits, green tests, merges, docs.')
+    console.log(`  not enough 🌰 · enhance costs ${outcome.cost}, have ${outcome.have}.`)
+    console.log('  earn more 🌰 by shipping · commits, green tests, merges, docs.')
     return 0
   }
 
@@ -864,8 +864,11 @@ function handleEnhance(
     return 0
   }
 
-  // Print odds (the suspense), then the result — only when an attempt happened.
+  // Print odds (the suspense), play the dice-roll reveal, then the result ·
+  // only when an attempt happened. Mirrors the pull reveal (playReveal is
+  // TTY-only and skipped in pipes/tests, so output stays deterministic).
   console.log(renderEnhanceOdds(before))
+  playReveal(renderEnhanceFrames())
   console.log(renderEnhanceResult(before, outcome.after, outcome.result))
 
   return 0
@@ -900,10 +903,10 @@ function playReveal(frames: string[]): void {
 }
 
 /**
- * `sq pull [--premium]` — spend seeds for one gacha pull (the core R3 decision).
+ * `sq pull [--premium]` · spend seeds for one gacha pull (the core R3 decision).
  *
  * Loads state under the cross-process lock, runs the PURE engine `pull` (or
- * `pullPremium` with `--premium` — the escalating seed SINK at PREMIUM_PULL_COST,
+ * `pullPremium` with `--premium` · the escalating seed SINK at PREMIUM_PULL_COST,
  * better odds), persists, and prints the rewards behind a pack-opening reveal.
  * Time-seeded for variety, or a fixed --seed for tests. When broke, prints a
  * friendly earn-more-by-shipping hint.
@@ -929,7 +932,7 @@ function handlePull(flags: Record<string, string>, dir: string, zen: boolean): n
 
   if (!result.affordable) {
     if (zen) {
-      // Calm refusal — no spectacle, no earn-more nudge.
+      // Calm refusal · no spectacle, no earn-more nudge.
       calmConfirm(`pull skipped · not enough 🌰 (need ${cost})`)
       return 0
     }
@@ -937,7 +940,7 @@ function handlePull(flags: Record<string, string>, dir: string, zen: boolean): n
     for (const reward of result.rewards) {
       console.log(formatReward(reward))
     }
-    console.log('  earn more 🌰 by shipping — commits, green tests, merges, docs.')
+    console.log('  earn more 🌰 by shipping · commits, green tests, merges, docs.')
     return 0
   }
 
@@ -956,7 +959,7 @@ function handlePull(flags: Record<string, string>, dir: string, zen: boolean): n
 }
 
 /**
- * `sq craft [cardId]` — spend shards to craft one chosen missing card (the SPEND
+ * `sq craft [cardId]` · spend shards to craft one chosen missing card (the SPEND
  * side of the dup tail; shards were write-only before R6). Loads state under the
  * lock, runs the PURE engine `craftCard` (debits SHARDS_PER_CRAFT, or refuses when
  * short / nothing left), persists, and renders the rewards. Respects --zen.
@@ -994,7 +997,7 @@ function handleCraft(positional: string[], flags: Record<string, string>, dir: s
 }
 
 /**
- * `sq prestige` — spend seeds to buy the next ENDGAME prestige rank (the
+ * `sq prestige` · spend seeds to buy the next ENDGAME prestige rank (the
  * escalating, recurring late-game sink). Loads state under the lock, runs the
  * PURE engine `buyPrestige` (debits prestigeCost(rank), or refuses when broke),
  * persists, and renders the rewards. Cosmetic-only (ADR-0005). Respects --zen.
@@ -1021,7 +1024,7 @@ function handlePrestige(flags: Record<string, string>, dir: string, zen: boolean
 }
 
 /**
- * `sq convert [n]` — trade banked shards back into seeds at SHARD_TO_SEED (the
+ * `sq convert [n]` · trade banked shards back into seeds at SHARD_TO_SEED (the
  * dead-shard-tail relief valve). Loads state under the lock, runs the PURE engine
  * `convertShards` (debits shards, credits seeds; refuses calmly at zero), persists,
  * and renders the reward. With no count, converts ALL banked shards; with `n`,
@@ -1070,9 +1073,9 @@ function resolveGearRef(gear: { id: string }[], ref: string): number {
 }
 
 /**
- * `sq repair <ref>` — spend repairCost(gear) seeds to un-break a cosmetic gear
+ * `sq repair <ref>` · spend repairCost(gear) seeds to un-break a cosmetic gear
  * (level preserved). R6 P0: the price now SCALES with the gear's level (engine
- * repairCost) — a broken +12 costs far more than a +1, instead of the old flat
+ * repairCost) · a broken +12 costs far more than a +1, instead of the old flat
  * 50. Refuses calmly when broke. Cosmetic only (ADR-0005).
  */
 function handleRepair(positional: string[], flags: Record<string, string>, dir: string, zen: boolean): number {
@@ -1114,11 +1117,11 @@ function handleRepair(positional: string[], flags: Record<string, string>, dir: 
       console.error(`Error: no gear at ref "${ref}". You have ${outcome.count} piece(s).`)
       return 2
     case 'notbroken':
-      console.log(`  ${outcome.gear.name} +${outcome.gear.level} isn't broken — nothing to repair.`)
+      console.log(`  ${outcome.gear.name} +${outcome.gear.level} isn't broken · nothing to repair.`)
       return 0
     case 'broke':
-      console.log(`  not enough 🌰 — repair costs ${outcome.cost}, have ${outcome.have}.`)
-      console.log('  earn more 🌰 by shipping — commits, green tests, merges, docs.')
+      console.log(`  not enough 🌰 · repair costs ${outcome.cost}, have ${outcome.have}.`)
+      console.log('  earn more 🌰 by shipping · commits, green tests, merges, docs.')
       return 0
     case 'repaired':
       if (zen) {
@@ -1131,7 +1134,7 @@ function handleRepair(positional: string[], flags: Record<string, string>, dir: 
 }
 
 /**
- * `sq protect <ref>` — spend PROTECT_COST seeds to arm a ONE-SHOT protection on
+ * `sq protect <ref>` · spend PROTECT_COST seeds to arm a ONE-SHOT protection on
  * a gear: the next enhance turns a would-be cosmetic break into a downgrade.
  * Refuses calmly when broke. Cosmetic risk-management only (ADR-0005).
  */
@@ -1174,8 +1177,8 @@ function handleProtect(positional: string[], flags: Record<string, string>, dir:
       console.log(`  ${outcome.gear.name} +${outcome.gear.level} is already protected.`)
       return 0
     case 'broke':
-      console.log(`  not enough 🌰 — protect costs ${PROTECT_COST}, have ${outcome.have}.`)
-      console.log('  earn more 🌰 by shipping — commits, green tests, merges, docs.')
+      console.log(`  not enough 🌰 · protect costs ${PROTECT_COST}, have ${outcome.have}.`)
+      console.log('  earn more 🌰 by shipping · commits, green tests, merges, docs.')
       return 0
     case 'armed':
       if (zen) {
@@ -1201,13 +1204,13 @@ function handleDashboard(flags: Record<string, string>, dir: string): number {
 }
 
 // ---------------------------------------------------------------------------
-// tui / serve handlers (async — the M3 TUI + M5 web renderers)
+// tui / serve handlers (async · the M3 TUI + M5 web renderers)
 // ---------------------------------------------------------------------------
 
 /**
- * `sq tui [--once]` — launch the navigable live Ink dashboard over the engine.
+ * `sq tui [--once]` · launch the navigable live Ink dashboard over the engine.
  * Delegates to the existing `runTui` renderer (NO game logic here):
- *  - `--once` renders ONE static frame string (deterministic, headless/CI-safe —
+ *  - `--once` renders ONE static frame string (deterministic, headless/CI-safe ·
  *    never mounts Ink raw-mode) and logs it.
  *  - otherwise mounts the live interactive <App>; resolves on the user's q/Ctrl-C.
  * Returns 0 (a TUI session has no failure exit code).
@@ -1223,12 +1226,12 @@ async function handleTui(flags: Record<string, string>, dir: string): Promise<nu
 }
 
 /**
- * `sq serve [--port N] [--host H]` — start the local READ-ONLY web dashboard via
+ * `sq serve [--port N] [--host H]` · start the local READ-ONLY web dashboard via
  * the existing `startWebServer` (NO game logic here), print its URL, and keep the
  * process alive until Ctrl-C (live-updating an open page as state changes).
  *
  * `--no-wait` is the TEST/CI seam: it starts the server, prints the URL, then
- * IMMEDIATELY closes the handle and returns — so a test never blocks on a signal.
+ * IMMEDIATELY closes the handle and returns · so a test never blocks on a signal.
  */
 async function handleServe(flags: Record<string, string>, dir: string): Promise<number> {
   const port = flags['port'] !== undefined ? parseIntFlag(flags['port'], 0) : 0
@@ -1245,7 +1248,7 @@ async function handleServe(flags: Record<string, string>, dir: string): Promise<
   console.log(`  Read-only view of your state · live-updates as you ship · Ctrl-C to stop.`)
 
   if (noWait) {
-    // Test/CI seam: don't block on a signal — tear the server down and return.
+    // Test/CI seam: don't block on a signal · tear the server down and return.
     server.close()
     return 0
   }
@@ -1289,7 +1292,7 @@ function handleStatuslineIngest(flags: Record<string, string>, dir: string): num
       ingestEvent(dir, eventWithTs)
     }
   } catch {
-    // Never disrupt the HUD — swallow all errors silently.
+    // Never disrupt the HUD · swallow all errors silently.
   }
 
   return 0
@@ -1329,7 +1332,7 @@ function handleStatuslineInstall(flags: Record<string, string>, dir: string): nu
     }
   }
 
-  console.log(`  Your original statusline is fully preserved and chained — it still runs.`)
+  console.log(`  Your original statusline is fully preserved and chained · it still runs.`)
   return 0
 }
 
@@ -1353,7 +1356,7 @@ function handleStatuslineUninstall(flags: Record<string, string>): number {
 
 /**
  * Read all of stdin synchronously (blocking). Used by statusline-ingest which
- * is invoked from a shell pipe — it's fine to block here.
+ * is invoked from a shell pipe · it's fine to block here.
  */
 function readStdinSync(): string {
   const BUFSIZE = 65536
@@ -1412,7 +1415,7 @@ function handleSuggestCommit(flags: Record<string, string>): number {
   const diff = stagedDiffStat(repo)
 
   if (diff === null || diff.files.length === 0) {
-    console.log('  nothing staged — `git add` first, then `sq suggest-commit`.')
+    console.log('  nothing staged · `git add` first, then `sq suggest-commit`.')
     return 0
   }
 
@@ -1452,7 +1455,7 @@ function handleCheckpoint(flags: Record<string, string>, dir: string, zen: boole
   const ref = snapshot?.ref ?? ''
   const branch = currentBranch(repo) ?? 'unknown'
 
-  // 2. Collect diffStat for the record (may be null on clean repo — that's fine)
+  // 2. Collect diffStat for the record (may be null on clean repo · that's fine)
   const diffStat = stagedDiffStat(repo)
 
   // 3. Record to checkpoints.jsonl in the grove state dir
@@ -1469,7 +1472,7 @@ function handleCheckpoint(flags: Record<string, string>, dir: string, zen: boole
     const checkpointsFile = path.join(dir, 'checkpoints.jsonl')
     fs.appendFileSync(checkpointsFile, JSON.stringify(entry) + '\n', 'utf8')
   } catch {
-    // Non-fatal — continue even if write fails
+    // Non-fatal · continue even if write fails
   }
 
   // 4. Ingest a 'checkpoint' GroveEvent (fires rest-buff + gift pull)
@@ -1490,16 +1493,16 @@ function handleCheckpoint(flags: Record<string, string>, dir: string, zen: boole
     }
   })()
 
-  // 5. Print checkpoint confirmation (the safety-net purpose — kept even in calm
+  // 5. Print checkpoint confirmation (the safety-net purpose · kept even in calm
   //    mode; it is the command's reason for existing, not loot spectacle).
   if (ref !== '') {
     console.log(`  📍 Checkpoint saved · ${branch}`)
     console.log(`  Restore: git stash apply ${ref}`)
   } else {
-    console.log(`  📍 Checkpoint — progress noted · ${branch}`)
+    console.log(`  📍 Checkpoint · nothing to snapshot · ${branch}`)
   }
 
-  // Push-on-big-moment (opt-in, default OFF, fire-and-forget) — independent of zen.
+  // Push-on-big-moment (opt-in, default OFF, fire-and-forget) · independent of zen.
   maybePush(rewards)
 
   if (zen) {
@@ -1524,7 +1527,7 @@ function handleCheckpoint(flags: Record<string, string>, dir: string, zen: boole
 
 /**
  * After an event produces rewards, check for contextual offer conditions and
- * print terse offer lines. OFFER only — never auto-execute.
+ * print terse offer lines. OFFER only · never auto-execute.
  *
  *  - Any reward with crit:true → draft commit offer
  *  - energy.known && vigor < 20 → checkpoint offer
@@ -1532,13 +1535,13 @@ function handleCheckpoint(flags: Record<string, string>, dir: string, zen: boole
 function printContextualOffers(rewards: ReturnType<typeof ingestEvent>['rewards'], dir: string): void {
   const hasCrit = rewards.some((r) => r.crit === true)
   if (hasCrit) {
-    console.log('  💥 CRIT — free draft: sq suggest-commit')
+    console.log('  💥 CRIT · free draft: sq suggest-commit')
   }
 
   try {
     const state = loadState(dir)
     if (state.energy.known && typeof state.energy.vigor === 'number' && state.energy.vigor < 20) {
-      console.log(`  ⚡ low — good stopping point: sq checkpoint`)
+      console.log(`  ⚡ low · good stopping point: sq checkpoint`)
     }
   } catch {
     // Non-fatal
@@ -1546,10 +1549,10 @@ function printContextualOffers(rewards: ReturnType<typeof ingestEvent>['rewards'
 }
 
 // ---------------------------------------------------------------------------
-// Push-on-big-moment wiring (M5, opt-in, ADR-0011) — fire-and-forget
+// Push-on-big-moment wiring (M5, opt-in, ADR-0011) · fire-and-forget
 // ---------------------------------------------------------------------------
 
-/** Injectable seams for maybePush — tests pass mocks; prod uses the real adapter. */
+/** Injectable seams for maybePush · tests pass mocks; prod uses the real adapter. */
 export interface PushDeps {
   /** Resolve the opt-in topic (null = disabled). Defaults to the real ntfyTopic. */
   topicFn?: () => string | null
@@ -1562,9 +1565,9 @@ export interface PushDeps {
  *   1. the user has opted in (a topic is configured), AND
  *   2. the reward batch is significant (pushWorthy returns a notification).
  *
- * Default OFF: with no topic set, this is a silent no-op — no network is touched.
+ * Default OFF: with no topic set, this is a silent no-op · no network is touched.
  * Fire-and-forget by construction: it never throws, never blocks, and never
- * affects the command's outcome (a failing send is swallowed). Privacy-minimal —
+ * affects the command's outcome (a failing send is swallowed). Privacy-minimal ·
  * only the cosmetic NtfyNotification is sent, never code/cwd/cost (ADR-0011).
  */
 export function maybePush(rewards: Reward[], deps: PushDeps = {}): void {
@@ -1582,7 +1585,7 @@ export function maybePush(rewards: Reward[], deps: PushDeps = {}): void {
 }
 
 // ---------------------------------------------------------------------------
-// wrap — the REAL test/build signal source (ADR-0003).
+// wrap · the REAL test/build signal source (ADR-0003).
 // ---------------------------------------------------------------------------
 
 /** Event types `sq wrap` can emit (a closed subset of the outcome vocabulary). */
@@ -1592,7 +1595,7 @@ type WrapEventType = 'test_result' | 'build_result' | 'lint_clean'
  * Infer the GroveEvent type from the wrapped command's argv. Looks at the first
  * token (the program name) and any sub-token for a 'test' / 'build' / 'lint'
  * hint (so `npm test`, `npm run build`, `cargo build`, `eslint`/`lint` all map
- * sensibly). Defaults to test_result — the most common signal. PURE.
+ * sensibly). Defaults to test_result · the most common signal. PURE.
  */
 function inferWrapType(argv: string[]): WrapEventType {
   const haystack = argv.join(' ').toLowerCase()
@@ -1604,7 +1607,7 @@ function inferWrapType(argv: string[]): WrapEventType {
 }
 
 /**
- * `sq wrap [--as <type>] -- <cmd...>` — run a command the user runs ANYWAY,
+ * `sq wrap [--as <type>] -- <cmd...>` · run a command the user runs ANYWAY,
  * stream its output transparently (inherited stdio), read its EXIT CODE, and
  * ingest an outcome event with success=(exitCode===0). A FAILING command emits
  * success:false → the firewall mints NO reward (ADR-0005). Finally EXIT WITH THE
@@ -1629,7 +1632,7 @@ function handleWrap(command: string[], asType: string | undefined, dir: string, 
   const args = command.slice(1)
 
   // Run the command with INHERITED stdio so its output streams transparently to
-  // the user's terminal — Grove is invisible to the wrapped command's I/O.
+  // the user's terminal · Grove is invisible to the wrapped command's I/O.
   const res = spawnSync(program, args, { stdio: 'inherit' })
 
   // Resolve the exit code. A signal kill (res.signal) or spawn error (res.error,
@@ -1661,7 +1664,7 @@ function handleWrap(command: string[], asType: string | undefined, dir: string, 
       meta: { cmd: command.join(' '), exitCode },
     })
 
-    // Push-on-big-moment (opt-in, default OFF, fire-and-forget) — independent of zen.
+    // Push-on-big-moment (opt-in, default OFF, fire-and-forget) · independent of zen.
     maybePush(rewards)
 
     if (!zen) {
@@ -1671,7 +1674,7 @@ function handleWrap(command: string[], asType: string | undefined, dir: string, 
       printContextualOffers(rewards, dir)
     }
     // Calm: the engine ran on the real exit code & persisted; no loot line. The
-    // wrapped command's own output already streamed transparently — stay quiet.
+    // wrapped command's own output already streamed transparently · stay quiet.
   } catch {
     // Never let a Grove failure change the wrapped command's outcome.
   }
@@ -1682,7 +1685,7 @@ function handleWrap(command: string[], asType: string | undefined, dir: string, 
 
 function handleCommitHook(flags: Record<string, string>, dir: string, zen: boolean): number {
   // Banner first in normal mode (kept for the loot reveal). Calm mode stays quiet
-  // until the single confirmation below — no banner, no loot, no offers.
+  // until the single confirmation below · no banner, no loot, no offers.
   if (!zen) console.log('  🌳 grove')
 
   try {
@@ -1714,23 +1717,23 @@ function handleCommitHook(flags: Record<string, string>, dir: string, zen: boole
     // Contextual offers after all events are processed
     printContextualOffers(allRewards, dir)
   } catch {
-    // Never fail a commit — swallow all errors silently
+    // Never fail a commit · swallow all errors silently
   }
 
   return 0
 }
 
 // ---------------------------------------------------------------------------
-// share handler (M6 social, opt-in, ADR-0011) — user-invoked, copy-pasteable
+// share handler (M6 social, opt-in, ADR-0011) · user-invoked, copy-pasteable
 // ---------------------------------------------------------------------------
 
 /**
- * `sq share [--badge]` — print an opt-in, copy-pasteable share artifact built
+ * `sq share [--badge]` · print an opt-in, copy-pasteable share artifact built
  * from the PURE share renderer (no game logic here):
  *  - default → renderShareCard (level + collection %, a terse flex line)
  *  - --badge → renderReadmeBadge (a markdown shields.io badge for a README)
  *
- * Privacy-minimal (ADR-0011): the renderer emits only cosmetic stats — never
+ * Privacy-minimal (ADR-0011): the renderer emits only cosmetic stats · never
  * code, cwd, token counts, or cost. User-invoked, so it STILL prints under
  * --zen (zen strips spectacle from automatic output; an explicit `share` is the
  * thing the user asked for, not spectacle).
@@ -1743,12 +1746,12 @@ function handleShare(flags: Record<string, string>, dir: string): number {
 }
 
 // ---------------------------------------------------------------------------
-// ntfy handler (M5 push, opt-in, ADR-0011) — set/clear the global topic config
+// ntfy handler (M5 push, opt-in, ADR-0011) · set/clear the global topic config
 // ---------------------------------------------------------------------------
 
 /**
  * Path to the opt-in ntfy topic config file. It lives under groveHome() (the
- * account-wide root) — one topic per machine, not per repo — which is exactly
+ * account-wide root) · one topic per machine, not per repo · which is exactly
  * where the adapter's `ntfyTopic()` reads it back. Honors GROVE_HOME, so tests
  * point both writer and reader at one isolated tree.
  */
@@ -1757,24 +1760,24 @@ function ntfyConfigPath(): string {
 }
 
 /**
- * `sq ntfy <topic> | off` — opt into (or disable) mobile push.
+ * `sq ntfy <topic> | off` · opt into (or disable) mobile push.
  *
  *  - `<topic>` → persist the topic to <groveHome>/ntfy-topic so push is enabled.
  *  - `off`     → delete the config so push is OFF (the default).
  *  - (no arg)  → print the current state without changing anything.
  *
  * DEFAULT OFF: nothing is sent until the user runs this with a topic (ADR-0011).
- * Cosmetic-only, privacy-minimal — the topic is the only thing stored.
+ * Cosmetic-only, privacy-minimal · the topic is the only thing stored.
  */
 function handleNtfy(positional: string[], _dir: string): number {
   const arg = positional[0]
   const configPath = ntfyConfigPath()
 
   if (arg === undefined) {
-    // Status only — persist nothing.
+    // Status only · persist nothing.
     const current = ntfyTopic()
     if (current === null) {
-      console.log('  🔕 ntfy push is OFF — run `sq ntfy <topic>` to opt in.')
+      console.log('  🔕 ntfy push is OFF · run `sq ntfy <topic>` to opt in.')
     } else {
       console.log(`  🔔 ntfy push ON · topic: ${current}`)
       console.log('  Run `sq ntfy off` to disable.')
@@ -1786,19 +1789,19 @@ function handleNtfy(positional: string[], _dir: string): number {
     try {
       fs.rmSync(configPath, { force: true })
     } catch {
-      // Non-fatal — worst case it was already gone.
+      // Non-fatal · worst case it was already gone.
     }
     console.log('  🔕 ntfy push disabled.')
     return 0
   }
 
-  // Set the topic. The topic is user-chosen and acts as a shared secret — keep
+  // Set the topic. The topic is user-chosen and acts as a shared secret · keep
   // it as a single literal line; no interpolation into any shell context.
   try {
     fs.mkdirSync(groveHome(), { recursive: true })
     fs.writeFileSync(configPath, arg + '\n', 'utf8')
   } catch {
-    console.error('  could not save the ntfy topic — check your GROVE_HOME permissions.')
+    console.error('  could not save the ntfy topic · check your GROVE_HOME permissions.')
     return 1
   }
   console.log(`  🔔 ntfy push ON · topic: ${arg}`)
@@ -1808,20 +1811,20 @@ function handleNtfy(positional: string[], _dir: string): number {
 }
 
 // ---------------------------------------------------------------------------
-// run — exported entry point
+// run · exported entry point
 // ---------------------------------------------------------------------------
 
 /**
  * Subcommands whose handler is ASYNC (the Ink TUI session and the long-running
  * web server). They are dispatched by `runAsync`; the synchronous `run` returns
  * a directive to use `runAsync` if one is reached there directly (it never is in
- * the normal entry path — the script guard calls `runAsync`).
+ * the normal entry path · the script guard calls `runAsync`).
  */
 const ASYNC_SUBCOMMANDS = new Set(['tui', 'serve'])
 
 /**
  * Async entry point. Handles the two async subcommands (`tui`, `serve`) and
- * delegates EVERYTHING ELSE to the synchronous `run` — so the whole existing
+ * delegates EVERYTHING ELSE to the synchronous `run` · so the whole existing
  * sync surface is untouched. The script guard awaits this.
  *
  * @param argv  Arguments AFTER the script name (i.e. process.argv.slice(2)).
@@ -1930,8 +1933,9 @@ export function run(argv: string[]): number {
       } else if (statuslineCmd === 'uninstall') {
         return handleStatuslineUninstall(flags)
       } else {
-        console.log(USAGE_TEXT)
-        console.error(`Error: unknown statusline subcommand "${statuslineCmd ?? '(none)'}"`)
+        console.error(
+          `Error: unknown statusline subcommand "${statuslineCmd ?? '(none)'}". Use: sq statusline install | uninstall`,
+        )
         return 2
       }
     }
@@ -1964,7 +1968,7 @@ export function run(argv: string[]): number {
 
     default: {
       // Terse correction over the full USAGE wall: offer the closest match if
-      // there is one, else point at `sq help` — don't dump every subcommand.
+      // there is one, else point at `sq help` · don't dump every subcommand.
       const guess = suggestSubcommand(subcommand ?? '')
       if (guess !== null) {
         console.error(`Unknown subcommand "${subcommand}". Did you mean \`sq ${guess}\`?`)
@@ -1977,14 +1981,14 @@ export function run(argv: string[]): number {
 }
 
 // ---------------------------------------------------------------------------
-// Run-as-script guard — allows `sq …`, `node dist/cli/sq.js …`, and
+// Run-as-script guard · allows `sq …`, `node dist/cli/sq.js …`, and
 // `tsx src/cli/sq.ts …` to execute directly while staying inert on import.
 // ---------------------------------------------------------------------------
 
 /**
  * True when this module is the program's entry point. Matches on the BASENAME
  * of argv[1] (`sq`, `sq.js`, `sq.ts`) rather than a fragile substring of the
- * whole path — so a repo path that merely *contains* "sq" (e.g.
+ * whole path · so a repo path that merely *contains* "sq" (e.g.
  * /home/user/sqlbox/other.js) no longer falsely trips the guard.
  */
 export function isRunAsScript(argv1: string | undefined): boolean {

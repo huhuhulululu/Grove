@@ -541,7 +541,7 @@ function rollSerendipity(state: GameState, rng: Rng, rewards: Reward[]): GameSta
       { ...state, pity: realPity },
       card,
       rarity,
-      `✨ 奇遇 — lucky drop · ${rarityMark(rarity)}${card.name} · ${rarity}`,
+      `✨ lucky drop · ${rarityMark(rarity)}${card.name} · ${rarity}`,
       rng,
       rewards,
     )
@@ -550,7 +550,7 @@ function rollSerendipity(state: GameState, rng: Rng, rewards: Reward[]): GameSta
   rewards.push({
     kind: 'currency',
     amount: SERENDIPITY_SEED_WINDFALL,
-    message: `✨ 奇遇 — +${SERENDIPITY_SEED_WINDFALL} 🌰 windfall`,
+    message: `✨ windfall · +${SERENDIPITY_SEED_WINDFALL} 🌰`,
   })
   return {
     ...state,
@@ -583,7 +583,7 @@ export function pull(
     rewards.push({
       kind: 'currency',
       amount: state.player.currency,
-      message: `not enough 🌰 — need ${PULL_COST}, have ${state.player.currency}`,
+      message: `not enough 🌰 · need ${PULL_COST}, have ${state.player.currency}`,
     })
     return { state: { ...state, player: { ...state.player } }, rewards }
   }
@@ -627,7 +627,7 @@ export function pullPremium(
     rewards.push({
       kind: 'currency',
       amount: state.player.currency,
-      message: `not enough 🌰 — premium needs ${PREMIUM_PULL_COST}, have ${state.player.currency}`,
+      message: `not enough 🌰 · premium needs ${PREMIUM_PULL_COST}, have ${state.player.currency}`,
     })
     return { state: { ...state, player: { ...state.player } }, rewards }
   }

@@ -243,25 +243,24 @@ describe('sq CLI', () => {
     })
 
     it('spends seeds and yields a card once the player can afford a pull', () => {
-      // Earn seeds: test_result(magnitude=2) grants +8 each (4×2). 12 events = 96 seeds.
-      for (let i = 0; i < 12; i++) {
-        captureRun(['event', 'test_result', '--magnitude', '2', '--home', tmpHome])
-      }
-      // Status should now show currency well above PULL_COST (45).
-      const before = loadState(stateDir(tmpHome))
+      // DETERMINISTIC setup: seed currency directly + an EMPTY collection. Earning
+      // via events is unsafe here — each successful event has a 5% serendipity roll
+      // (time-seeded) that can add a random card, which can make the --seed pull a
+      // DUPLICATE (no new card) and flake the strict cards.length assertion. An empty
+      // collection guarantees the pull yields a NEW card.
+      const dir = stateDir(tmpHome)
+      const base = loadState(dir)
+      saveState(dir, { ...base, player: { ...base.player, currency: 100 }, cards: [] })
+      const before = loadState(dir)
       expect(before.player.currency).toBeGreaterThanOrEqual(PULL_COST)
 
-      // --seed for determinism: a time-seeded pull can land a DUPLICATE, which
-      // grants +10 dup-comp seeds and would break a strict `before - PULL_COST` check.
       const { code, output } = captureRun(['pull', '--seed', '3', '--home', tmpHome])
       expect(code).toBe(0)
 
       const after = loadState(stateDir(tmpHome))
-      // A card landed and seeds were debited by PULL_COST. A duplicate may
-      // refund +10 dup-comp, so the net is in [before-PULL_COST, before-PULL_COST+10].
+      // Empty collection → a NEW card, seeds debited by exactly PULL_COST (no dup refund).
       expect(after.cards.length).toBe(before.cards.length + 1)
-      expect(after.player.currency).toBeLessThanOrEqual(before.player.currency - PULL_COST + 10)
-      expect(after.player.currency).toBeGreaterThanOrEqual(before.player.currency - PULL_COST)
+      expect(after.player.currency).toBe(before.player.currency - PULL_COST)
       // The pull output mentions a card / rarity line.
       expect(output.join('\n').length).toBeGreaterThan(0)
     })
@@ -1750,9 +1749,15 @@ describe('pull subcommand — reveal + earn-more', () => {
   }
 
   it('on a state with >=PULL_COST seeds yields a card and debits PULL_COST (deterministic --seed)', () => {
-    // earnSeeds(6)=24 is below PULL_COST=45; earn 12 instead (96 seeds).
-    earnSeeds(12)
-    const before = loadState(stateDir(tmpHome))
+    // DETERMINISTIC setup: seed currency directly + an EMPTY collection. We must
+    // NOT earn via events here — each successful event has a 5% serendipity roll
+    // (time-seeded) that can add a random card, which can make the --seed pull
+    // land a DUPLICATE (no new card + a +10 dup-comp refund) and flake the strict
+    // assertions below. An empty collection guarantees the pull is a NEW card.
+    const dir = stateDir(tmpHome)
+    const base = loadState(dir)
+    saveState(dir, { ...base, player: { ...base.player, currency: 100 }, cards: [] })
+    const before = loadState(dir)
     expect(before.player.currency).toBeGreaterThanOrEqual(PULL_COST)
 
     const { code, output } = captureRun(['pull', '--seed', '7', '--home', tmpHome])

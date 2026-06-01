@@ -21,6 +21,7 @@ import { msg, t } from './t'
 import { en } from './catalog/en'
 import { zhCN } from './catalog/zh-CN'
 import { ja } from './catalog/ja'
+import { ko } from './catalog/ko'
 import { LOCALES } from './types'
 
 // ---------------------------------------------------------------------------
@@ -153,15 +154,16 @@ describe('contract — engine reward.* keys reproduce the legacy English byte-fo
 // 2) Full catalog parity — every en key present in zh-CN + ja, none empty
 // ---------------------------------------------------------------------------
 
-describe('contract — full catalog parity (en ⊆⊇ zh-CN, ja; non-empty)', () => {
+describe('contract — full catalog parity (en ⊆⊇ zh-CN, ja, ko; non-empty)', () => {
   const enKeys = Object.keys(en).sort()
   const others: ReadonlyArray<[string, Record<string, string>]> = [
     ['zh-CN', zhCN],
     ['ja', ja],
+    ['ko', ko],
   ]
 
-  it('declares exactly en, zh-CN, ja', () => {
-    expect([...LOCALES].sort()).toEqual(['en', 'ja', 'zh-CN'])
+  it('declares exactly en, zh-CN, ja, ko', () => {
+    expect([...LOCALES].sort()).toEqual(['en', 'ja', 'ko', 'zh-CN'])
   })
 
   it('the en catalog is non-trivial (the full surface was keyed)', () => {

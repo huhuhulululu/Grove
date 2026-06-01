@@ -120,6 +120,7 @@ export const zhCN: Catalog = {
   'ui.panel.gear': '装备',
   'ui.panel.quests': '任务',
   'ui.panel.buffs': '增益',
+  'ui.panel.economy': '经济',
 
   'ui.web.energy': '⚡ 精力',
   'ui.web.collection': '🃏 收藏',
@@ -222,6 +223,10 @@ export const zhCN: Catalog = {
   'ui.seeds': '{n} 种子',
   'ui.shards': '{n} 碎片',
 
+  // tui-only chrome
+  'ui.tui.keys': '按键: p 抽取 · P 高级 · e 强化 · c 合成 · b 威望 · r 刷新 · tab 移动 · q 退出',
+  'ui.tui.earn_hint': '多交付来赚取更多',
+
   // cli.* — calm confirmations + hints
   'cli.broke_hint': '多交付来赚 🌰 · 提交、测试转绿、合并 PR、写文档。',
   'cli.commit_recorded': '已记录提交 · {n} 个信号',
@@ -267,6 +272,40 @@ export const zhCN: Catalog = {
   'cli.ntfy.save_failed': '  无法保存 ntfy 主题 · 请检查 GROVE_HOME 权限。',
   'cli.ntfy.subscribe': '  安装 ntfy 应用并订阅该主题,即可收到重要时刻提醒。',
   'cli.ntfy.big_moments': '  仅重要时刻(升级、传说、宝箱)。随时可 `sq ntfy off`。',
+
+  // cli.help.* — sq help / USAGE 块
+  'cli.help.usage': '用法: sq [--home <目录>] [--zen] <子命令> [标志]',
+  'cli.help.global_flags': '全局标志:',
+  'cli.help.flag.zen': '  --zen   平静模式(或环境变量 GROVE_ZEN=1)。引擎仍记录状态,\n          但输出简洁 · 无战利品/暴击/里程碑行,\n          无上下文提示,无掉落揭示。只是一个安静的确认。',
+  'cli.help.subcommands': '子命令:',
+  'cli.help.cmd.event': '  event <类型> [--magnitude N] [--success true|false] [--source S] [--session ID]\n      摄入一个 Grove 事件。<类型> 必须是以下之一:\n          {eventTypes}',
+  'cli.help.cmd.wrap': '  wrap [--as <类型>] [--home 目录] -- <命令...>\n      运行你本来就会运行的命令(测试/构建/lint),透明地流式传输输出,\n      并从其退出码摄入真实结果(ADR-0003):\n      绿色命令授予奖励;失败命令不授予任何奖励(防火墙)。\n      sq 以被包裹命令的精确退出码退出(透明传递),\n      可插入脚本或 CI 中任何命令前面。\n      --as  强制事件类型 (test_result | build_result | lint_clean)。\n            否则从命令推断(test/build/lint),默认 test_result。\n      例:   sq wrap -- npm test      sq wrap --as build_result -- make',
+  'cli.help.cmd.status': '  status\n      显示当前 Grove 游戏状态。',
+  'cli.help.cmd.recap': '  recap [--since session|all]\n      显示事件和进度回顾。\n      --since session  (默认) · 上次 session_start 之后的事件\n      --since all      · 所有事件',
+  'cli.help.cmd.scan': '  scan [路径] [--home 目录]\n      扫描仓库目录以查找 Pillar-B 信号(魔典、测试、文档、规格)。\n      未给路径时默认 process.cwd()。摄入检测到的事件并打印奖励;打印检测摘要。',
+  'cli.help.cmd.quests': '  quests [--home 目录]\n      显示 Pillar-B 任务看板及状态图示和活跃增益。\n      ✓ 完成  ◆ 进行中  · 未开始',
+  'cli.help.cmd.pull': '  pull [--premium] [--spark <cardId>] [--seed N] [--home 目录]\n      花费 {pullCost} 🌰 种子进行一次抽取(核心决策 · 你选择何时)。\n      --premium  花费 {premiumCost} 🌰 进行高级抽取(更好的概率;递增消耗)。\n      --spark    (配合 --premium) 选择一张缺失卡牌建立保底 ·\n                 足够多次高级未中后下一次高级抽取保证是它。\n      通过交付成果(提交、绿色测试、合并、文档)赚取种子。\n      余额不足时平静拒绝。仅装饰性 (ADR-0005)。',
+  'cli.help.cmd.craft': '  craft [cardId] [--home 目录]\n      花费 {shardsCraft} 碎片合成一张选定的缺失卡牌(重复尾部消耗 · 每次\n      重复抽取存入按稀有度缩放的碎片)。无 id 时合成第一张\n      未解锁套牌中的缺失卡牌。碎片不足或无可合成时平静拒绝。仅装饰性 (ADR-0005)。',
+  'cli.help.cmd.foil': '  foil [cardId] [--home 目录]\n      花费 {foilMin} 至 {foilMax} 碎片(按卡牌稀有度缩放)为拥有的卡牌\n      装饰性地添加闪箔(可续的光泽 · 完整收藏仍有目标)。\n      无 id 时为第一张未闪箔的拥有卡牌上闪箔。\n      碎片不足或无可闪箔时平静拒绝。仅装饰性,不授予任何能力 (ADR-0005)。',
+  'cli.help.cmd.convert': '  convert [n] [--home 目录]\n      将存储的碎片以 {shardToSeed} 🌰 每碎片兑换回种子(死碎片\n      减压阀:收藏可合成完整后,多余碎片仍有出路)。\n      无数量时转换所有存储碎片;有 [n] 时精确 min(n, 存储)。\n      零碎片时平静拒绝。仅装饰性 (ADR-0005)。',
+  'cli.help.cmd.prestige': '  prestige [--home 目录]\n      花费 {prestigeCost} 🌰 种子购买下一个终局威望等级 · 永久\n      装饰性光环,费用递增(后期种子消耗:完整收藏仍有目标)。\n      破产时平静拒绝。仅装饰性,不授予任何能力 (ADR-0005)。',
+  'cli.help.cmd.enhance': '  enhance <引用> [--seed N] [--home 目录]\n      花费种子尝试强化一件装饰性装备(风险与收益)。\n      费用随装备等级缩放(+0 时 {enhanceBase},每级 +{enhancePer}),追求高 +N 是递增消耗。\n      <引用> 可以是装备 id、1-based 索引或 \'first\'。\n      如果装备已保护(sq protect),原本会破损的会降为降级。\n      余额不足时平静拒绝。仅装饰性 · 真实代码绝不受影响 (ADR-0005)。',
+  'cli.help.cmd.repair': '  repair <引用> [--home 目录]\n      花费种子修复损坏的装饰性装备(保留等级)。费用随\n      装备等级缩放(+0 时 {repairBase},每级 +{repairPer}) · 破损的 +12 比 +1 贵得多。\n      <引用> 可以是装备 id、1-based 索引或 \'first\'。\n      余额不足时平静拒绝。仅装饰性 (ADR-0005)。',
+  'cli.help.cmd.protect': '  protect <引用> [--home 目录]\n      花费 {protectCost} 🌰 种子装备一次性保护:下次强化将原本的破损变为降级。\n      <引用> = 装备 id、索引或 \'first\'。破产时平静拒绝。仅装饰性风险管理 (ADR-0005)。',
+  'cli.help.cmd.dashboard': '  dashboard [--no-clear] [--home 目录]\n      显示完整的原位 Grove 仪表板(等级、装备、收藏、任务)。\n      --no-clear  跳过终端清屏(适用于测试/管道输出)。',
+  'cli.help.cmd.tui': '  tui [--once] [--home 目录]\n      启动可导航的实时更新 Grove 仪表板(Ink TUI):方向键/tab 移动焦点,\n      p 抽取 · P 高级 · e 强化 · c 合成 · b 威望 · q 退出。\n      每个操作运行相同的引擎并在锁下持久化。仅装饰性。\n      --once  渲染一个静态帧并退出(适用于测试/CI/管道输出)。',
+  'cli.help.cmd.serve': '  serve [--port N] [--host H] [--home 目录]\n      启动本地只读 Web 仪表板并打印其 URL;运行直到 Ctrl-C,\n      页面打开时实时更新状态变化。默认绑定到 127.0.0.1;\n      --host 0.0.0.0 在局域网上公开(可选,需明确开启)。\n      --port  TCP 端口(默认:临时空闲端口)。',
+  'cli.help.cmd.statusline_ingest': '  statusline-ingest [--home 目录]\n      从 STDIN 读取 Claude Code 状态栏 JSON,解析并摄入\n      quota_update 事件以保持能量系统最新。\n      不向 stdout 打印任何内容(设计用于状态栏管道中运行)。\n      始终返回 0 · 绝不中断 HUD。',
+  'cli.help.cmd.statusline_install': '  statusline install [--settings 路径]\n      安装 Grove 的链式安全状态栏包装器。\n      备份原始 statusLine.command 并将 Grove 链接到其上。\n      原始状态栏始终保留(绝不覆盖)。\n      --settings  Claude Code settings.json 路径(默认: ~/.claude/settings.json)。',
+  'cli.help.cmd.statusline_uninstall': '  statusline uninstall [--settings 路径]\n      移除 Grove 的状态栏包装器,恢复原始命令。\n      --settings  Claude Code settings.json 路径(默认: ~/.claude/settings.json)。',
+  'cli.help.cmd.init': '  init [--repo 目录]\n      在仓库中安装 Grove 的 post-commit git 钩子(链式;绝不覆盖)。\n      省略 --repo 时默认 process.cwd()。\n      Grove 失败绝不阻塞提交 · 钩子是失效开放设计。',
+  'cli.help.cmd.uninstall': '  uninstall [--repo 目录]\n      从 post-commit 钩子中移除 Grove 的贡献。其他钩子保持完整。\n      省略 --repo 时默认 process.cwd()。',
+  'cli.help.cmd.commit_hook': '  commit-hook [--repo 目录] [--home 目录]\n      在每次提交时由已安装的 post-commit 钩子自动调用。\n      扫描仓库的 Pillar-B 信号并摄入事件。',
+  'cli.help.cmd.suggest_commit': '  suggest-commit [--repo 目录]\n      只读:从暂存差异打印建议的提交消息。无 AI ·\n      类型从文件路径推断(test/docs/chore/feat)。复制输出即可。\n      无暂存内容时打印提示先运行 git add。',
+  'cli.help.cmd.checkpoint': '  checkpoint [-m 消息] [--repo 目录] [--home 目录]\n      📍 安全网:通过 git stash create 快照工作状态(只读 ·\n      绝不修改树/索引),记录到 grove 状态,摄入检查点\n      事件以获得休息增益奖励。打印如何用 git stash apply 恢复。',
+  'cli.help.cmd.share': '  share [--badge] [--home 目录]\n      打印简洁可复制的分享卡(等级 + 收藏%)。可选&\n      隐私最小化 · 仅装饰性统计,绝不含代码/cwd/费用 (ADR-0011)。\n      --badge  打印用于 README 的 markdown shields.io 徽章。',
+  'cli.help.cmd.ntfy': '  ntfy <主题> | off [--home 目录]\n      可选移动推送(ntfy.sh)。默认关闭 · 不设置主题则不推送。\n      <主题>  设置主题;安装 ntfy.sh 应用并订阅它。\n      off     禁用推送。仅重要时刻(升级、传说、宝箱);\n      消息仅含装饰性事件 · 绝不含代码/cwd/费用 (ADR-0011)。',
+  'cli.help.cmd.help': '  help\n      显示此帮助消息。',
 
   // guide.* — 网页「怎么玩」教程
   'guide.title': '怎么玩',

@@ -56,6 +56,23 @@ function pct(n: number): number {
 // Section builders — each returns an HTML fragment string from the state.
 // ---------------------------------------------------------------------------
 
+/** Compact language switcher row — uses each language's own endonym; no catalog keys needed. */
+function langSwitcher(active: Locale): string {
+  const langs: Array<{ locale: string; label: string }> = [
+    { locale: 'en', label: 'English' },
+    { locale: 'zh-CN', label: '中文' },
+    { locale: 'ja', label: '日本語' },
+    { locale: 'ko', label: '한국어' },
+  ]
+  const links = langs
+    .map(({ locale, label }) => {
+      const cls = locale === active ? ' class="lang-active"' : ''
+      return `<a href="?lang=${esc(locale)}"${cls}>${esc(label)}</a>`
+    })
+    .join(' · ')
+  return `<nav class="lang-switcher">${links}</nav>`
+}
+
 function headerSection(state: GameState, _locale: Locale): string {
   const { level, xp, currency } = state.player
   const shards = state.player.shards ?? 0
@@ -305,6 +322,10 @@ const STYLE = `
   .guide .grow b { color: #7ee787; margin-right: .35rem; }
   .guide .ethos { color: #8b949e; margin: .6rem 0 0; }
   footer { text-align: center; color: #484f58; font-size: .8rem; margin-top: 1.5rem; }
+  .lang-switcher { text-align: center; margin: -.75rem 0 1rem; font-size: .8rem; }
+  .lang-switcher a { color: #8b949e; text-decoration: none; }
+  .lang-switcher a:hover { color: #58a6ff; }
+  .lang-switcher a.lang-active { color: #7ee787; font-weight: 600; pointer-events: none; }
 `
 
 /**
@@ -443,6 +464,7 @@ function buildScript(locale: Locale): string {
 export function renderPage(state: GameState, locale: Locale = 'en'): string {
   const body = [
     headerSection(state, locale),
+    langSwitcher(locale),
     guideSection(locale),
     `<div class="grid">`,
     energySection(state, locale),

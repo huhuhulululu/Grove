@@ -137,6 +137,33 @@ describe('renderPage', () => {
     expect(html).toContain('Level 1')
   })
 
+  it('renders the language switcher with all four ?lang= links', () => {
+    const html = renderPage(seededState())
+    // All four locale query-string links must be present.
+    expect(html).toContain('?lang=en')
+    expect(html).toContain('?lang=zh-CN')
+    expect(html).toContain('?lang=ja')
+    expect(html).toContain('?lang=ko')
+    // Endonyms used as labels.
+    expect(html).toContain('English')
+    expect(html).toContain('中文')
+    expect(html).toContain('日本語')
+    expect(html).toContain('한국어')
+    // Active locale is marked.
+    expect(html).toContain('class="lang-active"')
+  })
+
+  it('marks the active locale in the language switcher', () => {
+    const enHtml = renderPage(seededState(), 'en')
+    expect(enHtml).toContain('<a href="?lang=en" class="lang-active">English</a>')
+
+    const zhHtml = renderPage(seededState(), 'zh-CN')
+    expect(zhHtml).toContain('<a href="?lang=zh-CN" class="lang-active">中文</a>')
+
+    const jaHtml = renderPage(seededState(), 'ja')
+    expect(jaHtml).toContain('<a href="?lang=ja" class="lang-active">日本語</a>')
+  })
+
   it('contains no cloying deny-list phrases (TONE.md)', () => {
     const html = renderPage(seededState()).toLowerCase()
     const deny = [

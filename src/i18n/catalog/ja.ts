@@ -120,6 +120,7 @@ export const ja: Catalog = {
   'ui.panel.gear': 'ギア',
   'ui.panel.quests': 'クエスト',
   'ui.panel.buffs': 'バフ',
+  'ui.panel.economy': 'エコノミー',
 
   'ui.web.energy': '⚡ エナジー',
   'ui.web.collection': '🃏 コレクション',
@@ -222,6 +223,10 @@ export const ja: Catalog = {
   'ui.seeds': '{n} シード',
   'ui.shards': '{n} シャード',
 
+  // tui-only chrome
+  'ui.tui.keys': 'キー: p 抽選 · P プレミアム · e 強化 · c 製作 · b プレステージ · r 更新 · tab 移動 · q 終了',
+  'ui.tui.earn_hint': '出荷してもっと稼ごう',
+
   // cli.* — calm confirmations + hints
   'cli.broke_hint': '出荷して 🌰 を稼ごう · コミット、テスト緑、マージ、ドキュメント。',
   'cli.commit_recorded': 'コミットを記録 · {n} シグナル',
@@ -267,6 +272,40 @@ export const ja: Catalog = {
   'cli.ntfy.save_failed': '  ntfy トピックを保存できません · GROVE_HOME の権限を確認。',
   'cli.ntfy.subscribe': '  ntfy アプリを入れてそのトピックを購読すると大事な瞬間に通知が届く。',
   'cli.ntfy.big_moments': '  大事な瞬間のみ(レベルアップ、レジェンダリー、宝箱)。いつでも `sq ntfy off`。',
+
+  // cli.help.* — sq help / USAGE ブロック
+  'cli.help.usage': '使い方: sq [--home <DIR>] [--zen] <サブコマンド> [フラグ]',
+  'cli.help.global_flags': 'グローバルフラグ:',
+  'cli.help.flag.zen': '  --zen   静寂モード(または環境変数 GROVE_ZEN=1)。エンジンは引き続き状態を記録するが、\n          出力は簡潔 · ルート/クリティカル/マイルストーン行なし、\n          コンテキストオファーなし、ドロップ表示なし。静かな確認のみ。',
+  'cli.help.subcommands': 'サブコマンド:',
+  'cli.help.cmd.event': '  event <タイプ> [--magnitude N] [--success true|false] [--source S] [--session ID]\n      Grove イベントを取り込む。<タイプ> は以下のいずれか:\n          {eventTypes}',
+  'cli.help.cmd.wrap': '  wrap [--as <タイプ>] [--home DIR] -- <コマンド...>\n      普段実行するコマンド(テスト/ビルド/lint)を実行し、出力を\n      透過的にストリーミングして、終了コードから実際の結果を取り込む(ADR-0003):\n      成功コマンドは報酬を付与; 失敗コマンドは何も付与しない(ファイアウォール)。\n      sq はラップされたコマンドの正確な終了コードで終了(透過パススルー)、\n      スクリプトや CI のどのコマンドの前にも挿入できる。\n      --as  イベントタイプを強制 (test_result | build_result | lint_clean)。\n            未指定時はコマンドから推論(test/build/lint)、デフォルト test_result。\n      例:   sq wrap -- npm test      sq wrap --as build_result -- make',
+  'cli.help.cmd.status': '  status\n      現在の Grove ゲーム状態を表示。',
+  'cli.help.cmd.recap': '  recap [--since session|all]\n      イベントと進捗のリキャップを表示。\n      --since session  (デフォルト) · 最後の session_start 以降のイベント\n      --since all      · 全イベント',
+  'cli.help.cmd.scan': '  scan [パス] [--home DIR]\n      リポジトリディレクトリの Pillar-B シグナル(グリモア、テスト、ドキュメント、仕様)をスキャン。\n      パス未指定時は process.cwd() をデフォルト。検出イベントを取り込み\n      報酬を表示; 検出内容のサマリーを表示。',
+  'cli.help.cmd.quests': '  quests [--home DIR]\n      Pillar-B クエストボードとステータスグリフおよびアクティブバフを表示。\n      ✓ 完了  ◆ アクティブ  · 未開始',
+  'cli.help.cmd.pull': '  pull [--premium] [--spark <cardId>] [--seed N] [--home DIR]\n      {pullCost} 🌰 シードを消費して1回ガチャ抽選(コア決断 · タイミングはあなたが選ぶ)。\n      --premium  {premiumCost} 🌰 でプレミアム抽選(より良い確率; 段階的シンク)。\n      --spark    (--premium と共に) 欠けているカードを選んで確定保証を積む ·\n                 プレミアムの外れが十分になると次のプレミアム抽選でそれが確定。\n      成果を出荷してシードを稼ぐ(コミット、テスト緑、マージ、ドキュメント)。\n      余裕がないときは穏やかに拒否。装飾のみ (ADR-0005)。',
+  'cli.help.cmd.craft': '  craft [cardId] [--home DIR]\n      {shardsCraft} シャードを消費して欠けているカードを1枚クラフト(重複末尾シンク · 各\n      重複抽選はレアリティ比例のシャードを貯める)。id 未指定時は解放済みセットの最初の\n      欠けているカードをクラフト。シャード不足または残りなし時は穏やかに拒否。装飾のみ (ADR-0005)。',
+  'cli.help.cmd.foil': '  foil [cardId] [--home DIR]\n      {foilMin} ～ {foilMax} シャード(カードのレアリティに比例)を消費して\n      所持カードを装飾的にフォイル(更新可能な仕上げ · コレクション完成後も目標がある)。\n      id 未指定時は最初のフォイル未済み所持カードをフォイル。\n      シャード不足または残りなし時は穏やかに拒否。装飾のみ、能力付与ゼロ (ADR-0005)。',
+  'cli.help.cmd.convert': '  convert [n] [--home DIR]\n      貯めたシャードを {shardToSeed} 🌰 1シャードあたりシードに交換(デッドシャード\n      リリーフバルブ: コレクションのクラフト完了後も余剰シャードに使い道がある)。\n      数量未指定時は全貯蔵シャードを変換; [n] 指定時は min(n, 貯蔵) 枚。\n      シャードゼロ時は穏やかに拒否。装飾のみ (ADR-0005)。',
+  'cli.help.cmd.prestige': '  prestige [--home DIR]\n      {prestigeCost} 🌰 シードを消費して次のエンドゲームプレステージランクを購入 · 永続\n      装飾的フレア、段階的に増加する繰り返しコスト(後期シードシンク: 完成したコレクションも目標がある)。\n      資金不足時は穏やかに拒否。装飾のみ、能力付与ゼロ (ADR-0005)。',
+  'cli.help.cmd.enhance': '  enhance <ref> [--seed N] [--home DIR]\n      シードを消費して装飾的ギアの強化を試みる(リスクと報酬)。\n      コストはギアのレベルに比例(+0 時 {enhanceBase}、レベル毎 +{enhancePer})、高 +N を狙うほど深いシンク。\n      <ref> はギア id、1-base インデックス、または \'first\'。\n      ギアが保護済み(sq protect)の場合、破損になるはずが降格に軽減。\n      余裕がないときは穏やかに拒否。装飾のみ · 実コードには絶対影響なし (ADR-0005)。',
+  'cli.help.cmd.repair': '  repair <ref> [--home DIR]\n      シードを消費して装飾的ギアの破損を修復(レベルは保持)。コストは\n      ギアのレベルに比例(+0 時 {repairBase}、レベル毎 +{repairPer}) · 破損した +12 は +1 よりずっと高い。\n      <ref> はギア id、1-base インデックス、または \'first\'。\n      余裕がないときは穏やかに拒否。装飾のみ (ADR-0005)。',
+  'cli.help.cmd.protect': '  protect <ref> [--home DIR]\n      {protectCost} 🌰 シードを消費してワンショット保護を装備: 次の強化で破損になるはずが降格に変わる。\n      <ref> = ギア id、インデックス、または \'first\'。\n      資金不足時は穏やかに拒否。装飾的リスク管理のみ (ADR-0005)。',
+  'cli.help.cmd.dashboard': '  dashboard [--no-clear] [--home DIR]\n      完全なインプレース Grove ダッシュボードを表示(レベル、ギア、コレクション、クエスト)。\n      --no-clear  ターミナルクリアをスキップ(テスト/パイプ出力に便利)。',
+  'cli.help.cmd.tui': '  tui [--once] [--home DIR]\n      ナビゲーション可能なライブ更新 Grove ダッシュボードを起動(Ink TUI): 矢印/tab でフォーカス移動、\n      p 抽選 · P プレミアム · e 強化 · c クラフト · b プレステージ · q 終了。\n      全アクションは同じエンジンを実行しロック下で永続化。装飾のみ。\n      --once  1つの静的フレームをレンダリングして終了(テスト/CI/パイプ出力用)。',
+  'cli.help.cmd.serve': '  serve [--port N] [--host H] [--home DIR]\n      ローカルの読み取り専用 Web ダッシュボードを起動して URL を表示;\n      Ctrl-C まで実行、開いたページをリアルタイム更新。デフォルトは 127.0.0.1 にバインド;\n      --host 0.0.0.0 で LAN に公開(オプトイン、明示的)。\n      --port  TCP ポート(デフォルト: エフェメラル空きポート)。',
+  'cli.help.cmd.statusline_ingest': '  statusline-ingest [--home DIR]\n      STDIN から Claude Code ステータスライン JSON を読み取り、パースして\n      quota_update イベントを取り込みエネルギーシステムを最新に保つ。\n      stdout に何も出力しない(ステータスラインパイプ内で実行するよう設計)。\n      常に 0 を返す · HUD を絶対中断しない。',
+  'cli.help.cmd.statusline_install': '  statusline install [--settings パス]\n      Grove のチェーンセーフステータスラインラッパーをインストール。\n      元の statusLine.command をバックアップして Grove をチェーン接続。\n      元のステータスラインは常に保持(上書きなし)。\n      --settings  Claude Code の settings.json パス(デフォルト: ~/.claude/settings.json)。',
+  'cli.help.cmd.statusline_uninstall': '  statusline uninstall [--settings パス]\n      Grove のステータスラインラッパーを削除し元のコマンドを復元。\n      --settings  Claude Code の settings.json パス(デフォルト: ~/.claude/settings.json)。',
+  'cli.help.cmd.init': '  init [--repo DIR]\n      リポジトリに Grove の post-commit git フックをインストール(チェーン; 上書きなし)。\n      --repo 省略時は process.cwd() をデフォルト。\n      Grove の失敗はコミットを絶対ブロックしない · フックはフェイルオープン設計。',
+  'cli.help.cmd.uninstall': '  uninstall [--repo DIR]\n      post-commit フックから Grove の貢献を削除。他のフックはそのまま。\n      --repo 省略時は process.cwd() をデフォルト。',
+  'cli.help.cmd.commit_hook': '  commit-hook [--repo DIR] [--home DIR]\n      コミットのたびにインストール済み post-commit フックによって自動的に呼ばれる。\n      リポジトリの Pillar-B シグナルをスキャンしてイベントを取り込む。',
+  'cli.help.cmd.suggest_commit': '  suggest-commit [--repo DIR]\n      読み取り専用: ステージされた差分から推奨コミットメッセージを表示。AI なし ·\n      タイプはファイルパスから推論(test/docs/chore/feat)。出力をコピーして使用。\n      ステージなし時は git add を先に実行するヒントを表示。',
+  'cli.help.cmd.checkpoint': '  checkpoint [-m MSG] [--repo DIR] [--home DIR]\n      📍 セーフティネット: git stash create で作業状態をスナップショット(読み取り専用 ·\n      ツリー/インデックスは絶対変更しない)、grove 状態に記録、チェックポイント\n      イベントを取り込み休息バフ報酬を得る。git stash apply での復元方法を表示。',
+  'cli.help.cmd.share': '  share [--badge] [--home DIR]\n      簡潔なコピー可能なシェアカードを表示(レベル + コレクション%)。オプトイン &\n      プライバシー最小限 · 装飾統計のみ、コード/cwd/コスト は絶対含まない (ADR-0011)。\n      --badge  README 用の markdown shields.io バッジを表示。',
+  'cli.help.cmd.ntfy': '  ntfy <トピック> | off [--home DIR]\n      オプトインモバイルプッシュ(ntfy.sh)。デフォルトはオフ · トピック設定なしではプッシュなし。\n      <トピック>  トピックを設定; ntfy.sh アプリをインストールしてサブスクライブ。\n      off         プッシュを無効化。大事な瞬間のみ(レベルアップ、レジェンダリー、宝箱);\n      メッセージは装飾的イベントのみ · コード/cwd/コスト は絶対含まない (ADR-0011)。',
+  'cli.help.cmd.help': '  help\n      このヘルプメッセージを表示。',
 
   // guide.* — ウェブ「遊び方」チュートリアル
   'guide.title': '遊び方',

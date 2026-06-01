@@ -24,6 +24,7 @@ import { PULL_COST } from '../engine/reduce'
 import { saveState } from '../store/store'
 import { renderTuiFrame, dispatchKey, runTui, pulseTargetFor } from './app'
 import type { Reward } from '../core/rewards'
+import type { Locale } from '../i18n/types'
 
 describe('renderTuiFrame — static frame for headless testing', () => {
   it('shows level / seeds / shards / prestige in the header', () => {
@@ -60,6 +61,47 @@ describe('renderTuiFrame — static frame for headless testing', () => {
     const onGear = renderTuiFrame(initialState(), { focus: 'Gear' })
     const onQuests = renderTuiFrame(initialState(), { focus: 'Quests' })
     expect(onGear).not.toEqual(onQuests)
+  })
+
+  it('zh-CN locale renders Chinese panel labels and key hints', () => {
+    const locale: Locale = 'zh-CN'
+    const frame = renderTuiFrame(initialState(), { locale })
+    // Panel labels are Chinese
+    expect(frame).toContain('收藏')
+    expect(frame).toContain('装备')
+    expect(frame).toContain('任务')
+    expect(frame).toContain('经济')
+    // Key hint is Chinese
+    expect(frame).toContain('按键:')
+    expect(frame).toContain('退出')
+    // English default is NOT the key hint
+    expect(frame).not.toContain('keys: p pull')
+  })
+
+  it('ko locale renders Korean panel labels and key hints', () => {
+    const locale: Locale = 'ko'
+    const frame = renderTuiFrame(initialState(), { locale })
+    // Panel labels are Korean
+    expect(frame).toContain('컬렉션')
+    expect(frame).toContain('장비')
+    expect(frame).toContain('퀘스트')
+    expect(frame).toContain('경제')
+    // Key hint is Korean
+    expect(frame).toContain('키:')
+    expect(frame).toContain('종료')
+  })
+
+  it('en locale (default) byte-identical: panel labels and key legend unchanged', () => {
+    const withLocale = renderTuiFrame(initialState(), { locale: 'en' })
+    const withDefault = renderTuiFrame(initialState())
+    expect(withLocale).toBe(withDefault)
+    // Spot-check English labels remain
+    expect(withDefault).toContain('COLLECTION')
+    expect(withDefault).toContain('GEAR')
+    expect(withDefault).toContain('QUESTS')
+    expect(withDefault).toContain('ECONOMY')
+    expect(withDefault).toContain('keys: p pull')
+    expect(withDefault).toContain('q quit')
   })
 })
 

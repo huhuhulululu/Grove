@@ -42,6 +42,8 @@ import { SHARDS_PER_CRAFT, SHARD_TO_SEED } from '../engine/collection'
 
 import { isZen, groveInvocation, detectAiClis, maybePush } from './commands/shared'
 import { resolveLocale } from '../i18n/locale'
+import { t } from '../i18n/t'
+import type { Locale } from '../i18n/types'
 import {
   handlePull,
   handleEnhance,
@@ -384,6 +386,103 @@ Subcommands:
 `.trim()
 
 // ---------------------------------------------------------------------------
+// Localized help builder
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the help text for a given locale.  For `en` (the default) the output
+ * is byte-identical to USAGE_TEXT above (the same interpolated constants are
+ * threaded through, so the cost-drift guard stays green for both paths).
+ * Non-English builds use the catalog translations for every prose section
+ * while keeping command names, flag names, and cost numbers unchanged.
+ *
+ * Exported so tests can call it directly if needed.
+ */
+export function buildUsageText(locale: Locale): string {
+  const costArgs = {
+    pullCost: PULL_COST,
+    premiumCost: PREMIUM_PULL_COST,
+    shardsCraft: SHARDS_PER_CRAFT,
+    shardToSeed: SHARD_TO_SEED,
+    prestigeCost: PRESTIGE_COST,
+    foilMin: FOIL_COST_BY_RARITY.common,
+    foilMax: FOIL_COST_BY_RARITY.shiny,
+    enhanceBase: ENHANCE_COST_BASE,
+    enhancePer: ENHANCE_COST_PER_LEVEL,
+    repairBase: REPAIR_COST_BASE,
+    repairPer: REPAIR_COST_PER_LEVEL,
+    protectCost: PROTECT_COST,
+    eventTypes: (EVENT_TYPES as readonly string[]).join(', '),
+  }
+
+  const sections = [
+    t(locale, 'cli.help.usage'),
+    '',
+    t(locale, 'cli.help.global_flags'),
+    t(locale, 'cli.help.flag.zen'),
+    '',
+    t(locale, 'cli.help.subcommands'),
+    t(locale, 'cli.help.cmd.event', costArgs),
+    '',
+    t(locale, 'cli.help.cmd.wrap'),
+    '',
+    t(locale, 'cli.help.cmd.status'),
+    '',
+    t(locale, 'cli.help.cmd.recap'),
+    '',
+    t(locale, 'cli.help.cmd.scan'),
+    '',
+    t(locale, 'cli.help.cmd.quests'),
+    '',
+    t(locale, 'cli.help.cmd.pull', costArgs),
+    '',
+    t(locale, 'cli.help.cmd.craft', costArgs),
+    '',
+    t(locale, 'cli.help.cmd.foil', costArgs),
+    '',
+    t(locale, 'cli.help.cmd.convert', costArgs),
+    '',
+    t(locale, 'cli.help.cmd.prestige', costArgs),
+    '',
+    t(locale, 'cli.help.cmd.enhance', costArgs),
+    '',
+    t(locale, 'cli.help.cmd.repair', costArgs),
+    '',
+    t(locale, 'cli.help.cmd.protect', costArgs),
+    '',
+    t(locale, 'cli.help.cmd.dashboard'),
+    '',
+    t(locale, 'cli.help.cmd.tui'),
+    '',
+    t(locale, 'cli.help.cmd.serve'),
+    '',
+    t(locale, 'cli.help.cmd.statusline_ingest'),
+    '',
+    t(locale, 'cli.help.cmd.statusline_install'),
+    '',
+    t(locale, 'cli.help.cmd.statusline_uninstall'),
+    '',
+    t(locale, 'cli.help.cmd.init'),
+    '',
+    t(locale, 'cli.help.cmd.uninstall'),
+    '',
+    t(locale, 'cli.help.cmd.commit_hook'),
+    '',
+    t(locale, 'cli.help.cmd.suggest_commit'),
+    '',
+    t(locale, 'cli.help.cmd.checkpoint'),
+    '',
+    t(locale, 'cli.help.cmd.share'),
+    '',
+    t(locale, 'cli.help.cmd.ntfy'),
+    '',
+    t(locale, 'cli.help.cmd.help'),
+  ]
+
+  return sections.join('\n')
+}
+
+// ---------------------------------------------------------------------------
 // run · exported entry point
 // ---------------------------------------------------------------------------
 
@@ -543,7 +642,7 @@ export function run(argv: string[]): number {
 
     case 'help':
     case undefined:
-      console.log(USAGE_TEXT)
+      console.log(buildUsageText(locale))
       return 0
 
     default: {

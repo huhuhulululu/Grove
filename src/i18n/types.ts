@@ -6,7 +6,7 @@
  */
 
 /** Supported locales. `en` is the fallback/source of truth. */
-export const LOCALES = ['en', 'zh-CN', 'ja'] as const
+export const LOCALES = ['en', 'zh-CN', 'ja', 'ko'] as const
 export type Locale = (typeof LOCALES)[number]
 
 /** The fallback locale every key is guaranteed to exist in. */

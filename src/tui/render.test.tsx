@@ -104,4 +104,20 @@ describe('<App> — live Ink component', () => {
     expect(lastFrame() ?? '').toMatch(/GROVE/)
     unmount()
   })
+
+  it('renders Chinese panel labels when locale="zh-CN"', () => {
+    const state: GameState = {
+      ...initialState(),
+      player: { xp: 0, level: 3, currency: 50, shards: 0 },
+    }
+    saveState(dir, state)
+    const { lastFrame, unmount } = render(<App dir={dir} initial={state} seed={1} locale="zh-CN" />)
+    const frame = lastFrame() ?? ''
+    expect(frame).toContain('收藏')
+    expect(frame).toContain('装备')
+    expect(frame).toContain('任务')
+    expect(frame).toContain('经济')
+    expect(frame).toContain('退出')
+    unmount()
+  })
 })

@@ -10,6 +10,7 @@ import { LOCALES, DEFAULT_LOCALE } from './types'
 import { en } from './catalog/en'
 import { zhCN } from './catalog/zh-CN'
 import { ja } from './catalog/ja'
+import { ko } from './catalog/ko'
 
 describe('interpolate', () => {
   it('substitutes {name} placeholders from args', () => {
@@ -29,6 +30,7 @@ describe('t — translate with locale + fallback chain', () => {
     expect(t('zh-CN', 'reward.levelup', { level: 6 })).toBe('等级 6')
     expect(t('ja', 'reward.levelup', { level: 6 })).toBe('レベル 6')
     expect(t('en', 'reward.levelup', { level: 6 })).toBe('Level 6')
+    expect(t('ko', 'reward.levelup', { level: 6 })).toBe('레벨 6')
   })
   it('falls back to en when a key is missing in the locale catalog', () => {
     // (no key is currently EN-only, so simulate via an unknown locale shape)
@@ -56,6 +58,9 @@ describe('msg — engine-facing keyed message', () => {
     expect(m.message).toBe('✦ set forest complete · +10% 🌰 (permanent)')
     expect(t('zh-CN', m.msgKey, m.msgArgs)).toBe('✦ forest 套牌集齐 · +10% 🌰(永久)')
   })
+  it('ko: t("ko", "reward.levelup", {level:6}) returns Korean', () => {
+    expect(t('ko', 'reward.levelup', { level: 6 })).toBe('레벨 6')
+  })
 })
 
 describe('normalizeLocale / resolveLocale', () => {
@@ -63,6 +68,8 @@ describe('normalizeLocale / resolveLocale', () => {
     expect(normalizeLocale('zh_CN.UTF-8')).toBe('zh-CN')
     expect(normalizeLocale('zh-Hans')).toBe('zh-CN')
     expect(normalizeLocale('ja_JP.UTF-8')).toBe('ja')
+    expect(normalizeLocale('ko_KR.UTF-8')).toBe('ko')
+    expect(normalizeLocale('ko-KR')).toBe('ko')
     expect(normalizeLocale('en_US')).toBe('en')
   })
   it('defaults to en for empty/undefined/unknown', () => {
@@ -82,6 +89,7 @@ describe('localeFromAcceptLanguage — auto-detect a visitor browser language', 
   it('picks the top supported tag honoring order + q-weights', () => {
     expect(localeFromAcceptLanguage('zh-CN,zh;q=0.9,en;q=0.8')).toBe('zh-CN')
     expect(localeFromAcceptLanguage('ja-JP,ja;q=0.9')).toBe('ja')
+    expect(localeFromAcceptLanguage('ko-KR,ko;q=0.9')).toBe('ko')
     expect(localeFromAcceptLanguage('en-US,en;q=0.9')).toBe('en')
   })
   it('skips UNSUPPORTED top choices and matches a lower-ranked supported one', () => {
@@ -99,10 +107,10 @@ describe('localeFromAcceptLanguage — auto-detect a visitor browser language', 
 
 describe('catalog parity — every locale covers exactly the en keyset', () => {
   const enKeys = Object.keys(en).sort()
-  const catalogs: Record<string, Record<string, string>> = { 'zh-CN': zhCN, ja }
+  const catalogs: Record<string, Record<string, string>> = { 'zh-CN': zhCN, ja, ko }
 
   it('all declared LOCALES are accounted for', () => {
-    expect([...LOCALES].sort()).toEqual(['en', 'ja', 'zh-CN'])
+    expect([...LOCALES].sort()).toEqual(['en', 'ja', 'ko', 'zh-CN'])
   })
 
   for (const [name, cat] of Object.entries(catalogs)) {

@@ -46,6 +46,10 @@ import {
   xpBarSteps,
 } from './juice'
 
+import type { Locale } from '../i18n/types'
+import { resolveLocale } from '../i18n/locale'
+import { t } from '../i18n/t'
+
 // ---------------------------------------------------------------------------
 // dispatchKey — the PURE key → engine-action router
 // ---------------------------------------------------------------------------
@@ -226,6 +230,8 @@ export interface FrameOpts {
   focusedGearIndex?: number
   /** a transient highlight line (a fresh drop) to show under the header. */
   flash?: string
+  /** the active locale; defaults to 'en'. */
+  locale?: Locale
 }
 
 /**
@@ -236,6 +242,7 @@ export interface FrameOpts {
 export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
   const m = tuiModel(state)
   const focus: Panel = opts.focus ?? 'Collection'
+  const locale: Locale = opts.locale ?? 'en'
   const lines: string[] = []
 
   // -- Header -----------------------------------------------------------------
@@ -249,7 +256,7 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
   lines.push('')
 
   // -- Collection -------------------------------------------------------------
-  lines.push(panelTitle('COLLECTION', focus === 'Collection'))
+  lines.push(panelTitle(t(locale, 'ui.panel.collection'), focus === 'Collection'))
   for (const c of m.collection) {
     if (c.locked) {
       lines.push(`  ${c.set}  🔒 L${c.unlockLevel}`)
@@ -261,15 +268,15 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
   lines.push('')
 
   // -- Gear -------------------------------------------------------------------
-  lines.push(panelTitle('GEAR', focus === 'Gear'))
+  lines.push(panelTitle(t(locale, 'ui.panel.gear'), focus === 'Gear'))
   if (m.gear.length === 0) {
-    lines.push('  (no gear yet · merge a PR to drop some)')
+    lines.push(`  ${t(locale, 'ui.gear.none')}`)
   } else {
     const focusedIdx = opts.focusedGearIndex ?? 0
     m.gear.forEach((g, i) => {
       const cursor = focus === 'Gear' && i === focusedIdx ? '▶ ' : '  '
-      const broken = g.broken ? '  BROKEN' : ''
-      const prot = g.protectedNow ? '  PROTECTED' : ''
+      const broken = g.broken ? t(locale, 'ui.gear.broken') : ''
+      const prot = g.protectedNow ? t(locale, 'ui.gear.protected') : ''
       const eff = g.effect ? ` · ${g.effect}` : ''
       lines.push(`${cursor}${g.name} +${g.level}${broken}${prot}${eff}`)
     })
@@ -277,7 +284,7 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
   lines.push('')
 
   // -- Quests -----------------------------------------------------------------
-  lines.push(panelTitle('QUESTS', focus === 'Quests'))
+  lines.push(panelTitle(t(locale, 'ui.panel.quests'), focus === 'Quests'))
   for (const q of m.quests) {
     const glyph = q.status === 'done' ? '✓' : q.status === 'active' ? '◆' : '·'
     lines.push(`  ${glyph} ${q.title}`)
@@ -285,7 +292,7 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
   lines.push('')
 
   // -- Economy / actions ------------------------------------------------------
-  lines.push(panelTitle('ECONOMY', focus === 'Economy'))
+  lines.push(panelTitle(t(locale, 'ui.panel.economy'), focus === 'Economy'))
   const e = m.economy
   const can: string[] = []
   if (e.canPull) can.push(`pull (${e.pullCost})`)
@@ -293,11 +300,11 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
   if (e.canCraft) can.push('craft')
   if (e.canPrestige) can.push(`prestige (${e.prestigeCost})`)
   lines.push(`  🌰 ${e.seeds} · 🔧 ${e.shards}`)
-  lines.push(`  can: ${can.length > 0 ? can.join(' · ') : 'earn more by shipping'}`)
+  lines.push(`  can: ${can.length > 0 ? can.join(' · ') : t(locale, 'ui.tui.earn_hint')}`)
   lines.push('')
 
   // -- Key legend -------------------------------------------------------------
-  lines.push('keys: p pull · P premium · e enhance · c craft · b prestige · r refresh · tab move · q quit')
+  lines.push(t(locale, 'ui.tui.keys'))
 
   return lines.join('\n')
 }
@@ -332,6 +339,8 @@ export interface AppProps {
    * (so output stays instant + deterministic, mirroring the CLI's playReveal guard).
    */
   animate?: boolean
+  /** the active locale for UI labels; defaults to 'en'. */
+  locale?: Locale
 }
 
 /**
@@ -343,6 +352,7 @@ export interface AppProps {
 export function App(props: AppProps): React.ReactElement {
   const { dir, initial, seed } = props
   const animate = props.animate ?? true
+  const locale: Locale = props.locale ?? 'en'
   const app = useApp()
 
   const [state, setState] = useState<GameState>(initial)
@@ -530,6 +540,7 @@ export function App(props: AppProps): React.ReactElement {
       flashRarity={flashRarity}
       animatedXpFraction={animatedXpFraction}
       pulse={pulse}
+      locale={locale}
     />
   )
 }
@@ -545,8 +556,10 @@ function AppView(props: {
   animatedXpFraction: number | null
   /** the freshly-acquired row to pulse for one beat, or null. */
   pulse: PulseTarget | null
+  /** the active locale for UI labels. */
+  locale: Locale
 }): React.ReactElement {
-  const { model, focus, focusedGearIndex, flash, flashRarity, animatedXpFraction, pulse } = props
+  const { model, focus, focusedGearIndex, flash, flashRarity, animatedXpFraction, pulse, locale } = props
   const h = model.header
 
   // Rarity-as-colour on the flash line: a legendary/shiny drop glows yellow+bold,
@@ -567,7 +580,7 @@ function AppView(props: {
       </Text>
       {flash ? <Text color={flashColor.color} bold={flashColor.bold}>{flash}</Text> : null}
 
-      <PanelBox title="COLLECTION" focused={focus === 'Collection'}>
+      <PanelBox title={t(locale, 'ui.panel.collection')} focused={focus === 'Collection'}>
         {model.collection.map((c) => {
           const tint = rarityColor(c.rarity)
           // One-beat pulse on the freshly-acquired set row: glow bold for the beat.
@@ -586,9 +599,9 @@ function AppView(props: {
         })}
       </PanelBox>
 
-      <PanelBox title="GEAR" focused={focus === 'Gear'}>
+      <PanelBox title={t(locale, 'ui.panel.gear')} focused={focus === 'Gear'}>
         {model.gear.length === 0 ? (
-          <Text dimColor>(no gear yet · merge a PR to drop some)</Text>
+          <Text dimColor>{t(locale, 'ui.gear.none')}</Text>
         ) : (
           model.gear.map((g, i) => {
             const focused = focus === 'Gear' && i === focusedGearIndex
@@ -598,8 +611,8 @@ function AppView(props: {
             return (
               <Text key={g.id} color={focused ? 'cyan' : tint.color} bold={pulsing || (!focused && tint.bold)}>
                 {`${focused ? '▶ ' : pulsing ? '✦ ' : '  '}${g.name} +${g.level}`}
-                {g.broken ? '  BROKEN' : ''}
-                {g.protectedNow ? '  PROTECTED' : ''}
+                {g.broken ? t(locale, 'ui.gear.broken') : ''}
+                {g.protectedNow ? t(locale, 'ui.gear.protected') : ''}
                 {g.effect ? ` · ${g.effect}` : ''}
               </Text>
             )
@@ -607,7 +620,7 @@ function AppView(props: {
         )}
       </PanelBox>
 
-      <PanelBox title="QUESTS" focused={focus === 'Quests'}>
+      <PanelBox title={t(locale, 'ui.panel.quests')} focused={focus === 'Quests'}>
         {model.quests.map((q) => (
           <Text key={q.id}>
             {`${q.status === 'done' ? '✓' : q.status === 'active' ? '◆' : '·'} ${q.title}`}
@@ -615,13 +628,13 @@ function AppView(props: {
         ))}
       </PanelBox>
 
-      <PanelBox title="ECONOMY" focused={focus === 'Economy'}>
+      <PanelBox title={t(locale, 'ui.panel.economy')} focused={focus === 'Economy'}>
         <Text>{`🌰 ${model.economy.seeds} · 🔧 ${model.economy.shards}`}</Text>
-        <Text dimColor>{economyHint(model)}</Text>
+        <Text dimColor>{economyHint(model, locale)}</Text>
       </PanelBox>
 
       <Text dimColor>
-        keys: p pull · P premium · e enhance · c craft · b prestige · r refresh · tab move · q quit
+        {t(locale, 'ui.tui.keys')}
       </Text>
     </Box>
   )
@@ -642,14 +655,14 @@ function PanelBox(props: {
 }
 
 /** The economy "can: …" hint line (mirrors the static frame). */
-function economyHint(model: TuiModel): string {
+function economyHint(model: TuiModel, locale: Locale = 'en'): string {
   const e = model.economy
   const can: string[] = []
   if (e.canPull) can.push(`pull (${e.pullCost})`)
   if (e.canPremium) can.push(`premium (${e.premiumCost})`)
   if (e.canCraft) can.push('craft')
   if (e.canPrestige) can.push(`prestige (${e.prestigeCost})`)
-  return `can: ${can.length > 0 ? can.join(' · ') : 'earn more by shipping'}`
+  return `can: ${can.length > 0 ? can.join(' · ') : t(locale, 'ui.tui.earn_hint')}`
 }
 
 // ---------------------------------------------------------------------------
@@ -696,9 +709,10 @@ export function shouldAnimate(opts: RunTuiOpts = {}): boolean {
  */
 export async function runTui(dir: string, opts: RunTuiOpts = {}): Promise<string> {
   const state = loadState(dir)
+  const locale = resolveLocale()
 
   if (opts.once) {
-    return renderTuiFrame(state)
+    return renderTuiFrame(state, { locale })
   }
 
   const instance = inkRender(
@@ -706,10 +720,11 @@ export async function runTui(dir: string, opts: RunTuiOpts = {}): Promise<string
       dir={dir}
       initial={state}
       animate={shouldAnimate(opts)}
+      locale={locale}
       {...(opts.seed !== undefined ? { seed: opts.seed } : {})}
     />,
   )
   await instance.waitUntilExit()
   // On exit, return a final static frame of the latest persisted state.
-  return renderTuiFrame(loadState(dir))
+  return renderTuiFrame(loadState(dir), { locale })
 }

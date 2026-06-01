@@ -154,6 +154,7 @@ export const en: Catalog = {
   'ui.panel.gear': 'GEAR',
   'ui.panel.quests': 'QUESTS',
   'ui.panel.buffs': 'BUFFS',
+  'ui.panel.economy': 'ECONOMY',
 
   // web section headings (page.ts — include their leading emoji)
   'ui.web.energy': '⚡ Energy',
@@ -266,6 +267,10 @@ export const en: Catalog = {
   'ui.seeds': '{n} seeds',
   'ui.shards': '{n} shards',
 
+  // tui-only chrome (key hints + earn hint)
+  'ui.tui.keys': 'keys: p pull · P premium · e enhance · c craft · b prestige · r refresh · tab move · q quit',
+  'ui.tui.earn_hint': 'earn more by shipping',
+
   // -------------------------------------------------------------------------
   // cli.* — calm confirmations + hints (src/cli/commands/*.ts)
   // -------------------------------------------------------------------------
@@ -318,6 +323,46 @@ export const en: Catalog = {
   'cli.ntfy.save_failed': '  could not save the ntfy topic · check your GROVE_HOME permissions.',
   'cli.ntfy.subscribe': '  Install the ntfy app and subscribe to that topic to get big-moment alerts.',
   'cli.ntfy.big_moments': '  Big moments only (level-ups, legendaries, chests). Run `sq ntfy off` anytime.',
+
+  // -------------------------------------------------------------------------
+  // cli.help.* — the sq help / USAGE block (src/cli/sq.ts buildUsageText)
+  //
+  // BYTE-IDENTICAL rule: en values must reproduce the English help exactly when
+  // assembled by buildUsageText.  Cost numbers are carried as {placeholders} so
+  // the live-engine constant thread-through (P2 anti-drift) still works.
+  // -------------------------------------------------------------------------
+  'cli.help.usage': 'Usage: sq [--home <DIR>] [--zen] <subcommand> [flags]',
+  'cli.help.global_flags': 'Global flags:',
+  'cli.help.flag.zen': '  --zen   Calm mode (or env GROVE_ZEN=1). The engine still records state, but\n          output is plain & terse · NO loot/crit/serendipity/milestone lines,\n          no contextual offers, no drop reveals. Just a quiet confirmation.',
+  'cli.help.subcommands': 'Subcommands:',
+  'cli.help.cmd.event': '  event <type> [--magnitude N] [--success true|false] [--source S] [--session ID]\n      Ingest a Grove event. <type> must be one of:\n          {eventTypes}',
+  'cli.help.cmd.wrap': '  wrap [--as <type>] [--home DIR] -- <cmd...>\n      Run a command you run anyway (tests / build / lint), stream its output\n      transparently, and ingest a REAL outcome from its EXIT CODE (ADR-0003):\n      a green command grants the reward; a FAILING one grants NOTHING (firewall).\n      sq exits with the wrapped command\'s exact exit code (transparent passthrough),\n      so it drops in front of any command in a script or CI.\n      --as  Force the event type (test_result | build_result | lint_clean).\n            Otherwise inferred from the command (test/build/lint), default test_result.\n      e.g.  sq wrap -- npm test      sq wrap --as build_result -- make',
+  'cli.help.cmd.status': '  status\n      Show current Grove game state.',
+  'cli.help.cmd.recap': '  recap [--since session|all]\n      Show a recap of events and progress.\n      --since session  (default) · events since the last session_start\n      --since all      · all events',
+  'cli.help.cmd.scan': '  scan [path] [--home DIR]\n      Scan a repo directory for Pillar-B signals (grimoire, tests, docs, specs).\n      Defaults to process.cwd() if no path given. Ingests detected events and\n      prints rewards; prints a summary of what was detected.',
+  'cli.help.cmd.quests': '  quests [--home DIR]\n      Show the Pillar-B quest board with status glyphs and active buffs.\n      ✓ done  ◆ active  · not yet started',
+  'cli.help.cmd.pull': '  pull [--premium] [--spark <cardId>] [--seed N] [--home DIR]\n      Spend {pullCost} 🌰 seeds for one gacha pull (the core decision · you choose WHEN).\n      --premium  Spend {premiumCost} 🌰 for a PREMIUM pull (better odds; the escalating sink).\n      --spark    (with --premium) Choose a missing card to build a GUARANTEE toward ·\n                 after enough premium misses the next premium pull is guaranteed to be it.\n      Earn seeds by shipping outcomes (commits, green tests, merges, docs).\n      Refuses calmly when you can\'t afford it. Cosmetic only (ADR-0005).',
+  'cli.help.cmd.craft': '  craft [cardId] [--home DIR]\n      Spend {shardsCraft} shards to craft ONE chosen missing card (the dup-tail SINK · every\n      duplicate pull banks rarity-scaled shards). With no id, crafts the first\n      missing card in your unlocked sets. Refuses calmly when short on shards or\n      nothing is left to craft. Cosmetic only (ADR-0005).',
+  'cli.help.cmd.foil': '  foil [cardId] [--home DIR]\n      Spend {foilMin} to {foilMax} shards (scaled by the card\'s rarity) to cosmetically\n      FOIL an OWNED card (a renewable polish · a completed collection still has a\n      target). With no id, foils the first\n      not-yet-foiled owned card. Refuses calmly when short on shards or nothing\n      is left to foil. Cosmetic only, confers ZERO power (ADR-0005).',
+  'cli.help.cmd.convert': '  convert [n] [--home DIR]\n      Trade banked shards back into 🌰 seeds at {shardToSeed} 🌰 per shard (the dead-shard\n      relief valve: once your collection is craftable-complete, surplus shards\n      still have a horizon). With no count, converts ALL banked shards; with [n],\n      exactly min(n, banked). Refuses calmly at zero shards. Cosmetic only (ADR-0005).',
+  'cli.help.cmd.prestige': '  prestige [--home DIR]\n      Spend {prestigeCost} 🌰 seeds to buy the next ENDGAME prestige rank · a permanent\n      cosmetic flair at an escalating, recurring cost (the late-game seed sink: a\n      finished collection always has a target). Refuses calmly when broke.\n      Cosmetic-only, confers ZERO power (ADR-0005).',
+  'cli.help.cmd.enhance': '  enhance <ref> [--seed N] [--home DIR]\n      Spend seeds to attempt to enhance a piece of cosmetic gear (risk + reward).\n      Cost SCALES with the gear\'s level ({enhanceBase} at +0, +{enhancePer} per level), so chasing a\n      high +N is a deepening sink. <ref> can be a gear id, a 1-based index, or \'first\'.\n      If the gear is PROTECTED (sq protect), a would-be break softens to a downgrade.\n      Refuses calmly when you can\'t afford it. Cosmetic only · real code is NEVER affected (ADR-0005).',
+  'cli.help.cmd.repair': '  repair <ref> [--home DIR]\n      Spend seeds to un-break a cosmetic gear (its level is preserved). Cost SCALES\n      with the gear\'s level ({repairBase} at +0, +{repairPer} per level) · a broken +12 costs far more\n      than a +1. <ref> can be a gear id, a 1-based index, or \'first\'.\n      Refuses calmly when you can\'t afford it. Cosmetic only (ADR-0005).',
+  'cli.help.cmd.protect': '  protect <ref> [--home DIR]\n      Spend {protectCost} 🌰 seeds to arm a ONE-SHOT protection: the next enhance turns a\n      would-be break into a downgrade instead. <ref> = gear id, index, or \'first\'.\n      Refuses calmly when broke. Cosmetic risk-management only (ADR-0005).',
+  'cli.help.cmd.dashboard': '  dashboard [--no-clear] [--home DIR]\n      Display the full in-place Grove dashboard (levels, gear, collection, quests).\n      --no-clear  Skip the terminal clear (useful for tests / piped output).',
+  'cli.help.cmd.tui': '  tui [--once] [--home DIR]\n      Launch the navigable, live-updating Grove dashboard (Ink TUI): arrow/tab to\n      move focus, p pull · P premium · e enhance · c craft · b prestige · q quit.\n      Every action runs the same engine and persists under the lock. Cosmetic only.\n      --once  Render ONE static frame and exit (for tests / CI / piped output).',
+  'cli.help.cmd.serve': '  serve [--port N] [--host H] [--home DIR]\n      Start a local, READ-ONLY web dashboard over your Grove state and print its\n      URL; runs until Ctrl-C, live-updating an open page as state changes. Binds\n      to 127.0.0.1 by default; --host 0.0.0.0 exposes it on your LAN (opt-in, loud).\n      --port  TCP port (default: an ephemeral free port).',
+  'cli.help.cmd.statusline_ingest': '  statusline-ingest [--home DIR]\n      Read the Claude Code statusline JSON from STDIN, parse it, and ingest a\n      quota_update event to keep the energy system current.\n      Prints NOTHING to stdout (designed to run inside the statusline pipe).\n      Always returns 0 · never disrupts the HUD.',
+  'cli.help.cmd.statusline_install': '  statusline install [--settings PATH]\n      Install Grove\'s chain-safe statusline wrapper.\n      Backs up the original statusLine.command and chains Grove onto it.\n      The original statusline is ALWAYS preserved (never clobbered).\n      --settings  Path to Claude Code\'s settings.json (default: ~/.claude/settings.json).',
+  'cli.help.cmd.statusline_uninstall': '  statusline uninstall [--settings PATH]\n      Remove Grove\'s statusline wrapper, restoring the original command.\n      --settings  Path to Claude Code\'s settings.json (default: ~/.claude/settings.json).',
+  'cli.help.cmd.init': '  init [--repo DIR]\n      Install Grove\'s post-commit git hook in a repo (chains; never clobbers).\n      Defaults to process.cwd() if --repo is omitted.\n      Grove failures NEVER block commits · the hook is fail-open by design.',
+  'cli.help.cmd.uninstall': '  uninstall [--repo DIR]\n      Remove Grove\'s contribution from the post-commit hook. Other hooks intact.\n      Defaults to process.cwd() if --repo is omitted.',
+  'cli.help.cmd.commit_hook': '  commit-hook [--repo DIR] [--home DIR]\n      Called automatically by the installed post-commit hook on every commit.\n      Scans the repo for Pillar-B signals and ingests events.',
+  'cli.help.cmd.suggest_commit': '  suggest-commit [--repo DIR]\n      Read-only: print a suggested commit message from staged diff. No AI ·\n      type inferred from file paths (test/docs/chore/feat). Copy the output.\n      If nothing is staged, prints a hint to run git add first.',
+  'cli.help.cmd.checkpoint': '  checkpoint [-m MSG] [--repo DIR] [--home DIR]\n      📍 Safety-net: snapshot working state via git stash create (read-only ·\n      never modifies tree/index), record to grove state, ingest a checkpoint\n      event for the rest-buff reward. Prints how to restore with git stash apply.',
+  'cli.help.cmd.share': '  share [--badge] [--home DIR]\n      Print a terse, copy-pasteable share card (level + collection %). Opt-in &\n      privacy-minimal · only cosmetic stats, NEVER code/cwd/cost (ADR-0011).\n      --badge  Print a markdown shields.io badge for your README instead.',
+  'cli.help.cmd.ntfy': '  ntfy <topic> | off [--home DIR]\n      Opt-in mobile push (ntfy.sh). Default OFF · no push unless you set a topic.\n      <topic>  Set the topic; install the ntfy.sh app and subscribe to it.\n      off      Disable push. Big moments only (level-ups, legendaries, chests);\n      the message carries cosmetic events only · NEVER code/cwd/cost (ADR-0011).',
+  'cli.help.cmd.help': '  help\n      Show this help message.',
 
   // -------------------------------------------------------------------------
   // guide.* — the web "How to play" tutorial (src/web/page.ts guideSection)

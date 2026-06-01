@@ -8,11 +8,13 @@ import { DEFAULT_LOCALE } from './types'
 import { en } from './catalog/en'
 import { zhCN } from './catalog/zh-CN'
 import { ja } from './catalog/ja'
+import { ko } from './catalog/ko'
 
 const CATALOGS: Record<Locale, Record<string, string>> = {
   en,
   'zh-CN': zhCN,
   ja,
+  ko,
 }
 
 /** Replace `{name}` placeholders with args; unknown placeholders are left literal. */

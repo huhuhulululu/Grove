@@ -12,6 +12,7 @@ export function normalizeLocale(raw: string | undefined): Locale {
   if (s === '') return DEFAULT_LOCALE
   if (s.startsWith('zh')) return 'zh-CN' // zh, zh_CN, zh-Hans, zh-CN.UTF-8 …
   if (s.startsWith('ja')) return 'ja' // ja, ja_JP, ja-JP.UTF-8 …
+  if (s.startsWith('ko')) return 'ko' // ko, ko_KR, ko-KR.UTF-8 …
   if (s.startsWith('en')) return 'en'
   return DEFAULT_LOCALE
 }
@@ -51,6 +52,7 @@ export function localeFromAcceptLanguage(header: string | undefined): Locale | n
   for (const { tag } of ranked) {
     if (tag.startsWith('zh')) return 'zh-CN'
     if (tag.startsWith('ja')) return 'ja'
+    if (tag.startsWith('ko')) return 'ko'
     if (tag.startsWith('en')) return 'en'
   }
   return null

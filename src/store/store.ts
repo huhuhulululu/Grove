@@ -165,6 +165,20 @@ const GameStateSchema = z.object({
     milestonesInWindow: z.number(),
   }),
   protectedGear: z.array(z.string()),
+  // Track A loadout (ADR-0014 rev.2). Optional so legacy states (pre-loadout) still
+  // validate against the FAST path; migrate() fills the default {slots:[]}. Slot
+  // refs are loosely shaped here (engine owns the EquippedRef contract).
+  loadout: z
+    .object({
+      slots: z.array(
+        z.object({
+          kind: z.string(),
+          id: z.string(),
+          tag: z.string().optional(),
+        }),
+      ),
+    })
+    .optional(),
 })
 
 /**
@@ -227,6 +241,8 @@ function migrate(raw: Record<string, unknown>): GameState {
         ? (raw['energy'] as GameState['energy'])
         : defaults.energy,
     work: migrateWork(raw['work'], defaults.work),
+    // Track A loadout (ADR-0014) — legacy states predating it get a fresh {slots:[]}.
+    loadout: migrateLoadout(raw['loadout'], defaults.loadout),
     // Additive R3 field — legacy states predating gear-protect get a fresh default.
     protectedGear: Array.isArray(raw['protectedGear'])
       ? (raw['protectedGear'] as string[]).filter((x): x is string => typeof x === 'string')
@@ -253,6 +269,35 @@ function migrateWork(
         ? (w['milestonesInWindow'] as number)
         : defaults.milestonesInWindow,
   }
+}
+
+/**
+ * Fill a (possibly absent/partial) `loadout` with defaults (ADR-0014). Additive —
+ * legacy states predating the loadout get a fresh `{slots:[]}`. Each slot is kept
+ * only if it has a string `kind` + `id` (a malformed slot is dropped, never throws);
+ * the optional `tag` is preserved when it is a string.
+ */
+function migrateLoadout(
+  raw: unknown,
+  defaults: GameState['loadout'],
+): GameState['loadout'] {
+  const l = (raw ?? {}) as Record<string, unknown>
+  if (!Array.isArray(l['slots'])) return defaults
+  const slots = (l['slots'] as unknown[])
+    .filter(
+      (s): s is Record<string, unknown> =>
+        typeof s === 'object' && s !== null,
+    )
+    .filter((s) => typeof s['kind'] === 'string' && typeof s['id'] === 'string')
+    .map((s) => {
+      const ref: GameState['loadout']['slots'][number] = {
+        kind: s['kind'] as GameState['loadout']['slots'][number]['kind'],
+        id: s['id'] as string,
+      }
+      if (typeof s['tag'] === 'string') ref.tag = s['tag']
+      return ref
+    })
+  return { slots }
 }
 
 // ---------------------------------------------------------------------------

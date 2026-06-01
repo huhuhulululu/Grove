@@ -77,6 +77,7 @@ import {
   handleCheckpoint,
 } from './commands/hooks'
 import { handleWrap, handleShare, handleNtfy } from './commands/share'
+import { handleLoadout } from './commands/loadout'
 
 // Re-export the public surface the tests / other layers import from './sq', so
 // the God-file split is transparent to every existing import site.
@@ -165,7 +166,7 @@ const SUBCOMMANDS = [
   'event', 'status', 'recap', 'scan', 'quests', 'pull', 'enhance', 'repair',
   'protect', 'craft', 'foil', 'convert', 'prestige', 'dashboard', 'tui', 'serve',
   'statusline-ingest', 'statusline', 'init', 'uninstall', 'commit-hook',
-  'suggest-commit', 'checkpoint', 'wrap', 'share', 'ntfy', 'help',
+  'suggest-commit', 'checkpoint', 'wrap', 'share', 'ntfy', 'loadout', 'help',
 ] as const
 
 /** Classic Levenshtein edit distance (pure). */
@@ -381,6 +382,16 @@ Subcommands:
       off      Disable push. Big moments only (level-ups, legendaries, chests);
       the message carries cosmetic events only · NEVER code/cwd/cost (ADR-0011).
 
+  loadout [equip <ref> | unequip <N>] [--home DIR]
+      View or edit your 3-slot loadout (cosmetic build · ADR-0014).
+      Active synergies between equipped members boost XP / seeds / crit.
+      Empty loadout is first-class neutral · cosmetic only (ADR-0005).
+      equip <ref>   Equip a card/gear/buff. Format: kind/id[/tag]
+                    e.g.  sq loadout equip card/tools.hammer/tools
+                          sq loadout equip gear/gear.commit-hammer.42/Commit Hammer
+                          sq loadout equip buff/precast-spec
+      unequip <N>   Unequip slot N (1-based). e.g. sq loadout unequip 2
+
   help
       Show this help message.
 `.trim()
@@ -475,6 +486,8 @@ export function buildUsageText(locale: Locale): string {
     t(locale, 'cli.help.cmd.share'),
     '',
     t(locale, 'cli.help.cmd.ntfy'),
+    '',
+    t(locale, 'cli.help.cmd.loadout'),
     '',
     t(locale, 'cli.help.cmd.help'),
   ]
@@ -639,6 +652,9 @@ export function run(argv: string[]): number {
 
     case 'ntfy':
       return handleNtfy(rest, dir, locale)
+
+    case 'loadout':
+      return handleLoadout(rest, flags, dir, zen, locale)
 
     case 'help':
     case undefined:

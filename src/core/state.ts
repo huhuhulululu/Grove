@@ -1,4 +1,5 @@
 import type { Card, Gear } from './rewards'
+import type { EquippedRef } from './synergies'
 
 export interface PlayerState {
   xp: number
@@ -128,6 +129,15 @@ export interface GameState {
    */
   protectedGear: string[]
   /**
+   * Track A LOADOUT (ADR-0014 rev.2). The few EquippedRef the player has built
+   * into limited SLOTS; synergies between members produce a PURE, COSMETIC
+   * `LoadoutEffect` (xp/seed/crit mults) via src/engine/loadout.ts. An empty
+   * loadout is first-class and NEUTRAL (no effect, never penalized). Cosmetic-only
+   * (ADR-0005) — confers NO real-world power. MUST be in GameStateSchema + migrate()
+   * + cloneState() or it is silently dropped on load.
+   */
+  loadout: LoadoutState
+  /**
    * Token-milestone floor (保底, ADR-0010). A "work meter" that accrues from REAL
    * cumulative cost (cost.total_cost_usd) so heavy work always pays out a fair,
    * COSMETIC-only chest — never xp/power (that would reward burning tokens). It
@@ -159,6 +169,14 @@ export interface WorkMeterState {
   milestonesInWindow: number
 }
 
+/**
+ * Track A loadout (ADR-0014 rev.2). A handful of equipped members in limited
+ * slots. Empty by default; cosmetic-only.
+ */
+export interface LoadoutState {
+  slots: EquippedRef[]
+}
+
 export function initialState(): GameState {
   return {
     version: 1,
@@ -173,6 +191,7 @@ export function initialState(): GameState {
     // Wellspring by default: unmetered until a real quota frame proves otherwise.
     energy: { known: false, vigor: 100, sap: 100 },
     work: { workMeter: 0, lastCostUsd: 0, windowKey: 0, milestonesInWindow: 0 },
+    loadout: { slots: [] },
     protectedGear: [],
     foiled: [],
     spark: 0,

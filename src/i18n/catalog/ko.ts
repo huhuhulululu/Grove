@@ -227,6 +227,24 @@ export const ko: Catalog = {
   'ui.tui.keys': '키: p 뽑기 · P 프리미엄 · e 강화 · c 제작 · b 프레스티지 · r 새로고침 · tab 이동 · q 종료',
   'ui.tui.earn_hint': '출시해서 더 많이 벌어요',
 
+  // 로드아웃 패널
+  'ui.loadout.title': '로드아웃',
+  'ui.loadout.slot_empty': '  [{n}] 비어 있음',
+  'ui.loadout.slot_filled': '  [{n}] {kind} · {label}',
+  'ui.loadout.active_header': '  활성:',
+  'ui.loadout.active_row': '    {name} · {effect}',
+  'ui.loadout.chase_header': '  하나만 더:',
+  'ui.loadout.chase_row': '    {name} · {effect}',
+
+  // cli.* — loadout 서브커맨드 메시지
+  'cli.loadout.zen_view': '{n}/3 슬롯 사용 중',
+  'cli.loadout.equipped': '{label} 장착됨',
+  'cli.loadout.equipped_verbose': '  {label}({kind}) 장착',
+  'cli.loadout.already_equipped': '  {id} 이미 장착됨',
+  'cli.loadout.at_cap': '  로드아웃 가득 참(3 슬롯) · 먼저 해제: sq loadout unequip <N>',
+  'cli.loadout.unequipped': '{label} 해제됨',
+  'cli.loadout.slot_empty_err': '  슬롯 {n} 비어 있음 · 해제할 것 없음',
+
   // cli.* — calm confirmations + hints
   'cli.broke_hint': '🌰 을 더 벌려면 작업을 출시하세요 · 커밋, 테스트 녹색, 병합, 문서。',
   'cli.commit_recorded': '커밋 기록됨 · {n}개 신호',
@@ -306,6 +324,7 @@ export const ko: Catalog = {
   'cli.help.cmd.share': '  share [--badge] [--home DIR]\n      간결한 복사 가능한 공유 카드를 출력합니다(레벨 + 컬렉션%). 선택 사항 &\n      프라이버시 최소화 · 장식 통계만, 코드/cwd/비용은 절대 포함 안 함 (ADR-0011).\n      --badge  README용 markdown shields.io 배지를 출력합니다。',
   'cli.help.cmd.ntfy': '  ntfy <토픽> | off [--home DIR]\n      선택적 모바일 푸시(ntfy.sh). 기본값은 꺼짐 · 토픽을 설정하지 않으면 푸시 없음.\n      <토픽>  토픽을 설정; ntfy.sh 앱을 설치하고 구독합니다.\n      off     푸시를 비활성화합니다. 주요 순간만(레벨업, 전설, 보물상자);\n      메시지에는 장식적 이벤트만 포함 · 코드/cwd/비용은 절대 포함 안 함 (ADR-0011)。',
   'cli.help.cmd.help': '  help\n      이 도움말 메시지를 표시합니다。',
+  'cli.help.cmd.loadout': '  loadout [equip <ref> | unequip <N>] [--home DIR]\n      3슬롯 로드아웃을 보거나 편집합니다(장식적 빌드 · ADR-0014).\n      장착된 멤버 간 시너지로 XP/씨앗/치명타를 강화합니다.\n      빈 로드아웃은 1등급 중립 상태 · 장식 전용 (ADR-0005).',
 
   // guide.* — 웹 「플레이 방법」튜토리얼
   'guide.title': '플레이 방법',

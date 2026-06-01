@@ -287,14 +287,14 @@ function readStdinSync(): string {
 }
 
 // ---------------------------------------------------------------------------
-// Commit type inference (pure helper for suggest-commit)
+// Commit type + scope inference (pure helpers for suggest-commit)
 // ---------------------------------------------------------------------------
 
 /**
  * Infer a conventional-commit type from staged file paths.
  * Priority order: test > docs > chore > feat/fix heuristic.
  */
-function inferCommitType(files: string[]): string {
+export function inferCommitType(files: string[]): string {
   const hasTest = files.some((f) =>
     /\.test\.[tj]sx?$|\.spec\.[tj]sx?$|__tests__/.test(f),
   )
@@ -310,7 +310,38 @@ function inferCommitType(files: string[]): string {
   )
   if (hasChore) return 'chore'
 
-  return 'feat'
+  // feat/fix heuristic: if any file name contains "fix", "bug", or "patch" → fix
+  const hasFix = files.some((f) =>
+    /[/\\](fix|bug|patch)[^/\\]*$|[/\\][^/\\]*(fix|bug|patch)[^/\\]*\.[tj]sx?$/.test(f),
+  )
+  return hasFix ? 'fix' : 'feat'
+}
+
+/**
+ * Infer the conventional-commit scope from staged file paths.
+ * Returns the top-level directory segment common to the files (e.g. "src"),
+ * or null when files live at root or there is no common directory.
+ */
+export function inferCommitScope(files: string[]): string | null {
+  if (files.length === 0) return null
+
+  // Normalise separators to forward-slash
+  const normed = files.map((f) => f.replace(/\\/g, '/'))
+
+  // Collect the first path segment of each file (ignore root-level files)
+  const dirs = normed
+    .map((f) => {
+      const slash = f.indexOf('/')
+      return slash > 0 ? f.slice(0, slash) : null
+    })
+    .filter((d): d is string => d !== null)
+
+  if (dirs.length === 0) return null
+
+  // If all files share the same first segment, use it as scope
+  const first = dirs[0]!
+  const allSame = dirs.every((d) => d === first)
+  return allSame ? first : null
 }
 
 // ---------------------------------------------------------------------------
@@ -328,16 +359,20 @@ export function handleSuggestCommit(flags: Record<string, string>, locale: Local
   }
 
   const type = inferCommitType(diff.files)
+  const scope = inferCommitScope(diff.files)
   const topFile = diff.files[0] ?? ''
-  // Build a concise subject from the top changed path
+  // Subject: basename of the top changed path (no extension)
   const subject = path.basename(topFile, path.extname(topFile))
+
+  // First line: type(scope): subject  — or  type: subject when no scope
+  const header = scope ? `${type}(${scope}): ${subject}` : `${type}: ${subject}`
 
   const fileList = diff.files.join(', ')
   const statsLine = `+${diff.insertions}/-${diff.deletions}`
 
-  // Suggested message (two-line conventional-commit style)
+  // Suggested message (conventional-commit two-part style)
   const suggested = [
-    `${type}: ${subject}`,
+    header,
     ``,
     `Changed: ${fileList} (${statsLine})`,
   ].join('\n')

@@ -30,6 +30,7 @@ import {
 import { addCard, grantDupComp, craftableCardId, missingCardIds, SHARDS_PER_CRAFT } from './collection'
 import type { Rarity } from '../core/rewards'
 import { makeGear, activeGearBonus } from './gear'
+import { computeLoadoutEffect } from './loadout'
 import { cardFromDef, unlockedSets, ALL_CARD_DEFS, setUnlockLevel, SET_UNLOCK_LEVEL, cardIdsInSet } from '../core/cards'
 import {
   applyQuests,
@@ -263,6 +264,9 @@ function cloneState(state: GameState): GameState {
     quests: state.quests.map((q) => ({ ...q })),
     energy: { ...state.energy },
     work: { ...state.work },
+    // Track A loadout (ADR-0014) — deep-copy the slots so a clone never shares the
+    // slot array with the source (round-trip + no-op refusal must preserve it).
+    loadout: { slots: state.loadout.slots.map((s) => ({ ...s })) },
     protectedGear: [...state.protectedGear],
     // R8 optional renewable/spark fields — preserve them through a clone so a
     // no-op refusal never silently drops a foiled list or spark progress.
@@ -1372,11 +1376,16 @@ export function reduce(
   // event, but neither boosts its own grant. Gear/aura/streak finally MATTER here
   // (audit P1 fix): gear level → xp/currency/crit; aura → seeds; streak → xp.
   const gearBonus = activeGearBonus(next)
+  // Track A loadout synergy multipliers (ADR-0014 rev.2). A synergy is a COMBINATION
+  // bonus — it does NOT re-count the member gear's own activeGearBonus already folded
+  // above, so there is no double-count. critBonus is a FRACTION (e.g. 0.04 = +4pp),
+  // added directly to critChance (not divided by 100 — unlike gearBonus.critPct).
+  const loadoutEffect = computeLoadoutEffect(next)
   const scale =
     activeMultiplier(next) * (1 + activeFreshnessBonus(next)) *
-    activeStreakMultiplier(next) * (1 + gearBonus.xpPct / 100)
-  const critChance = CRIT_CHANCE + gearBonus.critPct / 100
-  const seedScale = 1 + gearBonus.currencyPct / 100 + activeSeedBonus(next)
+    activeStreakMultiplier(next) * (1 + gearBonus.xpPct / 100) * loadoutEffect.xpMult
+  const critChance = CRIT_CHANCE + gearBonus.critPct / 100 + loadoutEffect.critBonus
+  const seedScale = 1 + gearBonus.currencyPct / 100 + activeSeedBonus(next) + (loadoutEffect.seedMult - 1)
 
   // Successful OUTCOME events are eligible for the serendipity (奇遇) roll.
   let serendipityEligible = false

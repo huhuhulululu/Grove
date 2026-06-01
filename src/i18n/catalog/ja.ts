@@ -227,6 +227,24 @@ export const ja: Catalog = {
   'ui.tui.keys': 'キー: p 抽選 · P プレミアム · e 強化 · c 製作 · b プレステージ · r 更新 · tab 移動 · q 終了',
   'ui.tui.earn_hint': '出荷してもっと稼ごう',
 
+  // ロードアウトパネル
+  'ui.loadout.title': 'ロードアウト',
+  'ui.loadout.slot_empty': '  [{n}] 空き',
+  'ui.loadout.slot_filled': '  [{n}] {kind} · {label}',
+  'ui.loadout.active_header': '  発動中:',
+  'ui.loadout.active_row': '    {name} · {effect}',
+  'ui.loadout.chase_header': '  あと1つ:',
+  'ui.loadout.chase_row': '    {name} · {effect}',
+
+  // cli.* — loadout サブコマンドメッセージ
+  'cli.loadout.zen_view': '{n}/3 スロット使用中',
+  'cli.loadout.equipped': '{label} 装備済み',
+  'cli.loadout.equipped_verbose': '  {label}({kind}) を装備',
+  'cli.loadout.already_equipped': '  {id} はすでに装備中',
+  'cli.loadout.at_cap': '  ロードアウト満杯(3スロット) · 先に外す: sq loadout unequip <N>',
+  'cli.loadout.unequipped': '{label} を外した',
+  'cli.loadout.slot_empty_err': '  スロット {n} は空き · 外せるものなし',
+
   // cli.* — calm confirmations + hints
   'cli.broke_hint': '出荷して 🌰 を稼ごう · コミット、テスト緑、マージ、ドキュメント。',
   'cli.commit_recorded': 'コミットを記録 · {n} シグナル',
@@ -306,6 +324,7 @@ export const ja: Catalog = {
   'cli.help.cmd.share': '  share [--badge] [--home DIR]\n      簡潔なコピー可能なシェアカードを表示(レベル + コレクション%)。オプトイン &\n      プライバシー最小限 · 装飾統計のみ、コード/cwd/コスト は絶対含まない (ADR-0011)。\n      --badge  README 用の markdown shields.io バッジを表示。',
   'cli.help.cmd.ntfy': '  ntfy <トピック> | off [--home DIR]\n      オプトインモバイルプッシュ(ntfy.sh)。デフォルトはオフ · トピック設定なしではプッシュなし。\n      <トピック>  トピックを設定; ntfy.sh アプリをインストールしてサブスクライブ。\n      off         プッシュを無効化。大事な瞬間のみ(レベルアップ、レジェンダリー、宝箱);\n      メッセージは装飾的イベントのみ · コード/cwd/コスト は絶対含まない (ADR-0011)。',
   'cli.help.cmd.help': '  help\n      このヘルプメッセージを表示。',
+  'cli.help.cmd.loadout': '  loadout [equip <ref> | unequip <N>] [--home DIR]\n      3スロットのロードアウトを表示または編集(装飾的ビルド · ADR-0014)。\n      装備メンバー間のシナジーで XP/シード/クリットを強化。\n      空のロードアウトは一等公民の中立状態 · 装飾のみ (ADR-0005)。',
 
   // guide.* — ウェブ「遊び方」チュートリアル
   'guide.title': '遊び方',

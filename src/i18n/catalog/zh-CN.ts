@@ -227,6 +227,24 @@ export const zhCN: Catalog = {
   'ui.tui.keys': '按键: p 抽取 · P 高级 · e 强化 · c 合成 · b 威望 · r 刷新 · tab 移动 · q 退出',
   'ui.tui.earn_hint': '多交付来赚取更多',
 
+  // loadout panel
+  'ui.loadout.title': '构筑',
+  'ui.loadout.slot_empty': '  [{n}] 空',
+  'ui.loadout.slot_filled': '  [{n}] {kind} · {label}',
+  'ui.loadout.active_header': '  激活:',
+  'ui.loadout.active_row': '    {name} · {effect}',
+  'ui.loadout.chase_header': '  再一步:',
+  'ui.loadout.chase_row': '    {name} · {effect}',
+
+  // cli.* — loadout 子命令消息
+  'cli.loadout.zen_view': '{n}/3 槽位已填',
+  'cli.loadout.equipped': '已装备 {label}',
+  'cli.loadout.equipped_verbose': '  已装备 {label}({kind})',
+  'cli.loadout.already_equipped': '  {id} 已在构筑中',
+  'cli.loadout.at_cap': '  构筑已满(3 槽位) · 先卸载: sq loadout unequip <N>',
+  'cli.loadout.unequipped': '已卸载 {label}',
+  'cli.loadout.slot_empty_err': '  槽位 {n} 为空 · 无可卸载',
+
   // cli.* — calm confirmations + hints
   'cli.broke_hint': '多交付来赚 🌰 · 提交、测试转绿、合并 PR、写文档。',
   'cli.commit_recorded': '已记录提交 · {n} 个信号',
@@ -306,6 +324,7 @@ export const zhCN: Catalog = {
   'cli.help.cmd.share': '  share [--badge] [--home 目录]\n      打印简洁可复制的分享卡(等级 + 收藏%)。可选&\n      隐私最小化 · 仅装饰性统计,绝不含代码/cwd/费用 (ADR-0011)。\n      --badge  打印用于 README 的 markdown shields.io 徽章。',
   'cli.help.cmd.ntfy': '  ntfy <主题> | off [--home 目录]\n      可选移动推送(ntfy.sh)。默认关闭 · 不设置主题则不推送。\n      <主题>  设置主题;安装 ntfy.sh 应用并订阅它。\n      off     禁用推送。仅重要时刻(升级、传说、宝箱);\n      消息仅含装饰性事件 · 绝不含代码/cwd/费用 (ADR-0011)。',
   'cli.help.cmd.help': '  help\n      显示此帮助消息。',
+  'cli.help.cmd.loadout': '  loadout [equip <引用> | unequip <N>] [--home 目录]\n      查看或编辑 3 槽位构筑(装饰性 · ADR-0014)。\n      装备成员之间的协同效应可提升 XP/种子/暴击。\n      空构筑是一等公民中性状态 · 仅装饰性 (ADR-0005)。\n      equip <引用>   装备卡牌/装备/增益。格式: kind/id[/tag]\n      unequip <N>    卸载第 N 个槽位(1-based)。',
 
   // guide.* — 网页「怎么玩」教程
   'guide.title': '怎么玩',

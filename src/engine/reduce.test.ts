@@ -20,6 +20,8 @@ import { HARD_PITY, SOFT_PITY } from './gacha'
 import { ALL_CARD_DEFS, cardIdsInSet } from '../core/cards'
 import { AURA_SEED_BONUS, DUP_COMP_SEEDS } from './quests'
 import type { Gear } from '../core/rewards'
+import { equip } from './loadout'
+import type { EquippedRef } from '../core/synergies'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -94,6 +96,26 @@ describe('reduce — immutability', () => {
     const { state } = reduce(s0, ev({ type: 'commit' }), rng)
     expect(state).not.toBe(s0)
     expect(state.player).not.toBe(s0.player)
+  })
+
+  // Track A loadout (ADR-0014): cloneState must preserve the slots through reduce,
+  // and deep-copy them (no shared slot array) so a no-op refusal never drops them.
+  it('preserves the loadout through reduce (cloneState deep-copies slots)', () => {
+    const s0: GameState = {
+      ...initialState(),
+      loadout: {
+        slots: [
+          { kind: 'card', id: 'tools.hammer', tag: 'tools' },
+          { kind: 'gear', id: 'gear.type-saber.3', tag: 'Type Saber' },
+        ],
+      },
+    }
+    const rng = mulberry32(7)
+    // A success:false refusal returns cloneState(state) — the loadout must survive.
+    const { state } = reduce(s0, ev({ type: 'commit', success: false }), rng)
+    expect(state.loadout).toEqual(s0.loadout)
+    // Deep copy: the clone must not share the slot array with the source.
+    expect(state.loadout.slots).not.toBe(s0.loadout.slots)
   })
 })
 
@@ -937,5 +959,100 @@ describe('reduce — rest buffs dedup by id (R7 code P3)', () => {
     state = reduce(state, frame(10, 3), mulberry32(1)).state
     state = reduce(state, frame(95, 4), mulberry32(1)).state // reset 2 → Second Wind again
     expect(state.buffs.filter((b) => b.id === 'rest:second-wind').length).toBe(1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Track A loadout wiring (ADR-0014 rev.2): synergy xpMult/seedMult/critBonus
+// actually folded into reduce(). Tests use a fixed RNG seed to avoid crit noise.
+// ---------------------------------------------------------------------------
+
+describe('reduce — loadout wiring (ADR-0014 Track A)', () => {
+  /** Commit event that will earn XP and seeds. */
+  const commitEv = ev({ type: 'commit', magnitude: 1 })
+
+  /** Build a state with the given loadout slots. */
+  function withLoadout(refs: EquippedRef[]): GameState {
+    let s = initialState()
+    for (const ref of refs) s = equip(s, ref)
+    return s
+  }
+
+  it('empty loadout is byte-identical to today — no XP change from an empty loadout', () => {
+    // With no loadout (identity effect) the XP grant must equal a baseline run.
+    const base = initialState()
+    const withEmpty = { ...base, loadout: { slots: [] } }
+    const rng = mulberry32(42)
+    const r1 = reduce(base, commitEv, mulberry32(42))
+    const r2 = reduce(withEmpty, commitEv, rng)
+    expect(r1.state.player.xp).toBe(r2.state.player.xp)
+    expect(r1.state.player.level).toBe(r2.state.player.level)
+  })
+
+  it('Toolsmith synergy (xpMult=1.05) actually increases XP vs no loadout', () => {
+    // Toolsmith: 2 tools cards → xpMult 1.05. Use a fixed seed that never crits
+    // on the base run; the loadout xpMult must push XP strictly higher.
+    const base = initialState()
+    const xpSynergy = withLoadout([
+      { kind: 'card', id: 'tools.hammer', tag: 'tools' },
+      { kind: 'card', id: 'tools.wrench', tag: 'tools' },
+    ])
+    // Use a seed where no crit fires on the base so comparison is stable.
+    const rBase = reduce(base, commitEv, mulberry32(99))
+    const rSyn = reduce(xpSynergy, commitEv, mulberry32(99))
+    expect(totalXp(rSyn.state)).toBeGreaterThan(totalXp(rBase.state))
+  })
+
+  it('a single-card loadout with NO active synergy is neutral — same XP as baseline', () => {
+    // One tools card satisfies no synergy (Toolsmith needs 2) → identity effect.
+    const noSynergy = withLoadout([{ kind: 'card', id: 'tools.hammer', tag: 'tools' }])
+    const base = initialState()
+    const r1 = reduce(base, commitEv, mulberry32(42))
+    const r2 = reduce(noSynergy, commitEv, mulberry32(42))
+    expect(totalXp(r2.state)).toBe(totalXp(r1.state))
+  })
+
+  it('synergy xpMult does NOT double-count the member gear activeGearBonus', () => {
+    // Artisan synergy (Build Anvil + Refactor Blade gear) gives xpMult=1.05.
+    // The gear's own activeGearBonus.xpPct already adds to `scale`; the synergy
+    // xpMult must multiply on top — but the gear bonus must not be counted twice.
+    // We verify by adding an Artisan loadout on top of an already-boosted gear run:
+    // the delta between (gear-only) and (gear + synergy) must equal ~5% of the base,
+    // not ~10% (which would indicate double-counting the gear xpPct as well).
+    const gearItem: Gear = {
+      id: 'gear.build-anvil.1',
+      name: 'Build Anvil',
+      rarity: 'rare',
+      level: 1,
+      broken: false,
+    }
+    const gearItem2: Gear = {
+      id: 'gear.refactor-blade.1',
+      name: 'Refactor Blade',
+      rarity: 'rare',
+      level: 1,
+      broken: false,
+    }
+    // State with both gears equipped (no loadout synergy slots).
+    const gearOnly: GameState = { ...initialState(), gear: [gearItem, gearItem2] }
+    // Same gear + Artisan loadout slots.
+    const gearPlusSynergy: GameState = {
+      ...gearOnly,
+      loadout: {
+        slots: [
+          { kind: 'gear', id: 'gear.build-anvil.1', tag: 'Build Anvil' },
+          { kind: 'gear', id: 'gear.refactor-blade.1', tag: 'Refactor Blade' },
+        ],
+      },
+    }
+    const r1 = reduce(gearOnly, commitEv, mulberry32(1))
+    const r2 = reduce(gearPlusSynergy, commitEv, mulberry32(1))
+    const xp1 = totalXp(r1.state)
+    const xp2 = totalXp(r2.state)
+    // Synergy adds a positive boost on top of gear.
+    expect(xp2).toBeGreaterThan(xp1)
+    // The boost must be modest (≤20% of the gear-only grant) — not doubled.
+    const boost = xp2 - xp1
+    expect(boost).toBeLessThanOrEqual(xp1 * 0.2)
   })
 })

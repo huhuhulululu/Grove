@@ -135,6 +135,64 @@ describe('loadState migration', () => {
     const result = loadState(dir)
     expect(result).toEqual(full)
   })
+
+  // -- Track A loadout (ADR-0014 rev.2) round-trip ---------------------------
+  it('a legacy state WITHOUT a loadout migrates to the default {slots:[]}', () => {
+    const dir = makeTmpDir()
+    const legacy = {
+      version: 1,
+      player: { xp: 5, level: 1, currency: 0 },
+      cards: [],
+      gear: [],
+      pity: { sinceLegendary: 0 },
+      completedSets: [],
+    }
+    fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify(legacy), 'utf8')
+    const result = loadState(dir)
+    expect(result.loadout).toEqual({ slots: [] })
+  })
+
+  it('a saved state WITH a loadout round-trips intact (save → load)', () => {
+    const dir = makeTmpDir()
+    const withLoadout: GameState = {
+      ...initialState(),
+      loadout: {
+        slots: [
+          { kind: 'card', id: 'tools.hammer', tag: 'tools' },
+          { kind: 'gear', id: 'gear.type-saber.3', tag: 'Type Saber' },
+          { kind: 'buff', id: 'precast-spec' },
+        ],
+      },
+    }
+    saveState(dir, withLoadout)
+    const result = loadState(dir)
+    expect(result.loadout).toEqual(withLoadout.loadout)
+  })
+
+  it('migrate drops a malformed slot but keeps the well-formed ones', () => {
+    const dir = makeTmpDir()
+    // Legacy-shaped (missing energy/work) so it goes through migrate(), with a
+    // loadout holding one good slot and one malformed (no id) entry.
+    const raw = {
+      version: 1,
+      player: { xp: 1, level: 1, currency: 0 },
+      cards: [],
+      gear: [],
+      pity: { sinceLegendary: 0 },
+      completedSets: [],
+      loadout: {
+        slots: [
+          { kind: 'card', id: 'tools.hammer', tag: 'tools' },
+          { kind: 'card' }, // malformed — no id
+        ],
+      },
+    }
+    fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify(raw), 'utf8')
+    const result = loadState(dir)
+    expect(result.loadout.slots).toEqual([
+      { kind: 'card', id: 'tools.hammer', tag: 'tools' },
+    ])
+  })
 })
 
 // ---------------------------------------------------------------------------

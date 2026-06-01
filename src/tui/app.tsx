@@ -49,6 +49,7 @@ import {
 import type { Locale } from '../i18n/types'
 import { resolveLocale } from '../i18n/locale'
 import { t } from '../i18n/t'
+import { renderLoadoutPanel } from '../render/loadout'
 
 // ---------------------------------------------------------------------------
 // dispatchKey — the PURE key → engine-action router
@@ -232,6 +233,11 @@ export interface FrameOpts {
   flash?: string
   /** the active locale; defaults to 'en'. */
   locale?: Locale
+  /**
+   * Calm mode (ADR-0005): when true the loadout / one-away HUD is suppressed.
+   * Defaults to false (loadout visible in normal TUI mode).
+   */
+  zen?: boolean
 }
 
 /**
@@ -243,6 +249,7 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
   const m = tuiModel(state)
   const focus: Panel = opts.focus ?? 'Collection'
   const locale: Locale = opts.locale ?? 'en'
+  const zen: boolean = opts.zen ?? false
   const lines: string[] = []
 
   // -- Header -----------------------------------------------------------------
@@ -302,6 +309,13 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
   lines.push(`  🌰 ${e.seeds} · 🔧 ${e.shards}`)
   lines.push(`  can: ${can.length > 0 ? can.join(' · ') : t(locale, 'ui.tui.earn_hint')}`)
   lines.push('')
+
+  // -- Loadout (suppressed under zen per ADR-0014) ----------------------------
+  const loadoutPanel = renderLoadoutPanel(state, zen, locale)
+  if (loadoutPanel) {
+    lines.push('')
+    lines.push(loadoutPanel)
+  }
 
   // -- Key legend -------------------------------------------------------------
   lines.push(t(locale, 'ui.tui.keys'))

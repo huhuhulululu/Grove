@@ -242,3 +242,56 @@ riskiest piece in the project and is NOT free reuse). Instead lean on existing O
 COMMONS. rev.2 incorporates the critic's REJECT: GitHub (not a bespoke server) is the verified-outcome backend, so
 P0 is buildable and Grove never runs stranger code; ToS is a blocking investigation not a hand-wave; the firewall
 is governance-protected; the loop stays fire-and-forget with no v1 leaderboard; acceptance criteria are observable.
+
+## ADR-0014 — Synergy / Loadout (rev.2): build-a-kit game depth + ungated helper utility for everyone
+**Status:** proposed (rev.2, after critic REJECT of rev.1) · 2026-06-01 (user: focus on THE GAME; "采纳" the reframe)
+**Decision:** Add a **Loadout** the player BUILDS from owned cards / gear / buffs into a few limited SLOTS;
+**synergies** between equipped members (a published table) produce a PURE `LoadoutEffect` of **cosmetic
+multipliers** (XP / seeds / crit) — giving the collection a PURPOSE and real "构筑" decisions. This is **Track A**.
+SEPARATELY, **Track B** delivers ADR-0008 "real workflow power-ups" by making the safe helpers genuinely better
+**FOR EVERYONE (UNGATED)** — never locked behind game grind.
+
+**Why rev.1 was rejected (critic, code-verified) → the reframe:**
+- rev.1 tied REAL utility to synergy "helperFlags". The critic showed this is mostly unbuildable/cosmetic-cosplay:
+  `suggest-commit` has no extra signal to be "richer" by a flag; a "coverage hint" would require RUNNING tests
+  (**ADR-0003 violation**); `suggest-commit` doesn't even take `dir`/state. Deeper: **gating real tool utility
+  behind game-grind is backwards for a productivity tool** — the tool must help everyone. So we SPLIT the goal:
+  Track A = game depth (cosmetic mults, honest); Track B = real utility, ungated, for all users.
+
+**Track A — Loadout/synergy (PURE, extends the existing active-bonus pattern):**
+- `src/core/state.ts` — add `loadout: { slots: EquippedRef[] }`; **MUST** be added to `GameStateSchema` +
+  `migrate()` (legacy default `{slots:[]}`) + `cloneState()` or it is silently dropped on load (critic finding #3).
+- `src/core/synergies.ts` — published SYNERGY TABLE (pure data; ADR-0002).
+- `src/engine/loadout.ts` — `computeLoadoutEffect(state): { xpMult, seedMult, critBonus, activeSynergies }` (PURE,
+  no helperFlags). `equip`/`unequip` pure reducers; slots LIMITED (start = 3).
+- reduce(): fold the loadout mults into the SAME capped `scale` as the existing bonuses — a synergy adds a DISTINCT
+  small bonus for the COMBINATION; it must NOT re-count a member gear's own `activeGearBonus`, and the TOTAL stays
+  capped (no runaway). i18n via the existing catalog; surface in dashboard + TUI, **suppressed under `--zen`**.
+
+**Track B — real, UNGATED helper utility (ADR-0008), available to all users:**
+- First concrete win: `suggest-commit` infers a **conventional-commit type + scope + body** from the staged file
+  list it ALREADY reads (`stagedDiffStat.files`): tests → `test:`, docs → `docs:`, a scope from the top dir, a body
+  listing changed files. Stays a READ-ONLY draft (never commits). This is genuine added value from available data,
+  for everyone, not gated. (Future Track-B wins: a richer `recap`, etc. — each ungated, safe, read-only.)
+
+**Acceptance criteria (testable; addresses every critic finding):**
+- `equip`/`unequip` pure reducers; slots limited (equip past cap requires unequip → tradeoff); empty loadout =
+  neutral (1.0 mults), first-class, NEVER penalized, NO "leaving value on the table" prompting.
+- `computeLoadoutEffect` pure (purity.test.ts); a synergy's `xpMult` actually multiplies an XP grant (engine test).
+- **NO double-count**: a test asserts a synergy member's gear `activeGearBonus` is not folded twice; total `scale`
+  stays within the existing cap.
+- **Migration round-trip**: a saved `loadout` survives save→load (schema), `cloneState` (reduce), and `migrate`
+  (legacy default `{slots:[]}`) — explicit tests (critic #3).
+- **No dominant synergy**: the table yields ≥2 viable builds (asserted), so "构筑" is a real choice.
+- **`--zen` suppression**: the loadout / one-away-synergy HUD does NOT appear in calm mode (test).
+- **Track B**: `suggest-commit` emits a correct conventional-commit type/scope from staged files, FOR EVERYONE
+  (no loadout/synergy gate), and remains a read-only draft that never commits (test). No ADR-0003 test-running.
+- Synergy table published/inspectable (ADR-0002).
+
+**Open questions (calibrate while building):** slot count (start 3); the initial synergy set (3-5, themed to
+existing card sets + gear + quest buffs); the conventional-commit inference rules for Track B.
+
+**Why:** User refocused on THE GAME and adopted the reframe. Track A gives the requested synergy/build DEPTH and
+finally makes collection purposeful, honestly (cosmetic mults = the existing capped economy). Track B honors
+ADR-0008's "REAL power-ups" the RIGHT way — by making the safe helpers better for ALL users, not by crippling the
+tool until you grind. Firewall (ADR-0005) intact: the engine stays pure; Track B helpers stay read-only drafts.

@@ -302,12 +302,12 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
   lines.push(panelTitle(t(locale, 'ui.panel.economy'), focus === 'Economy'))
   const e = m.economy
   const can: string[] = []
-  if (e.canPull) can.push(`pull (${e.pullCost})`)
-  if (e.canPremium) can.push(`premium (${e.premiumCost})`)
-  if (e.canCraft) can.push('craft')
-  if (e.canPrestige) can.push(`prestige (${e.prestigeCost})`)
+  if (e.canPull) can.push(t(locale, 'ui.can.pull', { cost: e.pullCost }))
+  if (e.canPremium) can.push(t(locale, 'ui.can.premium', { cost: e.premiumCost }))
+  if (e.canCraft) can.push(t(locale, 'ui.can.craft'))
+  if (e.canPrestige) can.push(t(locale, 'ui.can.prestige', { cost: e.prestigeCost }))
   lines.push(`  🌰 ${e.seeds} · 🔧 ${e.shards}`)
-  lines.push(`  can: ${can.length > 0 ? can.join(' · ') : t(locale, 'ui.tui.earn_hint')}`)
+  lines.push(`  ${can.length > 0 ? t(locale, 'ui.header.can', { actions: can.join(' · ') }) : t(locale, 'ui.tui.earn_hint')}`)
   lines.push('')
 
   // -- Loadout (suppressed under zen per ADR-0014) ----------------------------
@@ -672,11 +672,11 @@ function PanelBox(props: {
 function economyHint(model: TuiModel, locale: Locale = 'en'): string {
   const e = model.economy
   const can: string[] = []
-  if (e.canPull) can.push(`pull (${e.pullCost})`)
-  if (e.canPremium) can.push(`premium (${e.premiumCost})`)
-  if (e.canCraft) can.push('craft')
-  if (e.canPrestige) can.push(`prestige (${e.prestigeCost})`)
-  return `can: ${can.length > 0 ? can.join(' · ') : t(locale, 'ui.tui.earn_hint')}`
+  if (e.canPull) can.push(t(locale, 'ui.can.pull', { cost: e.pullCost }))
+  if (e.canPremium) can.push(t(locale, 'ui.can.premium', { cost: e.premiumCost }))
+  if (e.canCraft) can.push(t(locale, 'ui.can.craft'))
+  if (e.canPrestige) can.push(t(locale, 'ui.can.prestige', { cost: e.prestigeCost }))
+  return can.length > 0 ? t(locale, 'ui.header.can', { actions: can.join(' · ') }) : t(locale, 'ui.tui.earn_hint')
 }
 
 // ---------------------------------------------------------------------------

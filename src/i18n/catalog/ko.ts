@@ -86,8 +86,11 @@ export const ko: Catalog = {
   'reward.buff.refreshed': '새로고침',
   'reward.buff.second_wind': '제2의 바람',
   'reward.buff.set': '{set} 세트',
+  'reward.buff.set_bonus': '{set} 세트 보너스',
+  'reward.buff.fully_foiled': '{set} 전체 포일',
   'reward.buff.foiled_set': '{set} 전체 포일',
   'reward.buff.prestige': '프레스티지 {rank}',
+  'reward.buff.prestige_rank': '프레스티지 {rank}',
   'reward.buff.grimoire_aura': '그리모아 오라',
   'reward.buff.precast': '스펙 퍼스트 x2',
   'reward.buff.fresh_architecture': '최신 아키텍처',
@@ -132,6 +135,16 @@ export const ko: Catalog = {
   'ui.web.odds': '🎲 확률',
   'ui.web.footer': '라이브 · 로컬 우선 · 읽기 전용',
 
+  'ui.web.level': '레벨',
+  'ui.web.xp_label': 'XP',
+  'ui.web.seeds_label': '씨앗',
+  'ui.web.shards_label': '조각',
+  'ui.web.prestige_label': '✦ 프레스티지',
+
+  'ui.web.econ_cta_idle': '씨앗을 벌려면 출시하세요',
+  'ui.web.econ_seeds': '🌰 {seeds} 씨앗',
+  'ui.web.econ_costs': '뽑기 {pull} · 프리미엄 {premium} · 프레스티지 {prestige}',
+
   'ui.energy.wellspring': '샘 · 무제한',
   'ui.energy.vigor': '활력',
   'ui.energy.weekly': '주간',
@@ -149,6 +162,7 @@ export const ko: Catalog = {
   'ui.header.can': '가능: {actions}',
   'ui.can.pull': '뽑기 ({cost})',
   'ui.can.premium': '프리미엄 ({cost})',
+  'ui.can.craft': '제작',
   'ui.can.prestige': '프레스티지 (다음 {cost})',
 
   'ui.odds.pity': '🎯 천장 {since}/{hard} {status}',
@@ -253,6 +267,9 @@ export const ko: Catalog = {
   'cli.commit_recorded': '커밋 기록됨 · {n}개 신호',
 
   'cli.confirm': '  ✓ {message}',
+  'cli.confirm.event_recorded': '{type} 기록됨',
+  'cli.confirm.event_recorded_noreward': '{type} 기록됨(보상 없음)',
+  'cli.confirm.status_zen': '레벨 {level} · {seeds} 🌰 · 카드 {cards}장',
   'cli.confirm.pull_done': '뽑기 완료',
   'cli.confirm.premium_pull_done': '프리미엄 뽑기 완료',
   'cli.confirm.pull_skipped': '뽑기 건너뜀 · 🌰 부족({cost} 필요)',
@@ -276,6 +293,16 @@ export const ko: Catalog = {
   'cli.broke_enhance': '  🌰 부족 · 강화에 {cost} 필요, 보유 {have}。',
   'cli.broke_repair': '  🌰 부족 · 수리에 {cost} 필요, 보유 {have}。',
   'cli.broke_protect': '  🌰 부족 · 보호에 {cost} 필요, 보유 {have}。',
+
+  'cli.scan.zen_summary': '스캔 완료 · {n}개 신호{detail}',
+  'cli.scan.summary': '스캔 완료 · {n}개 신호 감지{detail}, 보상 {rewards}개。',
+  'cli.scan.nothing_new': '  (새 내용 없음)',
+  'cli.scan.note': '  참고: {note}',
+
+  'cli.serve.banner_url': '  🌳 Grove 웹 대시보드 · {url}',
+  'cli.serve.banner_hint': '  상태의 읽기 전용 보기 · 출시 시 실시간 업데이트 · Ctrl-C로 중지。',
+
+  'cli.ingest.no_drop': '  (드롭 없음)',
 
   'cli.suggest.nothing_staged': '  스테이지된 파일 없음 · 먼저 `git add`, 그 다음 `sq suggest-commit`。',
   'cli.suggest.header': '  📋 추천 커밋(복사해서 사용):',

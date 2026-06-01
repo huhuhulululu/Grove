@@ -86,8 +86,11 @@ export const zhCN: Catalog = {
   'reward.buff.refreshed': '焕新',
   'reward.buff.second_wind': '再振',
   'reward.buff.set': '{set} 套牌',
+  'reward.buff.set_bonus': '{set} 套牌加成',
+  'reward.buff.fully_foiled': '{set} 全闪箔',
   'reward.buff.foiled_set': '{set} 全闪箔',
   'reward.buff.prestige': '威望 {rank}',
+  'reward.buff.prestige_rank': '威望 {rank}',
   'reward.buff.grimoire_aura': '魔典光环',
   'reward.buff.precast': '先写规格 x2',
   'reward.buff.fresh_architecture': '鲜活架构',
@@ -132,6 +135,16 @@ export const zhCN: Catalog = {
   'ui.web.odds': '🎲 概率',
   'ui.web.footer': '实时 · 本地优先 · 只读',
 
+  'ui.web.level': '等级',
+  'ui.web.xp_label': 'XP',
+  'ui.web.seeds_label': '种子',
+  'ui.web.shards_label': '碎片',
+  'ui.web.prestige_label': '✦ 威望',
+
+  'ui.web.econ_cta_idle': '多交付来赚种子',
+  'ui.web.econ_seeds': '🌰 {seeds} 种子',
+  'ui.web.econ_costs': '抽取 {pull} · 高级 {premium} · 威望 {prestige}',
+
   'ui.energy.wellspring': '源泉 · 未计量',
   'ui.energy.vigor': '元气',
   'ui.energy.weekly': '本周',
@@ -149,6 +162,7 @@ export const zhCN: Catalog = {
   'ui.header.can': '可执行: {actions}',
   'ui.can.pull': '抽取 ({cost})',
   'ui.can.premium': '高级 ({cost})',
+  'ui.can.craft': '合成',
   'ui.can.prestige': '威望 (下一级 {cost})',
 
   'ui.odds.pity': '🎯 保底 {since}/{hard} {status}',
@@ -253,6 +267,9 @@ export const zhCN: Catalog = {
   'cli.commit_recorded': '已记录提交 · {n} 个信号',
 
   'cli.confirm': '  ✓ {message}',
+  'cli.confirm.event_recorded': '{type} 已记录',
+  'cli.confirm.event_recorded_noreward': '{type} 已记录(无奖励)',
+  'cli.confirm.status_zen': '等级 {level} · {seeds} 🌰 · {cards} 张卡牌',
   'cli.confirm.pull_done': '抽取完成',
   'cli.confirm.premium_pull_done': '高级抽取完成',
   'cli.confirm.pull_skipped': '已跳过抽取 · 🌰 不足(需要 {cost})',
@@ -276,6 +293,16 @@ export const zhCN: Catalog = {
   'cli.broke_enhance': '  🌰 不足 · 强化需要 {cost},当前 {have}。',
   'cli.broke_repair': '  🌰 不足 · 修复需要 {cost},当前 {have}。',
   'cli.broke_protect': '  🌰 不足 · 保护需要 {cost},当前 {have}。',
+
+  'cli.scan.zen_summary': '扫描完成 · {n} 个信号{detail}',
+  'cli.scan.summary': '扫描完成 · 检测到 {n} 个信号{detail},{rewards} 个奖励。',
+  'cli.scan.nothing_new': '  (无新内容)',
+  'cli.scan.note': '  备注: {note}',
+
+  'cli.serve.banner_url': '  🌳 Grove 网页仪表板 · {url}',
+  'cli.serve.banner_hint': '  只读状态视图 · 实时更新 · Ctrl-C 停止。',
+
+  'cli.ingest.no_drop': '  (无掉落)',
 
   'cli.suggest.nothing_staged': '  没有暂存内容 · 先 `git add`,再 `sq suggest-commit`。',
   'cli.suggest.header': '  📋 建议的提交(复制即可):',

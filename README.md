@@ -115,10 +115,13 @@ the auto-capture git hook, `sq scan`, `sq wrap -- <cmd>` (real exit-code-driven 
 seeds economy + `sq pull` (incl. `--premium` and a targeted `--spark` guarantee) / `enhance` / `repair` /
 `protect` / `craft` / `foil` (a renewable cosmetic shard sink), the `sq dashboard` (with an ODDS panel
 that surfaces pity / realized odds / spark at the decision point), the navigable Ink TUI (`sq tui`), the
-read-only web/SSE dashboard (`sq serve`), `suggest-commit`, `checkpoint`, the chain-safe statusline
-integration, **account-global energy** (the 5h/7d quota windows are shared across all your repos via one
-locked `<home>/_global/global.json`), `--zen` calm mode, the opt-in `sq share` card/badge, and opt-in
-`sq ntfy` mobile push on big moments.
+read-only web/SSE dashboard (`sq serve`, live at **game.aanao.cc** with `Accept-Language` locale support),
+`suggest-commit`, `checkpoint`, the chain-safe statusline integration, **account-global energy** (the 5h/7d
+quota windows are shared across all your repos via one locked `<home>/_global/global.json`), `--zen` calm
+mode, the opt-in `sq share` card/badge, opt-in `sq ntfy` mobile push on big moments, the **loadout system**
+with 3-slot equip and 8 cosmetic synergies between equipped cards/gear/buffs (`sq loadout` · ADR-0014),
+**achievements** for retroactive cumulative milestones (`sq achievements` · ADR-0015), **7 card sets / 39
+cards** total, and **i18n** in en / zh-CN / ja / ko.
 
 **Roadmap (not yet built):** friend streaks / co-op; and the opt-in, league-based **global leaderboard** ·
 which needs a **server-verified outcomes backend** (local state is forgeable) before it can ship without

@@ -73,7 +73,7 @@ function langSwitcher(active: Locale): string {
   return `<nav class="lang-switcher">${links}</nav>`
 }
 
-function headerSection(state: GameState, _locale: Locale): string {
+function headerSection(state: GameState, locale: Locale): string {
   const { level, xp, currency } = state.player
   const shards = state.player.shards ?? 0
   const needed = xpForLevel(level)
@@ -81,16 +81,21 @@ function headerSection(state: GameState, _locale: Locale): string {
   const rank = prestigeRank(state)
   // data-bind ids let the live SSE client patch these facts in place (R8: no full
   // location.reload). The server-rendered values are the initial paint.
+  const levelLabel = esc(t(locale, 'ui.web.level'))
+  const xpLabel = esc(t(locale, 'ui.web.xp_label'))
+  const seedsLabel = esc(t(locale, 'ui.web.seeds_label'))
+  const shardsLabel = esc(t(locale, 'ui.web.shards_label'))
+  const prestigeLabel = esc(t(locale, 'ui.web.prestige_label'))
   return `
   <header class="hero">
     <h1>🌳 Grove</h1>
-    <div class="level">Level <span data-bind="level">${level}</span></div>
+    <div class="level">${levelLabel} <span data-bind="level">${level}</span></div>
     <div class="bar xp"><div class="fill" data-bind-style="xpPct" style="width:${xpPct}%"></div></div>
-    <div class="xpnums"><span data-bind="xp">${xp}</span>/<span data-bind="xpNeeded">${needed}</span> XP</div>
+    <div class="xpnums"><span data-bind="xp">${xp}</span>/<span data-bind="xpNeeded">${needed}</span> ${xpLabel}</div>
     <div class="wallet">
-      <span>🌰 <span data-bind="seeds">${currency}</span> seeds</span>
-      <span>🔧 <span data-bind="shards">${shards}</span> shards</span>
-      <span>✦ Prestige <span data-bind="prestige">${rank}</span></span>
+      <span>🌰 <span data-bind="seeds">${currency}</span> ${seedsLabel}</span>
+      <span>🔧 <span data-bind="shards">${shards}</span> ${shardsLabel}</span>
+      <span>${prestigeLabel} <span data-bind="prestige">${rank}</span></span>
     </div>
   </header>`
 }
@@ -150,8 +155,8 @@ function gearSection(state: GameState, locale: Locale): string {
   const rows = state.gear.map((g) => {
     const effect = gearEffectText(g)
     const effectStr = effect ? ` <span class="effect">· ${esc(effect)}</span>` : ''
-    const broken = g.broken ? ` <span class="tag broken">BROKEN</span>` : ''
-    const prot = protectedSet.has(g.id) ? ` <span class="tag">PROTECTED</span>` : ''
+    const broken = g.broken ? ` <span class="tag broken">${esc(t(locale, 'ui.gear.broken').trim())}</span>` : ''
+    const prot = protectedSet.has(g.id) ? ` <span class="tag">${esc(t(locale, 'ui.gear.protected').trim())}</span>` : ''
     return `<li>${esc(g.name)} <span class="lvl">+${g.level}</span>${broken}${prot}${effectStr}</li>`
   })
   return section(t(locale, 'ui.web.gear'), `<ul class="list">${rows.join('')}</ul>`)
@@ -186,10 +191,10 @@ function economySection(state: GameState, locale: Locale): string {
   const cta =
     can.length > 0
       ? esc(t(locale, 'ui.header.can', { actions: can.join(' · ') }))
-      : 'keep shipping for seeds'
+      : esc(t(locale, 'ui.web.econ_cta_idle'))
   const body = `
-    <div class="econrow"><span>🌰 ${seeds} seeds</span></div>
-    <div class="econrow"><span>pull ${PULL_COST} · premium ${PREMIUM_PULL_COST} · prestige ${nextPrestige}</span></div>
+    <div class="econrow"><span>${esc(t(locale, 'ui.web.econ_seeds', { seeds }))}</span></div>
+    <div class="econrow"><span>${esc(t(locale, 'ui.web.econ_costs', { pull: PULL_COST, premium: PREMIUM_PULL_COST, prestige: nextPrestige }))}</span></div>
     <div class="cta">${cta}</div>`
   return section(t(locale, 'ui.web.economy'), body)
 }
@@ -360,6 +365,23 @@ function buildScript(locale: Locale): string {
   const pityToHardParts = pityToHardTemplate.split('__N__')
   const txtToHardPre = jsStr(pityToHardParts[0] ?? '')
   const txtToHardSuf = jsStr(pityToHardParts[1] ?? '')
+  // Pity prefix: extract the static part before {since} in the full pity template.
+  // e.g. en "🎯 pity {since}/…" → "🎯 pity "; zh-CN "🎯 保底 {since}/…" → "🎯 保底 "
+  const pityFullTemplate = t(locale, 'ui.odds.pity', { since: '__SINCE__', hard: '__HARD__', status: '__ST__' })
+  const txtPityPrefix = jsStr(pityFullTemplate.split('__SINCE__')[0] ?? '')
+  // Separator between {since} and {hard} in the pity template (typically '/').
+  const pityAfterSince = pityFullTemplate.split('__SINCE__')[1] ?? ''
+  const txtPitySep = jsStr(pityAfterSince.split('__HARD__')[0] ?? '')
+  // Separator between {hard} and {status} in the pity template (typically ' ').
+  const pityAfterHard = pityAfterSince.split('__HARD__')[1] ?? ''
+  const txtPityHardStatusSep = jsStr(pityAfterHard.split('__ST__')[0] ?? '')
+  // Spark prefix: extract static part before {spark} in the spark template.
+  // e.g. en "✦ spark {spark}/…" → "✦ spark "; zh-CN "✦ 火花 {spark}/…" → "✦ 火花 "
+  const sparkFullTemplate = t(locale, 'ui.odds.spark', { spark: '__S__', threshold: '__T__' })
+  const txtSparkPrefix = jsStr(sparkFullTemplate.split('__S__')[0] ?? '')
+  // Separator between {spark} and {threshold} in the spark template (typically '/').
+  const sparkAfterSpark = sparkFullTemplate.split('__S__')[1] ?? ''
+  const txtSparkSep = jsStr(sparkAfterSpark.split('__T__')[0] ?? '')
   // spark armed suffix: extract from the full spark_armed template by comparing to spark template
   // We pass the spark template with placeholders replaced for a fixed value, then strip the number parts.
   // Simplest: use the suffix that's present in spark_armed but not spark.
@@ -376,6 +398,11 @@ function buildScript(locale: Locale): string {
     var TXT_SOFT_ON = '${txtSoftOn}';
     var TXT_TO_HARD_PRE = '${txtToHardPre}';
     var TXT_TO_HARD_SUF = '${txtToHardSuf}';
+    var TXT_PITY_PREFIX = '${txtPityPrefix}';
+    var TXT_PITY_SEP = '${txtPitySep}';
+    var TXT_PITY_HARD_STATUS_SEP = '${txtPityHardStatusSep}';
+    var TXT_SPARK_PREFIX = '${txtSparkPrefix}';
+    var TXT_SPARK_SEP = '${txtSparkSep}';
     var TXT_SPARK_ARMED_SUFFIX = '${txtSparkArmedSuffix}';
     function xpForLevel(level){ return Math.min(2000, Math.round(50 * Math.pow(Math.max(1, level), 1.5))); }
     function setText(name, value){
@@ -408,11 +435,11 @@ function buildScript(locale: Locale): string {
         var pityStatus = since >= SOFT
           ? (since + 1 >= HARD ? TXT_HARD_NEXT : TXT_SOFT_ON)
           : (TXT_TO_HARD_PRE + Math.max(0, HARD - since) + TXT_TO_HARD_SUF);
-        setText('pity', since + '/' + HARD + ' ' + pityStatus);
+        setText('pity', TXT_PITY_PREFIX + since + TXT_PITY_SEP + HARD + TXT_PITY_HARD_STATUS_SEP + pityStatus);
         // spark
         var spark = s.spark || 0;
         var armed = spark >= SPARK ? TXT_SPARK_ARMED_SUFFIX : '';
-        setText('spark', spark + '/' + SPARK + armed);
+        setText('spark', TXT_SPARK_PREFIX + spark + TXT_SPARK_SEP + SPARK + armed);
         // energy
         var en = s.energy || {};
         if (en.known && typeof en.vigor === 'number'){

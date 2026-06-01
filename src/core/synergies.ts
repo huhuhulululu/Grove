@@ -93,7 +93,7 @@ export interface SynergyDef {
  *
  * Added three (none dominates any existing or each other):
  *  - archivist   : 2 'relics' cards           → (0,    0.03, 0.01) late-game seed+crit
- *  - deployer    : 2 'deploy' cards + deploy-draft buff → (0.03, 0, 0.02) mid-game xp+crit
+ *  - deployer    : 3 'deploy' cards            → (0.03, 0,    0.02) mid-game xp+crit
  *  - syntaxist   : 2 'syntax' cards           → (0.01, 0,    0.03) crit-leaning card ALT
  *
  * Viability (≥2 non-dominated builds): XP (toolsmith/artisan), SEED (merchant),
@@ -108,6 +108,9 @@ export const SYNERGIES: SynergyDef[] = [
     effect: { xpMult: 1.05 },
   },
   {
+    // Artisan intentionally mirrors Toolsmith's xpMult (1.05) but via a GEAR path
+    // rather than a card path — so players who invest in Build Anvil + Refactor Blade
+    // can match the card-route XP bonus. Dual-path parity, not an oversight.
     id: 'artisan',
     name: 'Artisan',
     requires: [
@@ -149,14 +152,12 @@ export const SYNERGIES: SynergyDef[] = [
     effect: { seedMult: 1.03, critBonus: 0.01 },
   },
   {
-    // Mid-game infra build: 2 deploy cards + the deploy-draft buff gates it at the
-    // level-4 deploy set unlock, giving a real goal beat after the set lands.
+    // Mid-game infra build: 3 deploy cards gates it at the level-4 deploy set
+    // unlock, giving a real goal beat after the set lands. Pure card path — no
+    // external buff dependency (deploy-draft never existed as a quest id).
     id: 'deployer',
     name: 'Deployer',
-    requires: [
-      { kind: 'card', tag: 'deploy', min: 2 },
-      { kind: 'buff', id: 'deploy-draft', min: 1 },
-    ],
+    requires: [{ kind: 'card', tag: 'deploy', min: 3 }],
     effect: { xpMult: 1.03, critBonus: 0.02 },
   },
   {

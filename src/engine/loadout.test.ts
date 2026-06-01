@@ -101,6 +101,27 @@ describe('computeLoadoutEffect — synergy activation', () => {
     expect(eff.activeSynergies).toContain('precision')
     expect(eff.critBonus).toBeGreaterThan(0)
   })
+
+  it('Deployer fires on 3 deploy cards (xp+crit, no deploy-draft buff required)', () => {
+    // deploy-draft does not exist as a quest id; deployer uses a pure-card path.
+    const s = withSlots([
+      { kind: 'card', id: 'deploy.commit', tag: 'deploy' },
+      { kind: 'card', id: 'deploy.pipeline', tag: 'deploy' },
+      { kind: 'card', id: 'deploy.container', tag: 'deploy' },
+    ])
+    const eff = computeLoadoutEffect(s)
+    expect(eff.activeSynergies).toContain('deployer')
+    expect(eff.xpMult).toBeGreaterThan(1)
+    expect(eff.critBonus).toBeGreaterThan(0)
+  })
+
+  it('Deployer does NOT fire on only 2 deploy cards (needs 3)', () => {
+    const s = withSlots([
+      { kind: 'card', id: 'deploy.commit', tag: 'deploy' },
+      { kind: 'card', id: 'deploy.pipeline', tag: 'deploy' },
+    ])
+    expect(computeLoadoutEffect(s).activeSynergies).not.toContain('deployer')
+  })
 })
 
 describe('computeLoadoutEffect — bounded (no runaway)', () => {

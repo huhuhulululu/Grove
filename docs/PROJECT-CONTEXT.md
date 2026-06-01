@@ -117,6 +117,19 @@
   Evidence (re-run by hand): **whole suite 1152/1152 pass** (15 new in `cli/ntfy-share.test.ts`), `tsc
   --noEmit` clean, `npm run build` success, copy-lint pass.
 
+- **2026-06-01 — ADR-0014/0015 (loadout/synergies/achievements) SHIPPED & verified.** Loadout system:
+  3-slot equip, `computeLoadoutEffect(state)` pure function, 8 published cosmetic synergies
+  (`src/core/synergies.ts`, `src/engine/loadout.ts`), `sq loadout [equip <ref> | unequip <N>]` CLI,
+  `render/loadout.ts`. Achievements: retroactive cumulative milestones (`src/core/achievements.ts`,
+  `src/engine/achievements.ts`), `sq achievements [--all]` CLI, `render/achievements.ts`.
+  Firewall: both systems are pure — no I/O, all bonuses cosmetic. ADR-0014/ADR-0015 captured.
+- **2026-06-01 — i18n (en/zh-CN/ja/ko) SHIPPED.** `src/i18n/` catalogue with contract CI gate
+  (`i18n/contract.test.ts`) enforcing parity across all 4 locales. Web dashboard respects
+  `Accept-Language`; live at **game.aanao.cc**.
+- **2026-06-01 — Content expansion DONE.** Card catalogue: **7 sets / 39 cards** (forest · tools ·
+  creatures · syntax · deploy · circuits · relics). Three sets level-gated to prevent content cliff (R5).
+- **2026-06-01 — Test suite: 1667 tests passing** (tsc clean). Up from 1152 at the M5-partial milestone.
+
 ## Origin / research
 A 10-agent research workflow produced: pain-point map (fatigue + competency pains), prior-art review,
 game-mechanics taxonomy, psychology/ethics guardrails, tool-agnostic adapter design, multi-platform

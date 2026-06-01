@@ -86,8 +86,11 @@ export const ja: Catalog = {
   'reward.buff.refreshed': 'リフレッシュ',
   'reward.buff.second_wind': 'セカンドウィンド',
   'reward.buff.set': '{set} セット',
+  'reward.buff.set_bonus': '{set} セットボーナス',
+  'reward.buff.fully_foiled': '{set} 全フォイル',
   'reward.buff.foiled_set': '{set} 全フォイル',
   'reward.buff.prestige': 'プレステージ {rank}',
+  'reward.buff.prestige_rank': 'プレステージ {rank}',
   'reward.buff.grimoire_aura': 'グリモアオーラ',
   'reward.buff.precast': '仕様ファースト x2',
   'reward.buff.fresh_architecture': 'フレッシュアーキテクチャ',
@@ -132,6 +135,16 @@ export const ja: Catalog = {
   'ui.web.odds': '🎲 確率',
   'ui.web.footer': 'ライブ · ローカルファースト · 読み取り専用',
 
+  'ui.web.level': 'レベル',
+  'ui.web.xp_label': 'XP',
+  'ui.web.seeds_label': 'シード',
+  'ui.web.shards_label': 'シャード',
+  'ui.web.prestige_label': '✦ プレステージ',
+
+  'ui.web.econ_cta_idle': '出荷してシードを稼ごう',
+  'ui.web.econ_seeds': '🌰 {seeds} シード',
+  'ui.web.econ_costs': '抽選 {pull} · プレミアム {premium} · プレステージ {prestige}',
+
   'ui.energy.wellspring': 'ウェルスプリング · 非計測',
   'ui.energy.vigor': '活力',
   'ui.energy.weekly': '週次',
@@ -149,6 +162,7 @@ export const ja: Catalog = {
   'ui.header.can': '可能: {actions}',
   'ui.can.pull': '抽選 ({cost})',
   'ui.can.premium': 'プレミアム ({cost})',
+  'ui.can.craft': '製作',
   'ui.can.prestige': 'プレステージ (次 {cost})',
 
   'ui.odds.pity': '🎯 天井 {since}/{hard} {status}',
@@ -253,6 +267,9 @@ export const ja: Catalog = {
   'cli.commit_recorded': 'コミットを記録 · {n} シグナル',
 
   'cli.confirm': '  ✓ {message}',
+  'cli.confirm.event_recorded': '{type} を記録',
+  'cli.confirm.event_recorded_noreward': '{type} を記録(報酬なし)',
+  'cli.confirm.status_zen': 'レベル {level} · {seeds} 🌰 · {cards} 枚',
   'cli.confirm.pull_done': '抽選完了',
   'cli.confirm.premium_pull_done': 'プレミアム抽選完了',
   'cli.confirm.pull_skipped': '抽選をスキップ · 🌰 不足({cost} 必要)',
@@ -276,6 +293,16 @@ export const ja: Catalog = {
   'cli.broke_enhance': '  🌰 不足 · 強化は {cost} 必要,所持 {have}。',
   'cli.broke_repair': '  🌰 不足 · 修復は {cost} 必要,所持 {have}。',
   'cli.broke_protect': '  🌰 不足 · 保護は {cost} 必要,所持 {have}。',
+
+  'cli.scan.zen_summary': 'スキャン完了 · {n} シグナル{detail}',
+  'cli.scan.summary': 'スキャン完了 · {n} シグナル検出{detail},{rewards} 報酬。',
+  'cli.scan.nothing_new': '  (新しいものなし)',
+  'cli.scan.note': '  注意: {note}',
+
+  'cli.serve.banner_url': '  🌳 Grove Web ダッシュボード · {url}',
+  'cli.serve.banner_hint': '  状態の読み取り専用ビュー · 出荷時にリアルタイム更新 · Ctrl-C で停止。',
+
+  'cli.ingest.no_drop': '  (ドロップなし)',
 
   'cli.suggest.nothing_staged': '  ステージなし · まず `git add`,次に `sq suggest-commit`。',
   'cli.suggest.header': '  📋 おすすめコミット(コピーして使う):',

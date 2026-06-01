@@ -1,7 +1,7 @@
 # Grove — Architecture (technical source of truth)
 
 > When this doc disagrees with the code, the code wins — then update this doc.
-> Last updated: 2026-05-31 (R9, after the sq.ts God-file split + economy/feel curve round).
+> Last updated: 2026-06-01 (R9 + loadout/synergies ADR-0014 + achievements ADR-0015 + i18n + content expansion).
 
 ## Data flow
 
@@ -105,6 +105,24 @@ Failing events (`success:false`): eventCount advances + buffs expire silently; *
 | `enhance.ts` | `renderEnhanceOdds`, `renderEnhanceResult`, `renderPullFrames` — the gear risk reveal + pack-opening animation frames. |
 | `share.ts` | `renderShareCard`, `renderReadmeBadge` — opt-in terse share card + shields.io README badge (`sq share` / `sq share --badge`). Cosmetic only (ADR-0011). |
 | `width.ts` | `displayWidth`, `padToWidth`, `truncateToWidth` — terminal-cell-accurate string layout for wide emoji / CJK. |
+| `loadout.ts` | Render the loadout view: 3 equipped slots + active synergy bonuses (`sq loadout`, ADR-0014). |
+| `achievements.ts` | Render unlocked/all achievements (`sq achievements [--all]`; unlocked-only by default; `--zen` suppressed, ADR-0015). |
+
+## Loadout & Synergies (`src/engine/loadout.ts`, `src/core/synergies.ts`)
+
+The loadout system (ADR-0014) lets players equip up to 3 cards/gear/buff slots. `computeLoadoutEffect(state)` is a **pure** function that reads `state.loadout` and returns a `LoadoutEffect` with cosmetic XP/seed/crit multipliers derived from whichever of the 8 published `SYNERGIES` are active for the current combination. All synergy bonuses are cosmetic — they never touch real code or commits. CLI surface: `sq loadout [equip <ref> | unequip <N>]`.
+
+## Achievements (`src/core/achievements.ts`, `src/engine/achievements.ts`)
+
+The achievements system (ADR-0015) recognises retroactive cumulative milestones (e.g. first legendary, N commits tracked, N seeds spent). `checkAchievements(state, event)` is a **pure** function that returns newly unlocked `Achievement[]`. Achievements are one-time only and stored in `state.achievements`. CLI surface: `sq achievements [--all]` (unlocked-only by default; `--zen` suppressed).
+
+## i18n (`src/i18n/`)
+
+Locale catalogue in en / zh-CN / ja / ko. `locale.ts` resolves the active locale (env `GROVE_LANG` → `LC_ALL` → `LANG` → fallback `en`; the web server also honors a `?lang=` query + the visitor's `Accept-Language` header). `t(key, locale?)` looks up a key in the catalogue. Keys are defined in `types.ts`; all 4 catalogues (`catalog/en.ts`, `catalog/zh-CN.ts`, `catalog/ja.ts`, `catalog/ko.ts`) must be parity-complete — the `contract.test.ts` CI gate enforces that no key is missing or empty in any locale.
+
+## Content catalogue (`src/core/cards.ts`)
+
+7 card sets / 39 cards total: `forest` · `tools` · `creatures` · `syntax` · `deploy` · `circuits` · `relics`. Three sets are gated behind level thresholds so richer pulls arrive with progression (anti-content-cliff, R5).
 
 ## TUI (`src/tui/`)
 
@@ -126,7 +144,7 @@ Failing events (`success:false`): eventCount advances + buffs expire silently; *
   - `hooks.ts` — chain-safe integration: `init`, `uninstall`, `commit-hook`, `suggest-commit`, `checkpoint`, `statusline install/uninstall/ingest`.
   - `share.ts` — `event`, `wrap` (real exit-code signal, ADR-0003), `share`, `ntfy`.
   - Global flags: `--zen` (calm mode, ADR-0005) · `--home DIR` (override grove state dir).
-  - Subcommands: `event` · `wrap` · `status` · `recap` · `scan` · `quests` · `pull` (`--premium` · `--spark <id>` targeted guarantee) · `enhance` · `repair` · `protect` · `craft` · `foil` · `convert` · `prestige` · `dashboard` · `tui` · `serve` · `share` · `ntfy` · `statusline-ingest` · `statusline install/uninstall` · `init` · `uninstall` · `commit-hook` · `suggest-commit` · `checkpoint` · `help`.
+  - Subcommands: `event` · `wrap` · `status` · `recap` · `scan` · `quests` · `pull` (`--premium` · `--spark <id>` targeted guarantee) · `enhance` · `repair` · `protect` · `craft` · `foil` · `convert` · `prestige` · `dashboard` · `tui` · `serve` · `share` · `ntfy` · `loadout [equip <ref> | unequip <N>]` (view or edit 3-slot loadout, cosmetic synergies, ADR-0014) · `achievements [--all]` (show unlocked milestones, ADR-0015) · `statusline-ingest` · `statusline install/uninstall` · `init` · `uninstall` · `commit-hook` · `suggest-commit` · `checkpoint` · `help`.
   - Broke/refused player actions (pull/premium/foil/craft/prestige/convert) SKIP the state write — the engine returns the state unchanged on a calm refusal, so the CLI never performs a no-op save (avoids a needless file rewrite + global-lock acquisition).
   - `groveInvocation()`: portable injection-safe CLI re-invocation (bare `sq` when on PATH, else `node '<shQuote(abs-path)>'`).
   - `suggestSubcommand(input)`: Levenshtein "did you mean?" for unknown subcommands.

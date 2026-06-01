@@ -67,10 +67,10 @@ describe('contract — engine reward.* keys reproduce the legacy English byte-fo
     // reduce.craftCard — spend, crafted, refusals
     ['reward.craft_spend', { cost: 60 }, '-60 shards · craft'],
     ['reward.crafted', { mark: '', name: 'Vine', rarity: 'rare' }, '🛠 crafted · Vine · rare'],
-    ['reward.craft_locked', { cardId: 'relics.crown' }, '🔒 relics.crown is in a locked set — can\'t craft yet'],
-    ['reward.craft_unavailable', { cardId: 'tools.hammer' }, 'can\'t craft tools.hammer — already owned or not craftable'],
-    ['reward.craft_need_shards', { cost: 60, have: 10 }, 'not enough shards — craft needs 60, have 10'],
-    ['reward.craft_complete', undefined, 'nothing left to craft — collection complete'],
+    ['reward.craft_locked', { cardId: 'relics.crown' }, '🔒 relics.crown is in a locked set · can\'t craft yet'],
+    ['reward.craft_unavailable', { cardId: 'tools.hammer' }, 'can\'t craft tools.hammer · already owned or not craftable'],
+    ['reward.craft_need_shards', { cost: 60, have: 10 }, 'not enough shards · craft needs 60, have 10'],
+    ['reward.craft_complete', undefined, 'nothing left to craft · collection complete'],
 
     // reduce.grantGear
     ['reward.gear', { name: 'Refactor Blade', level: 0 }, 'Refactor Blade +0'],
@@ -78,17 +78,17 @@ describe('contract — engine reward.* keys reproduce the legacy English byte-fo
     // reduce.foilCard — spend, shimmer, refusals, capstone
     ['reward.foil_spend', { cost: 12, rarity: 'rare' }, '-12 shards · foil rare'],
     ['reward.foil_shimmer', { name: 'Oak' }, '✦ FOIL · Oak now shimmers (cosmetic)'],
-    ['reward.foil_not_owned', { cardId: 'tools.hammer' }, 'can\'t foil tools.hammer — you don\'t own it'],
+    ['reward.foil_not_owned', { cardId: 'tools.hammer' }, 'can\'t foil tools.hammer · you don\'t own it'],
     ['reward.foil_already', { cardId: 'tools.hammer' }, 'tools.hammer is already foiled'],
-    ['reward.foil_nothing_owned', undefined, 'nothing to foil — no cards owned yet'],
-    ['reward.foil_all_foiled', undefined, 'nothing left to foil — all owned cards are foiled'],
-    ['reward.foil_need_shards', { name: 'Oak', cost: 12, have: 4 }, 'not enough shards — foil Oak needs 12, have 4'],
+    ['reward.foil_nothing_owned', undefined, 'nothing to foil · no cards owned yet'],
+    ['reward.foil_all_foiled', undefined, 'nothing left to foil · all owned cards are foiled'],
+    ['reward.foil_need_shards', { name: 'Oak', cost: 12, have: 4 }, 'not enough shards · foil Oak needs 12, have 4'],
     ['reward.foiled_capstone', { set: 'tools' }, '✦✦ tools set fully foiled · capstone unlocked (cosmetic)'],
 
     // reduce.buyPrestige — spend, earned, refusal
     ['reward.prestige_spend', { cost: 500, rank: 1 }, '-500 🌰 · prestige 1'],
     ['reward.prestige_earned', { rank: 1 }, '✦ Prestige 1 earned (permanent cosmetic)'],
-    ['reward.not_enough_prestige', { rank: 1, cost: 500, have: 10 }, 'not enough 🌰 — prestige 1 costs 500, have 10'],
+    ['reward.not_enough_prestige', { rank: 1, cost: 500, have: 10 }, 'not enough 🌰 · prestige 1 costs 500, have 10'],
 
     // engine/quests.ts — quest flavour lines + first-time unlocks
     ['reward.quest.grimoire_aura', undefined, 'CLAUDE.md written · permanent aura'],

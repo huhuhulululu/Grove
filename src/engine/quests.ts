@@ -153,6 +153,8 @@ function grantSetBonus(state: GameState, set: string, rng: Rng, rewards: Reward[
     label: msg('reward.buff.set', { set }).message,
     kind: 'aura',
     factor: SET_BONUS_SEED,
+    msgKey: 'reward.buff.set',
+    msgArgs: { set },
   })
   rewards.push({
     kind: 'buff',
@@ -243,6 +245,7 @@ export function applyQuests(
         id: 'aura:grimoire',
         label: msg('reward.buff.grimoire_aura').message,
         kind: 'aura',
+        msgKey: 'reward.buff.grimoire_aura',
       })
 
       const q = findQuest(state.quests, 'grimoire')
@@ -271,6 +274,7 @@ export function applyQuests(
         kind: 'multiplier',
         factor: 2,
         expiresAtCount: state.eventCount + 6,
+        msgKey: 'reward.buff.precast',
       })
 
       rewards.push({
@@ -308,6 +312,7 @@ export function applyQuests(
         kind: 'freshness',
         factor: 0.15,
         expiresAtCount: state.eventCount + 10,
+        msgKey: 'reward.buff.fresh_architecture',
       })
 
       rewards.push({
@@ -355,6 +360,7 @@ export function applyQuests(
         label: msg('reward.buff.test_streak').message,
         kind: 'streak',
         factor: nextFactor,
+        msgKey: 'reward.buff.test_streak',
       })
 
       const q = findQuest(afterPull.quests, 'test-warden')
@@ -378,6 +384,7 @@ export function applyQuests(
         kind: 'freshness',
         factor: 0.1,
         expiresAtCount: state.eventCount + 8,
+        msgKey: 'reward.buff.fresh_eyes',
       })
       rewards.push({ kind: 'buff', buff: 'buff:review-loop', ...msg('reward.quest.review_buff') })
 
@@ -396,6 +403,7 @@ export function applyQuests(
         label: msg('reward.buff.clean_build').message,
         kind: 'aura',
         factor: CLEAN_BUILD_SEED_BONUS,
+        msgKey: 'reward.buff.clean_build',
       })
 
       const q = findQuest(state.quests, 'clean-build')
@@ -420,6 +428,7 @@ export function applyQuests(
         kind: 'freshness',
         factor: 0.1,
         expiresAtCount: state.eventCount + 6,
+        msgKey: 'reward.buff.momentum',
       })
       rewards.push({ kind: 'buff', buff: 'buff:merge-momentum', ...msg('reward.quest.merge_buff') })
 

@@ -112,6 +112,26 @@ describe('renderPage', () => {
     expect(lower).toContain('foil')
   })
 
+  it('SSE client rebuilds pity line WITH the localized prefix (not bare numbers)', () => {
+    // The server renders e.g. "🎯 pity 0/50 · N to hard" into the span; the JS
+    // live-patch must reconstruct the SAME full string so the prefix is never lost.
+    const en = renderPage(seededState(), 'en')
+    // The prefix constants must be present in the script block.
+    expect(en).toContain('TXT_PITY_PREFIX')
+    expect(en).toContain('TXT_SPARK_PREFIX')
+    // The patch call must use TXT_PITY_PREFIX and TXT_SPARK_PREFIX, not bare numbers.
+    expect(en).toMatch(/setText\('pity',\s*TXT_PITY_PREFIX/)
+    expect(en).toMatch(/setText\('spark',\s*TXT_SPARK_PREFIX/)
+  })
+
+  it('SSE pity prefix is locale-aware (zh-CN uses 保底 prefix)', () => {
+    const zh = renderPage(seededState(), 'zh-CN')
+    // zh-CN pity template: '🎯 保底 {since}/{hard} {status}' — prefix must be present in script
+    expect(zh).toContain('保底')
+    // The prefix extracted into JS constant must also be in the script (not just the initial render)
+    expect(zh).toContain('TXT_PITY_PREFIX')
+  })
+
   it('escapes HTML-significant characters in dynamic text (no injection)', () => {
     const base = seededState()
     const evil: GameState = {

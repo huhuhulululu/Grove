@@ -19,6 +19,8 @@ import { startWebServer } from '../../web/server'
 import { renderDashboard } from '../../render/dashboard'
 import { stateDir } from '../../store/paths'
 import type { Locale } from '../../i18n/types'
+import { t } from '../../i18n/t'
+import { resolveLocale } from '../../i18n/locale'
 import {
   parsePositiveIntFlag,
   parseIntFlag,
@@ -76,12 +78,17 @@ export function handleEvent(
 
   if (zen) {
     // Calm: engine ran & persisted; suppress all loot/crit/offers · one quiet line.
-    calmConfirm(success ? `${type} recorded` : `${type} recorded (no reward)`, locale)
+    calmConfirm(
+      success
+        ? t(locale, 'cli.confirm.event_recorded', { type })
+        : t(locale, 'cli.confirm.event_recorded_noreward', { type }),
+      locale,
+    )
     return 0
   }
 
   if (rewards.length === 0) {
-    console.log('  (no drop)')
+    console.log(t(locale, 'cli.ingest.no_drop'))
   } else {
     printRewards(rewards, locale)
   }
@@ -97,7 +104,10 @@ export function handleStatus(dir: string, zen: boolean, locale: Locale = 'en'): 
   if (zen) {
     // Quiet status: a single terse line, no banner/box spectacle.
     const { player, cards } = state
-    calmConfirm(`Level ${player.level} · ${player.currency} 🌰 · ${cards.length} cards`, locale)
+    calmConfirm(
+      t(locale, 'cli.confirm.status_zen', { level: player.level, seeds: player.currency, cards: cards.length }),
+      locale,
+    )
     return 0
   }
   console.log(formatStatus(state, locale))
@@ -144,7 +154,7 @@ export function handleScan(positional: string[], dir: string, zen: boolean, loca
     totalRewards += rewards.length
     if (zen) continue // engine ran & persisted; suppress per-reward loot lines.
     if (rewards.length === 0) {
-      console.log('  (nothing new)')
+      console.log(t(locale, 'cli.scan.nothing_new'))
     } else {
       printRewards(rewards, locale)
     }
@@ -152,22 +162,21 @@ export function handleScan(positional: string[], dir: string, zen: boolean, loca
 
   // Print notes (e.g. git not available)
   for (const note of notes) {
-    console.log(`  note: ${note}`)
+    console.log(t(locale, 'cli.scan.note', { note }))
   }
 
   // Summary
   const typeList = Object.entries(counts)
-    .map(([t, n]) => `${t}:${n}`)
+    .map(([tp, n]) => `${tp}:${n}`)
     .join(', ')
   const eventCount = events.length
+  const detail = typeList ? ` (${typeList})` : ''
   if (zen) {
     // Calm: a single terse confirmation, no per-reward loot, no "reward(s)" tally spectacle.
-    calmConfirm(`scan complete · ${eventCount} signal(s)${typeList ? ` (${typeList})` : ''}`, locale)
+    calmConfirm(t(locale, 'cli.scan.zen_summary', { n: eventCount, detail }), locale)
     return 0
   }
-  console.log(
-    `  Scan complete · ${eventCount} signal(s) detected${typeList ? ` (${typeList})` : ''}, ${totalRewards} reward(s).`,
-  )
+  console.log(t(locale, 'cli.scan.summary', { n: eventCount, detail, rewards: totalRewards }))
 
   return 0
 }
@@ -232,8 +241,9 @@ export async function handleServe(flags: Record<string, string>, dir: string): P
     ...(host !== undefined ? { host } : {}),
   })
 
-  console.log(`  🌳 Grove web dashboard · ${server.url}`)
-  console.log(`  Read-only view of your state · live-updates as you ship · Ctrl-C to stop.`)
+  const serveLocale: Locale = resolveLocale()
+  console.log(t(serveLocale, 'cli.serve.banner_url', { url: server.url }))
+  console.log(t(serveLocale, 'cli.serve.banner_hint'))
 
   if (noWait) {
     // Test/CI seam: don't block on a signal · tear the server down and return.

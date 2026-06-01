@@ -467,7 +467,7 @@ function grantSetBonus(state: GameState, set: string, rng: Rng, rewards: Reward[
   const without = state.buffs.filter((b) => b.id !== buffId)
   const buffs: Buff[] = [
     ...without,
-    { id: buffId, label: `${set} set`, kind: 'aura', factor: SET_BONUS_SEED },
+    { id: buffId, label: msg('reward.buff.set_bonus', { set }).message, kind: 'aura', factor: SET_BONUS_SEED, msgKey: 'reward.buff.set_bonus', msgArgs: { set } },
   ]
   rewards.push({
     kind: 'buff',
@@ -936,7 +936,7 @@ function grantFoiledSetCapstone(
   if (state.buffs.some((b) => b.id === buffId)) return state // already fired (idempotent)
 
   // kind:'rest' is purely cosmetic — NOT read by any XP/seed/crit/streak selector.
-  const buff: Buff = { id: buffId, label: `${set} fully foiled`, kind: 'rest' }
+  const buff: Buff = { id: buffId, label: msg('reward.buff.fully_foiled', { set }).message, kind: 'rest', msgKey: 'reward.buff.fully_foiled', msgArgs: { set } }
   rewards.push({
     kind: 'buff',
     buff: buffId,
@@ -1032,7 +1032,7 @@ export function buyPrestige(
 
   // kind:'rest' is purely cosmetic — NOT read by any XP/seed/crit selector — so
   // prestige confers ZERO economic effect (ADR-0005: cosmetic-only, no power).
-  const buff: Buff = { id: buffId, label: `Prestige ${nextRank}`, kind: 'rest' }
+  const buff: Buff = { id: buffId, label: msg('reward.buff.prestige_rank', { rank: nextRank }).message, kind: 'rest', msgKey: 'reward.buff.prestige_rank', msgArgs: { rank: nextRank } }
   return {
     state: {
       ...state,

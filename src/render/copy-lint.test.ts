@@ -28,6 +28,10 @@ const FILES = [
   'src/app/recap.ts',
   'src/cli/sq.ts',
   'src/render/share.ts',
+  'src/i18n/catalog/en.ts',
+  'src/i18n/catalog/zh-CN.ts',
+  'src/i18n/catalog/ja.ts',
+  'src/i18n/catalog/ko.ts',
 ]
 
 // Hard-coded deny-list (from docs/TONE.md). Matched case-insensitively.
@@ -87,6 +91,10 @@ const EM_DASH_FILES = [
   'src/app/recap.ts',
   'src/cli/sq.ts',
   'src/render/share.ts',
+  'src/i18n/catalog/en.ts',
+  'src/i18n/catalog/zh-CN.ts',
+  'src/i18n/catalog/ja.ts',
+  'src/i18n/catalog/ko.ts',
 ]
 
 /** True for a line whose content is purely a comment (//, * , /* ). */

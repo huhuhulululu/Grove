@@ -54,7 +54,7 @@ export const en: Catalog = {
   'reward.milestone_chest': '🎁 milestone chest · +{seeds} 🌰 (work tracked)',
   'reward.doc_streak': '🔥 Doc Streak ×{streak} · +{seeds} 🌰',
   'reward.shards_to_seeds': '+{seeds} 🌰 · {convert} shards → seeds',
-  'reward.no_shards_convert': 'no shards to convert — have {have}',
+  'reward.no_shards_convert': 'no shards to convert · have {have}',
 
   // pull (reduce.pull / pullPremium): spend, card line, refusal
   'reward.pull_spend': '-{cost} 🌰 · pull',
@@ -72,10 +72,10 @@ export const en: Catalog = {
   // craft (reduce.craftCard): spend, card line, refusals
   'reward.craft_spend': '-{cost} shards · craft',
   'reward.crafted': '🛠 crafted · {mark}{name} · {rarity}',
-  'reward.craft_locked': '🔒 {cardId} is in a locked set — can\'t craft yet',
-  'reward.craft_unavailable': 'can\'t craft {cardId} — already owned or not craftable',
-  'reward.craft_need_shards': 'not enough shards — craft needs {cost}, have {have}',
-  'reward.craft_complete': 'nothing left to craft — collection complete',
+  'reward.craft_locked': '🔒 {cardId} is in a locked set · can\'t craft yet',
+  'reward.craft_unavailable': 'can\'t craft {cardId} · already owned or not craftable',
+  'reward.craft_need_shards': 'not enough shards · craft needs {cost}, have {have}',
+  'reward.craft_complete': 'nothing left to craft · collection complete',
 
   // gear drop (reduce.grantGear)
   'reward.gear': '{name} +{level}',
@@ -83,11 +83,11 @@ export const en: Catalog = {
   // foil (reduce.foilCard): spend, shimmer line, refusals, capstone
   'reward.foil_spend': '-{cost} shards · foil {rarity}',
   'reward.foil_shimmer': '✦ FOIL · {name} now shimmers (cosmetic)',
-  'reward.foil_not_owned': 'can\'t foil {cardId} — you don\'t own it',
+  'reward.foil_not_owned': 'can\'t foil {cardId} · you don\'t own it',
   'reward.foil_already': '{cardId} is already foiled',
-  'reward.foil_nothing_owned': 'nothing to foil — no cards owned yet',
-  'reward.foil_all_foiled': 'nothing left to foil — all owned cards are foiled',
-  'reward.foil_need_shards': 'not enough shards — foil {name} needs {cost}, have {have}',
+  'reward.foil_nothing_owned': 'nothing to foil · no cards owned yet',
+  'reward.foil_all_foiled': 'nothing left to foil · all owned cards are foiled',
+  'reward.foil_need_shards': 'not enough shards · foil {name} needs {cost}, have {have}',
   'reward.foiled_capstone': '✦✦ {set} set fully foiled · capstone unlocked (cosmetic)',
 
   // achievement (reduce.grantAchievements): a retroactive, cosmetic recognition
@@ -96,7 +96,7 @@ export const en: Catalog = {
   // prestige (reduce.buyPrestige): spend, earned, refusal
   'reward.prestige_spend': '-{cost} 🌰 · prestige {rank}',
   'reward.prestige_earned': '✦ Prestige {rank} earned (permanent cosmetic)',
-  'reward.not_enough_prestige': 'not enough 🌰 — prestige {rank} costs {cost}, have {have}',
+  'reward.not_enough_prestige': 'not enough 🌰 · prestige {rank} costs {cost}, have {have}',
 
   // quest flavour lines (engine/quests.ts) — buffs + first-time unlocks
   'reward.quest.grimoire_aura': 'CLAUDE.md written · permanent aura',
@@ -115,8 +115,11 @@ export const en: Catalog = {
   'reward.buff.refreshed': 'Refreshed',
   'reward.buff.second_wind': 'Second Wind',
   'reward.buff.set': '{set} set',
+  'reward.buff.set_bonus': '{set} set bonus',
+  'reward.buff.fully_foiled': '{set} fully foiled',
   'reward.buff.foiled_set': '{set} fully foiled',
   'reward.buff.prestige': 'Prestige {rank}',
+  'reward.buff.prestige_rank': 'Prestige {rank}',
   'reward.buff.grimoire_aura': 'Grimoire Aura',
   'reward.buff.precast': 'Pre-cast x2',
   'reward.buff.fresh_architecture': 'Fresh Architecture',
@@ -168,6 +171,18 @@ export const en: Catalog = {
   'ui.web.odds': '🎲 Odds',
   'ui.web.footer': 'live · local-first · read-only',
 
+  // web header labels (page.ts headerSection)
+  'ui.web.level': 'Level',
+  'ui.web.xp_label': 'XP',
+  'ui.web.seeds_label': 'seeds',
+  'ui.web.shards_label': 'shards',
+  'ui.web.prestige_label': '✦ Prestige',
+
+  // web economy panel (page.ts economySection)
+  'ui.web.econ_cta_idle': 'keep shipping for seeds',
+  'ui.web.econ_seeds': '🌰 {seeds} seeds',
+  'ui.web.econ_costs': 'pull {pull} · premium {premium} · prestige {prestige}',
+
   // energy / work / wellspring chrome (dashboard + page)
   'ui.energy.wellspring': 'Wellspring · unmetered',
   'ui.energy.vigor': 'Vigor',
@@ -187,6 +202,7 @@ export const en: Catalog = {
   'ui.header.can': 'can: {actions}',
   'ui.can.pull': 'pull ({cost})',
   'ui.can.premium': 'premium ({cost})',
+  'ui.can.craft': 'craft',
   'ui.can.prestige': 'prestige (next {cost})',
 
   // odds panel (dashboard renderOdds)
@@ -302,6 +318,9 @@ export const en: Catalog = {
 
   // calm-mode confirmations (calmConfirm — the quiet `✓` line)
   'cli.confirm': '  ✓ {message}',
+  'cli.confirm.event_recorded': '{type} recorded',
+  'cli.confirm.event_recorded_noreward': '{type} recorded (no reward)',
+  'cli.confirm.status_zen': 'Level {level} · {seeds} 🌰 · {cards} cards',
   'cli.confirm.pull_done': 'pull done',
   'cli.confirm.premium_pull_done': 'premium pull done',
   'cli.confirm.pull_skipped': 'pull skipped · not enough 🌰 (need {cost})',
@@ -326,6 +345,19 @@ export const en: Catalog = {
   'cli.broke_enhance': '  not enough 🌰 · enhance costs {cost}, have {have}.',
   'cli.broke_repair': '  not enough 🌰 · repair costs {cost}, have {have}.',
   'cli.broke_protect': '  not enough 🌰 · protect costs {cost}, have {have}.',
+
+  // sq scan summary (view.ts handleScan)
+  'cli.scan.zen_summary': 'scan complete · {n} signal(s){detail}',
+  'cli.scan.summary': 'Scan complete · {n} signal(s) detected{detail}, {rewards} reward(s).',
+  'cli.scan.nothing_new': '  (nothing new)',
+  'cli.scan.note': '  note: {note}',
+
+  // sq serve startup banner (view.ts handleServe)
+  'cli.serve.banner_url': '  🌳 Grove web dashboard · {url}',
+  'cli.serve.banner_hint': '  Read-only view of your state · live-updates as you ship · Ctrl-C to stop.',
+
+  // non-zen ingest output (view.ts handleEvent / handleScan)
+  'cli.ingest.no_drop': '  (no drop)',
 
   // suggest-commit / checkpoint (hooks.ts)
   'cli.suggest.nothing_staged': '  nothing staged · `git add` first, then `sq suggest-commit`.',

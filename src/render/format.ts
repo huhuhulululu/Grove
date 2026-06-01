@@ -127,7 +127,7 @@ export function formatStatus(state: GameState, locale: Locale = 'en'): string {
   const otherBuffs = buffs.filter((b) => !b.id.startsWith(PRESTIGE_BUFF_ID))
   const buffLabels = [
     ...(rank > 0 ? [t(locale, 'ui.status.prestige_badge', { rank })] : []),
-    ...otherBuffs.map((b) => b.label),
+    ...otherBuffs.map((b) => (b.msgKey ? t(locale, b.msgKey, b.msgArgs) : b.label)),
   ]
   const buffsLine = buffLabels.length ? buffLabels.join(', ') : t(locale, 'ui.status.none')
 
@@ -194,7 +194,7 @@ export function formatQuests(quests: QuestDef[], state: GameState, locale: Local
 
   const buffsLine =
     state.buffs.length > 0
-      ? state.buffs.map((b) => `    ${b.label}${b.kind ? ` (${b.kind})` : ''}`).join('\n')
+      ? state.buffs.map((b) => `    ${b.msgKey ? t(locale, b.msgKey, b.msgArgs) : b.label}${b.kind ? ` (${b.kind})` : ''}`).join('\n')
       : t(locale, 'ui.quests.none')
 
   return [

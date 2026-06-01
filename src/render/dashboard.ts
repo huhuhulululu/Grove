@@ -567,7 +567,9 @@ function renderBuffs(state: GameState, width: number, locale: Locale = 'en'): st
   const otherBuffs = state.buffs.filter((b) => !isPrestigeBuff(b))
 
   const rollupRows = rank > 0 ? [boxRow(t(locale, 'ui.buffs.prestige_rollup', { rank }), width)] : []
-  const otherRows = otherBuffs.map((b) => boxRow(b.label, width))
+  const otherRows = otherBuffs.map((b) =>
+    boxRow(b.msgKey ? t(locale, b.msgKey, b.msgArgs) : b.label, width),
+  )
 
   const bodyRows =
     rollupRows.length === 0 && otherRows.length === 0

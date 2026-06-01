@@ -1,5 +1,6 @@
 import type { Card, Gear } from './rewards'
 import type { EquippedRef } from './synergies'
+import type { MsgArgs } from '../i18n/types'
 
 export interface PlayerState {
   xp: number
@@ -36,6 +37,13 @@ export interface Buff {
   factor?: number
   /** optional expiry expressed as an event-count milestone (kept simple; no wall-clock) */
   expiresAtCount?: number
+  /**
+   * Optional i18n key so renderers can re-translate the label into the player's
+   * locale (mirrors Reward.msgKey/msgArgs). When present, renderers use
+   * t(locale, msgKey, msgArgs) with fallback to the stored label.
+   */
+  msgKey?: string
+  msgArgs?: MsgArgs
 }
 
 /**

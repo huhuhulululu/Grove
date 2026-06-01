@@ -64,6 +64,16 @@ export const CARD_SETS: Record<string, CardDef[]> = {
     { id: 'deploy.zero-downtime', name: 'Zero Downtime', rarity: 'legendary', set: 'deploy' },
   ],
 
+  // -- Level 7 — "Circuits" (hardware / low-level flavour, bridges deploy→relics) -
+  circuits: [
+    { id: 'circuits.transistor', name: 'Transistor', rarity: 'common', set: 'circuits' },
+    { id: 'circuits.resistor', name: 'Resistor', rarity: 'common', set: 'circuits' },
+    { id: 'circuits.capacitor', name: 'Capacitor', rarity: 'uncommon', set: 'circuits' },
+    { id: 'circuits.gate', name: 'Logic Gate', rarity: 'rare', set: 'circuits' },
+    { id: 'circuits.cpu', name: 'CPU Die', rarity: 'epic', set: 'circuits' },
+    { id: 'circuits.void-pointer', name: 'Void Pointer', rarity: 'legendary', set: 'circuits' },
+  ],
+
   // -- Level 10 — "Relics" (legacy-code flavour, the late-game prize set) -----
   relics: [
     { id: 'relics.tabs', name: 'Tabs vs Spaces', rarity: 'common', set: 'relics' },
@@ -91,6 +101,8 @@ export const SET_UNLOCK_LEVEL: Record<string, number> = {
   // lands in the ~day-5..8 window (L4 ≈ day-5.4 at the audit's ~83 XP/day model),
   // filling the old day-2.3→day-9 dead zone. relics stays the L10 late-game prize.
   deploy: 4,
+  // circuits bridges the deploy→relics dead zone (day-8..12 window at ~83 XP/day).
+  circuits: 7,
   relics: 10,
 }
 

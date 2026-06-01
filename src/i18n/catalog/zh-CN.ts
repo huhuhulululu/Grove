@@ -229,6 +229,7 @@ export const zhCN: Catalog = {
 
   // loadout panel
   'ui.loadout.title': '构筑',
+  'ui.loadout.dash_slots': '槽位 {filled}/{cap}',
   'ui.loadout.slot_empty': '  [{n}] 空',
   'ui.loadout.slot_filled': '  [{n}] {kind} · {label}',
   'ui.loadout.active_header': '  激活:',

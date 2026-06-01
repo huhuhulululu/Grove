@@ -111,17 +111,20 @@ export function renderLoadoutPanel(
   }
 
   // --- Active synergies -------------------------------------------------------
+  // Each active row gets the ✦ sparkle prefix — a celebratory pop for a firing synergy.
   if (effect.activeSynergies.length > 0) {
     lines.push(t(locale, 'ui.loadout.active_header'))
     for (const id of effect.activeSynergies) {
       const def = SYNERGIES.find((s) => s.id === id)
       if (def === undefined) continue
-      lines.push(t(locale, 'ui.loadout.active_row', { name: def.name, effect: effectLine(def) }))
+      lines.push('✦ ' + t(locale, 'ui.loadout.active_row', { name: def.name, effect: effectLine(def) }))
     }
   }
 
   // --- One-away synergies (chase) --------------------------------------------
   // Only show when there is at least one free slot to fill.
+  // Each chase row gets the ◇ marker — an open diamond signals "almost there",
+  // inviting without nagging (the chase, not a scolding).
   const freeSlots = SLOT_CAP - slots.length
   if (freeSlots > 0) {
     const oneAway = SYNERGIES.filter(
@@ -132,7 +135,7 @@ export function renderLoadoutPanel(
       lines.push(t(locale, 'ui.loadout.chase_header'))
       for (const def of oneAway) {
         lines.push(
-          t(locale, 'ui.loadout.chase_row', { name: def.name, effect: effectLine(def) }),
+          '◇ ' + t(locale, 'ui.loadout.chase_row', { name: def.name, effect: effectLine(def) }),
         )
       }
     }

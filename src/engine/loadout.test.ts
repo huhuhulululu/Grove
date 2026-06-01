@@ -183,9 +183,8 @@ describe('equip / unequip — pure reducers + slot cap', () => {
 })
 
 describe('synergy table — ≥2 viable, non-dominated builds', () => {
-  it('publishes 4-5 synergies, each with at least one effect field', () => {
+  it('publishes at least 4 synergies, each with at least one effect field', () => {
     expect(SYNERGIES.length).toBeGreaterThanOrEqual(4)
-    expect(SYNERGIES.length).toBeLessThanOrEqual(5)
     for (const s of SYNERGIES) {
       const e = s.effect
       const hasEffect =

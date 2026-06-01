@@ -265,6 +265,35 @@ export function revealSteps(key: string, result: DispatchResult, opts: RevealOpt
 }
 
 // ---------------------------------------------------------------------------
+// synergyActivationFlash — TUI flash for a freshly-activated synergy (FEEL)
+// ---------------------------------------------------------------------------
+
+/** Options for the synergy activation flash. */
+export interface SynergyFlashOpts {
+  /**
+   * when true the player is in --zen / calm mode: return null so the HUD stays
+   * quiet. Defaults to false (flash is shown). Mirrors the loadout panel's zen
+   * suppression (ADR-0014 acceptance + ADR-0005).
+   */
+  isZen?: boolean
+}
+
+/**
+ * Build the celebratory TUI flash for a synergy that just became active — e.g.
+ * after the player equips the last required member in the TUI. Returns null in
+ * zen mode (calm mode suppresses all flourish). Pure; never throws.
+ *
+ * Format: `✦ {name} · synergy active`  (terse, no em-dash, tone-compliant).
+ */
+export function synergyActivationFlash(
+  synergyName: string,
+  opts: SynergyFlashOpts = {},
+): string | null {
+  if (opts.isZen === true) return null
+  return `✦ ${synergyName} · synergy active`
+}
+
+// ---------------------------------------------------------------------------
 // xpBarSteps — the pure XP-bar fill interpolation (light panel motion, R9)
 // ---------------------------------------------------------------------------
 

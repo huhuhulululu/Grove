@@ -229,6 +229,7 @@ export const ja: Catalog = {
 
   // ロードアウトパネル
   'ui.loadout.title': 'ロードアウト',
+  'ui.loadout.dash_slots': 'スロット {filled}/{cap}',
   'ui.loadout.slot_empty': '  [{n}] 空き',
   'ui.loadout.slot_filled': '  [{n}] {kind} · {label}',
   'ui.loadout.active_header': '  発動中:',

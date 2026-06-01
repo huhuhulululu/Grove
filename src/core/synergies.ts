@@ -80,22 +80,25 @@ export interface SynergyDef {
 }
 
 /**
- * The published synergy table (4-5; ADR-0014 open-question "3-5"). Each is themed
- * to an existing card set / gear / quest buff. Multipliers are small (≤ +6% per
- * field) and the fields differ across synergies so no build dominates.
+ * The published synergy table (5+; ADR-0014). Each is themed to an existing card
+ * set / gear / quest buff. Multipliers are small (≤ +6% per field) and the fields
+ * differ across synergies so no build dominates.
  *
- *  - toolsmith   : 2 'tools' cards            → XP-leaning  (build/refactor flavour)
- *  - artisan     : Build Anvil + Refactor Blade gear → XP-leaning, gear-based ALT
- *                  (a DIFFERENT path to the same XP goal as toolsmith — neither
- *                   dominates: cards vs gear, same field)
- *  - merchant    : Commit Hammer gear + 'deploy' card → SEED-leaning (economy build)
- *  - precision   : Type Saber gear + precast-spec buff → CRIT-leaning (a third axis)
- *  - naturalist  : 3 'forest' cards          → small MIXED xp+seed (a balanced low pick)
+ * Original five (effect vectors: xp-1, seed-1, crit):
+ *  - toolsmith   : 2 'tools' cards            → (0.05, 0,    0   ) XP-leaning
+ *  - artisan     : Build Anvil + Refactor Blade gear → (0.05, 0, 0) XP-leaning gear ALT
+ *  - merchant    : Commit Hammer gear + 'deploy' card → (0, 0.06, 0) SEED-leaning
+ *  - precision   : Type Saber gear + precast-spec buff → (0, 0, 0.04) CRIT-leaning
+ *  - naturalist  : 3 'forest' cards           → (0.02, 0.02, 0   ) balanced low pick
  *
- * Viability (≥2 non-dominated builds): an XP build (toolsmith OR artisan) and a
- * SEED build (merchant) and a CRIT build (precision) each win on their own field;
- * none beats another on every axis, so the best loadout depends on what you own
- * and which field you value. naturalist is a modest all-rounder, not a strict win.
+ * Added three (none dominates any existing or each other):
+ *  - archivist   : 2 'relics' cards           → (0,    0.03, 0.01) late-game seed+crit
+ *  - deployer    : 2 'deploy' cards + deploy-draft buff → (0.03, 0, 0.02) mid-game xp+crit
+ *  - syntaxist   : 2 'syntax' cards           → (0.01, 0,    0.03) crit-leaning card ALT
+ *
+ * Viability (≥2 non-dominated builds): XP (toolsmith/artisan), SEED (merchant),
+ * CRIT (precision/syntaxist), and mixed paths all win on their own axes. The vector
+ * matrix was fully checked: dominatedPairs = 0 across all 56 ordered pairs.
  */
 export const SYNERGIES: SynergyDef[] = [
   {
@@ -136,6 +139,33 @@ export const SYNERGIES: SynergyDef[] = [
     name: 'Naturalist',
     requires: [{ kind: 'card', tag: 'forest', min: 3 }],
     effect: { xpMult: 1.02, seedMult: 1.02 },
+  },
+  {
+    // Late-game build for relics collectors: mixed seed+crit, never dominant over
+    // merchant (lower seed) nor precision (lower crit), but rewards set grinding.
+    id: 'archivist',
+    name: 'Archivist',
+    requires: [{ kind: 'card', tag: 'relics', min: 2 }],
+    effect: { seedMult: 1.03, critBonus: 0.01 },
+  },
+  {
+    // Mid-game infra build: 2 deploy cards + the deploy-draft buff gates it at the
+    // level-4 deploy set unlock, giving a real goal beat after the set lands.
+    id: 'deployer',
+    name: 'Deployer',
+    requires: [
+      { kind: 'card', tag: 'deploy', min: 2 },
+      { kind: 'buff', id: 'deploy-draft', min: 1 },
+    ],
+    effect: { xpMult: 1.03, critBonus: 0.02 },
+  },
+  {
+    // Syntax-card crit build: a pure-card path to crit that complements precision
+    // (gear+buff) without duplicating it — lower crit (0.03 vs 0.04) but card-based.
+    id: 'syntaxist',
+    name: 'Syntaxist',
+    requires: [{ kind: 'card', tag: 'syntax', min: 2 }],
+    effect: { xpMult: 1.01, critBonus: 0.03 },
   },
 ]
 

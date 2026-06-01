@@ -9,6 +9,7 @@
  */
 
 import type { GameState } from '../core/state'
+import { SYNERGIES } from '../core/synergies'
 import {
   CARD_SETS,
   cardIdsInSet,
@@ -34,6 +35,7 @@ import {
   realizedLegendaryShinyRate,
 } from '../engine/reduce'
 import { craftableCardId } from '../engine/collection'
+import { computeLoadoutEffect, SLOT_CAP } from '../engine/loadout'
 import { displayWidth, padToWidth, truncateToWidth } from './width'
 import type { Locale } from '../i18n/types'
 import { t } from '../i18n/t'
@@ -88,6 +90,7 @@ export function renderDashboard(state: GameState, opts: DashboardOptions = {}): 
     renderOdds(state, width, locale),
     renderCollection(state, width, locale),
     renderGear(state, width, locale),
+    renderLoadout(state, width, locale),
     renderQuests(state, width, locale),
     renderBuffs(state, width, locale),
   ]
@@ -487,6 +490,45 @@ function renderGear(state: GameState, width: number, locale: Locale = 'en'): str
     boxTitle(t(locale, 'ui.panel.gear'), width),
     boxDivider(width),
     ...gearRows,
+    boxBottom(width),
+  ].join('\n')
+}
+
+/**
+ * LOADOUT panel — compact slot summary + active synergies (ADR-0014 rev.2).
+ *
+ * Shows: filled/empty slot count and each active synergy with its effect.
+ * NEUTRAL-EMPTY: no nag when the loadout is empty; slots N/3 is first-class.
+ * PURE: reads state only, no I/O.
+ */
+function renderLoadout(state: GameState, width: number, locale: Locale = 'en'): string {
+  const slots = state.loadout?.slots ?? []
+  const effect = computeLoadoutEffect(state)
+
+  // Slots summary: "slots 0/3" or "slots 2/3"
+  const slotsRow = boxRow(t(locale, 'ui.loadout.dash_slots', { filled: slots.length, cap: SLOT_CAP }), width)
+
+  // Active synergy rows — terse: "Toolsmith · +5% XP"
+  const activeRows = effect.activeSynergies.map((id) => {
+    const def = SYNERGIES.find((s) => s.id === id)
+    if (def === undefined) return null
+    const parts: string[] = []
+    const xp = def.effect.xpMult ?? 1
+    const seed = def.effect.seedMult ?? 1
+    const crit = def.effect.critBonus ?? 0
+    if (xp !== 1) parts.push(`+${Math.round((xp - 1) * 100)}% XP`)
+    if (seed !== 1) parts.push(`+${Math.round(seed * 100 - 100)}% seeds`)
+    if (crit !== 0) parts.push(`+${Math.round(crit * 100)}pp crit`)
+    const effectStr = parts.join(' · ')
+    return boxRow(`${def.name} · ${effectStr}`, width)
+  }).filter((r): r is string => r !== null)
+
+  return [
+    boxTop(width),
+    boxTitle(t(locale, 'ui.loadout.title'), width),
+    boxDivider(width),
+    slotsRow,
+    ...activeRows,
     boxBottom(width),
   ].join('\n')
 }

@@ -229,6 +229,7 @@ export const ko: Catalog = {
 
   // 로드아웃 패널
   'ui.loadout.title': '로드아웃',
+  'ui.loadout.dash_slots': '슬롯 {filled}/{cap}',
   'ui.loadout.slot_empty': '  [{n}] 비어 있음',
   'ui.loadout.slot_filled': '  [{n}] {kind} · {label}',
   'ui.loadout.active_header': '  활성:',

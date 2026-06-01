@@ -9,6 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import { renderShareCard, renderReadmeBadge } from './share'
 import { initialState } from '../core/state'
+import { ALL_CARD_DEFS } from '../core/cards'
 import type { GameState } from '../core/state'
 import type { Rarity } from '../core/rewards'
 
@@ -37,7 +38,7 @@ function stateAt(overrides: Partial<GameState['player']> & {
   }
 }
 
-const TOTAL_CARDS = 33 // ALL_CARD_DEFS.length
+const TOTAL_CARDS = ALL_CARD_DEFS.length // derive — never drift when a card set is added
 
 function makeCards(count: number, rarity: Rarity = 'common'): GameState['cards'] {
   return Array.from({ length: count }, (_, i) => ({

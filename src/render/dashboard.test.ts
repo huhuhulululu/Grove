@@ -1001,6 +1001,74 @@ describe('renderDashboard — ODDS / decision-point honesty', () => {
 })
 
 // ---------------------------------------------------------------------------
+// LOADOUT panel (dashboard integration — Task B)
+// ---------------------------------------------------------------------------
+
+import type { EquippedRef } from '../core/synergies'
+
+function stateWithLoadout(slots: EquippedRef[]): GameState {
+  return { ...initialState(), loadout: { slots } }
+}
+
+describe('renderDashboard — LOADOUT panel', () => {
+  it('renders a LOADOUT section header', () => {
+    const out = renderDashboard(initialState())
+    expect(out).toContain('LOADOUT')
+  })
+
+  it('shows slot count "0/3" for an empty loadout (neutral, no nag)', () => {
+    const out = renderDashboard(initialState())
+    expect(out).toContain('0/3')
+  })
+
+  it('does NOT nag on an empty loadout ("leaving value", "missing out", etc.)', () => {
+    const out = renderDashboard(initialState())
+    expect(out).not.toMatch(/leaving value/i)
+    expect(out).not.toMatch(/missing out/i)
+    expect(out).not.toMatch(/you should/i)
+  })
+
+  it('shows filled slot count "2/3" when 2 slots are equipped', () => {
+    const state = stateWithLoadout([
+      { kind: 'card', id: 'tools.hammer', tag: 'tools' },
+      { kind: 'card', id: 'tools.wrench', tag: 'tools' },
+    ])
+    const out = renderDashboard(state)
+    expect(out).toContain('2/3')
+  })
+
+  it('shows active synergy name when Toolsmith fires', () => {
+    const state = stateWithLoadout([
+      { kind: 'card', id: 'tools.hammer', tag: 'tools' },
+      { kind: 'card', id: 'tools.wrench', tag: 'tools' },
+    ])
+    const out = renderDashboard(state)
+    expect(out).toContain('Toolsmith')
+  })
+
+  it('shows active synergy effect when Toolsmith fires (XP)', () => {
+    const state = stateWithLoadout([
+      { kind: 'card', id: 'tools.hammer', tag: 'tools' },
+      { kind: 'card', id: 'tools.wrench', tag: 'tools' },
+    ])
+    const out = renderDashboard(state)
+    // Toolsmith: +5% XP
+    expect(out).toMatch(/\+5%.*XP|XP.*\+5%/i)
+  })
+
+  it('stays within box width (no line exceeds width) when loadout is active', () => {
+    const state = stateWithLoadout([
+      { kind: 'card', id: 'tools.hammer', tag: 'tools' },
+      { kind: 'card', id: 'tools.wrench', tag: 'tools' },
+    ])
+    const out = renderDashboard(state, { width: 60 })
+    for (const line of out.split('\n')) {
+      expect(displayWidth(line)).toBeLessThanOrEqual(60)
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
 // zh-CN locale rendering
 // ---------------------------------------------------------------------------
 

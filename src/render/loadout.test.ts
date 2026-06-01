@@ -150,3 +150,79 @@ describe('renderLoadoutPanel — locale', () => {
     expect(panel.length).toBeGreaterThan(0)
   })
 })
+
+describe('renderLoadoutPanel — active-synergy flourish (FEEL)', () => {
+  it('active synergy row carries the ✦ sparkle marker (celebratory pop)', () => {
+    const s = withSlots([
+      { kind: 'card', id: 'tools.hammer', tag: 'tools' },
+      { kind: 'card', id: 'tools.wrench', tag: 'tools' },
+    ])
+    const panel = renderLoadoutPanel(s, false)
+    // The active Toolsmith row must contain the ✦ marker
+    const activeLine = panel.split('\n').find((l) => l.includes('Toolsmith'))
+    expect(activeLine).toBeDefined()
+    expect(activeLine).toContain('✦')
+  })
+
+  it('zen mode returns empty string — no flourish in calm mode', () => {
+    const s = withSlots([
+      { kind: 'card', id: 'tools.hammer', tag: 'tools' },
+      { kind: 'card', id: 'tools.wrench', tag: 'tools' },
+    ])
+    expect(renderLoadoutPanel(s, true)).toBe('')
+  })
+
+  it('multiple active synergies each carry the ✦ marker', () => {
+    // Toolsmith (2 tools) + Merchant (Commit Hammer gear + deploy card)
+    const s = withSlots([
+      { kind: 'card', id: 'tools.hammer', tag: 'tools' },
+      { kind: 'card', id: 'tools.wrench', tag: 'tools' },
+      { kind: 'gear', id: 'gear.commit-hammer.7', tag: 'Commit Hammer' },
+    ])
+    const panel = renderLoadoutPanel(s, false)
+    // Each active row should have ✦ — count at least 1 in the active section
+    const lines = panel.split('\n')
+    const activeIdx = lines.findIndex((l) => l.toLowerCase().includes('active'))
+    expect(activeIdx).toBeGreaterThanOrEqual(0)
+    // All rows after active header (before chase or end) should contain ✦
+    const activeRows = lines.slice(activeIdx + 1).filter((l) => l.trim().length > 0 && !l.toLowerCase().includes('away') && !l.toLowerCase().includes('one'))
+    expect(activeRows.length).toBeGreaterThan(0)
+    for (const row of activeRows) {
+      expect(row).toContain('✦')
+    }
+  })
+})
+
+describe('renderLoadoutPanel — one-away chase cue (FEEL)', () => {
+  it('one-away chase row carries the ◇ marker (chase, not a nag)', () => {
+    // One tools card equipped → Toolsmith is one-away
+    const s = withSlots([
+      { kind: 'card', id: 'tools.hammer', tag: 'tools' },
+    ])
+    const panel = renderLoadoutPanel(s, false)
+    const chaseLine = panel.split('\n').find((l) => l.includes('Toolsmith') && !l.toLowerCase().includes('active'))
+    expect(chaseLine).toBeDefined()
+    expect(chaseLine).toContain('◇')
+  })
+
+  it('chase row does NOT carry the ✦ marker (distinguishes from active)', () => {
+    const s = withSlots([
+      { kind: 'card', id: 'tools.hammer', tag: 'tools' },
+    ])
+    const panel = renderLoadoutPanel(s, false)
+    // Find the Toolsmith line in chase section (after one away header, before end)
+    const lines = panel.split('\n')
+    const chaseIdx = lines.findIndex((l) => l.toLowerCase().includes('away'))
+    expect(chaseIdx).toBeGreaterThanOrEqual(0)
+    const chaseRows = lines.slice(chaseIdx + 1).filter((l) => l.includes('Toolsmith'))
+    expect(chaseRows.length).toBe(1)
+    expect(chaseRows[0]).not.toContain('✦')
+  })
+
+  it('zen mode suppresses the chase cue too (returns empty string)', () => {
+    const s = withSlots([
+      { kind: 'card', id: 'tools.hammer', tag: 'tools' },
+    ])
+    expect(renderLoadoutPanel(s, true)).toBe('')
+  })
+})

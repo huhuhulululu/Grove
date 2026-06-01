@@ -295,3 +295,55 @@ existing card sets + gear + quest buffs); the conventional-commit inference rule
 finally makes collection purposeful, honestly (cosmetic mults = the existing capped economy). Track B honors
 ADR-0008's "REAL power-ups" the RIGHT way — by making the safe helpers better for ALL users, not by crippling the
 tool until you grind. Firewall (ADR-0005) intact: the engine stays pure; Track B helpers stay read-only drafts.
+
+## ADR-0015 — Achievements (rev.2): retroactive recognition, derivable-only, no completionist FOMO
+**Status:** proposed (rev.2, after critic REJECT of rev.1) · 2026-06-01 (user "全都要" — the engagement pillar)
+**Decision:** Add **Achievements** — one-time, never-expiring recognitions of cumulative thresholds the player
+has ALREADY crossed, derived PURELY from existing state. Engagement = recognition of what you DID, never pressure
+to do more. rev.2 incorporates the critic's REJECT of rev.1.
+
+**Distinction from existing systems (critic #5):** an *achievement* RETROACTIVELY recognizes a cumulative
+threshold already crossed (a pure read-derivation over GameState); a *quest* (Pillar-B) rewards an ACTION you
+take; the *foiled-set capstone* is per-set foil flair. v1 achievements MUST NOT duplicate a quest-completion or a
+capstone (asserted — disjoint reward set).
+
+**v1 set is 100% DERIVABLE from existing cumulative state (critic #2):** ONLY from
+`{ player.level, completedSets, cards, gear, foiled, prestigeRank(state), quests[].completions }`. e.g.
+first-set-complete, all-sets-complete, reach L5/L10, first prestige / prestige x3, own N cards, first foil,
+a fully-foiled set, all-gear-owned. **DEFERRED** (need a NEW lifetime counter that v1 does NOT add):
+"N commits scored" (`eventCount` is all-types, no per-type counter) and "N synergies discovered"
+(`activeSynergies` is recomputed per-call, not persisted). v1 adds ZERO new counters — no "minimal" hand-wave.
+
+**Anti-FOMO is STRUCTURAL, not vocabulary (critic #1):**
+- No achievement predicate may read a time/elapsed/inactivity quantity (purity bans the clock; a guard test
+  asserts no predicate references an elapsed/inactivity concept). Absence is NEVER punished.
+- DEFAULT surface shows UNLOCKED achievements only; the full locked list is behind an EXPLICIT opt-in
+  (`sq achievements --all`), NEVER on the dashboard by default, NEVER nagged — mirroring ADR-0014's "NO 'leaving
+  value on the table' prompting". `--zen` suppresses the achievements surface entirely.
+
+**Architecture (pure, mirrors computeLoadoutEffect):**
+- `src/core/achievements.ts` — published ACHIEVEMENTS table (pure data): `{ id, name, desc, when: (s)=>boolean }`,
+  each `when` pure over the derivable fields above. Published/inspectable (ADR-0002).
+- `src/engine/achievements.ts` — PURE `checkAchievements(state): string[]` returns ids satisfied-now AND NOT in
+  `state.achievements` (the idempotency gate, critic #4). reduce() appends those + pushes a COSMETIC unlock reward;
+  never reverts.
+- state round-trip = ALL FOUR sites (critic #3, the loadout/foiled precedent): `achievements: string[]` on the
+  GameState interface + initialState `[]`; `GameStateSchema` as `.optional()`; `migrate()` default `[]`;
+  `cloneState` spread `[...]` (hand-written clone — omitting it silently drops achievements every reduce).
+- render/TUI: a calm achievements surface (`sq achievements`), unlocked-only by default, `--all` opt-in; i18n ×4.
+
+**Acceptance criteria (testable):**
+- `checkAchievements` PURE (purity.test); every `when` derives ONLY from the listed existing fields (no new counter).
+- **Idempotent**: reducing the SAME state twice yields ZERO new unlocks / ZERO new rewards on the 2nd pass (test).
+- **No FOMO path**: a guard test asserts no predicate references an elapsed/inactivity/time quantity; default
+  surface unlocked-only; locked list only under explicit `--all`; `--zen` suppresses entirely.
+- **No duplication**: no achievement fires the same recognition as an existing quest-completion or foiled capstone (test).
+- **Round-trips** through interface + schema(optional) + migrate(`[]`) + cloneState(`[...]`) — explicit tests.
+- Cosmetic only (ADR-0005); never expires/reset/reverts; published (ADR-0002).
+
+**Open questions:** the exact ~10-15 derivable achievements + thresholds; subcommand vs an opt-in panel.
+
+**Why:** the return/engagement pillar, in the ONLY form consistent with Grove's soul — recognition, not coercion.
+rev.2 fixes the critic's findings: derivable-only (no hidden counter/contradiction), structural anti-FOMO (no
+locked-completionist nag), all four round-trip sites, an explicit idempotency gate, and a crisp
+not-a-second-quest-system distinction.

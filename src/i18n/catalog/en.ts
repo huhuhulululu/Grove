@@ -274,6 +274,7 @@ export const en: Catalog = {
   // loadout panel (render/loadout.ts · src/cli/commands/loadout.ts)
   // ZEN: these are never shown in calm mode. Empty loadout is first-class neutral.
   'ui.loadout.title': 'LOADOUT',
+  'ui.loadout.dash_slots': 'slots {filled}/{cap}',
   'ui.loadout.slot_empty': '  [{n}] empty',
   'ui.loadout.slot_filled': '  [{n}] {kind} · {label}',
   'ui.loadout.active_header': '  active:',

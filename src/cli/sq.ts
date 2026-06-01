@@ -78,6 +78,7 @@ import {
 } from './commands/hooks'
 import { handleWrap, handleShare, handleNtfy } from './commands/share'
 import { handleLoadout } from './commands/loadout'
+import { handleAchievements } from './commands/achievements'
 
 // Re-export the public surface the tests / other layers import from './sq', so
 // the God-file split is transparent to every existing import site.
@@ -105,7 +106,7 @@ interface ParsedArgs {
  */
 // Flags that carry NO value (boolean-only). A flag in this set is set to
 // 'true' unconditionally, never consuming the following positional token.
-const BOOL_FLAGS = new Set(['zen', 'no-clear', 'premium', 'once', 'no-wait', 'badge'])
+const BOOL_FLAGS = new Set(['zen', 'no-clear', 'premium', 'once', 'no-wait', 'badge', 'all'])
 
 function parseArgs(argv: string[]): ParsedArgs {
   const positional: string[] = []
@@ -166,7 +167,8 @@ const SUBCOMMANDS = [
   'event', 'status', 'recap', 'scan', 'quests', 'pull', 'enhance', 'repair',
   'protect', 'craft', 'foil', 'convert', 'prestige', 'dashboard', 'tui', 'serve',
   'statusline-ingest', 'statusline', 'init', 'uninstall', 'commit-hook',
-  'suggest-commit', 'checkpoint', 'wrap', 'share', 'ntfy', 'loadout', 'help',
+  'suggest-commit', 'checkpoint', 'wrap', 'share', 'ntfy', 'loadout',
+  'achievements', 'help',
 ] as const
 
 /** Classic Levenshtein edit distance (pure). */
@@ -392,6 +394,11 @@ Subcommands:
                           sq loadout equip buff/precast-spec
       unequip <N>   Unequip slot N (1-based). e.g. sq loadout unequip 2
 
+  achievements [--all] [--home DIR]
+      Show unlocked achievements (retroactive recognitions of cumulative progress).
+      Default: unlocked only. --all also shows locked ones. --zen prints a count only.
+      Cosmetic only · never expires (ADR-0015).
+
   help
       Show this help message.
 `.trim()
@@ -488,6 +495,8 @@ export function buildUsageText(locale: Locale): string {
     t(locale, 'cli.help.cmd.ntfy'),
     '',
     t(locale, 'cli.help.cmd.loadout'),
+    '',
+    t(locale, 'cli.help.cmd.achievements'),
     '',
     t(locale, 'cli.help.cmd.help'),
   ]
@@ -655,6 +664,9 @@ export function run(argv: string[]): number {
 
     case 'loadout':
       return handleLoadout(rest, flags, dir, zen, locale)
+
+    case 'achievements':
+      return handleAchievements(flags, dir, zen, locale)
 
     case 'help':
     case undefined:

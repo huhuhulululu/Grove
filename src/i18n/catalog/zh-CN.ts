@@ -65,6 +65,8 @@ export const zhCN: Catalog = {
   'reward.foil_need_shards': '碎片不足 · 为 {name} 上闪箔需要 {cost},当前 {have}',
   'reward.foiled_capstone': '✦✦ {set} 套牌全部闪箔 · 解锁封顶奖励(装饰性)',
 
+  'reward.achievement': '🏆 {name} · {desc}',
+
   'reward.prestige_spend': '-{cost} 🌰 · 威望 {rank}',
   'reward.prestige_earned': '✦ 获得威望 {rank}(永久装饰)',
   'reward.not_enough_prestige': '🌰 不足 · 威望 {rank} 需要 {cost},当前 {have}',
@@ -326,6 +328,17 @@ export const zhCN: Catalog = {
   'cli.help.cmd.ntfy': '  ntfy <主题> | off [--home 目录]\n      可选移动推送(ntfy.sh)。默认关闭 · 不设置主题则不推送。\n      <主题>  设置主题;安装 ntfy.sh 应用并订阅它。\n      off     禁用推送。仅重要时刻(升级、传说、宝箱);\n      消息仅含装饰性事件 · 绝不含代码/cwd/费用 (ADR-0011)。',
   'cli.help.cmd.help': '  help\n      显示此帮助消息。',
   'cli.help.cmd.loadout': '  loadout [equip <引用> | unequip <N>] [--home 目录]\n      查看或编辑 3 槽位构筑(装饰性 · ADR-0014)。\n      装备成员之间的协同效应可提升 XP/种子/暴击。\n      空构筑是一等公民中性状态 · 仅装饰性 (ADR-0005)。\n      equip <引用>   装备卡牌/装备/增益。格式: kind/id[/tag]\n      unequip <N>    卸载第 N 个槽位(1-based)。',
+  'cli.help.cmd.achievements': '  achievements [--all] [--home 目录]\n      显示已解锁成就(对累计进度的回顾性认可)。\n      默认:仅已解锁。--all 也显示未解锁的。--zen 仅打印数量。\n      仅装饰性 · 永不过期 (ADR-0015)。',
+
+  // ui.achievements.* — 成就面板
+  'ui.achievements.title': '成就',
+  'ui.achievements.none': '  (暂无)',
+  'ui.achievements.unlocked_row': '  🏆 {name} · {desc}',
+  'ui.achievements.locked_header': '  未解锁:',
+  'ui.achievements.locked_row': '  · {name} · {desc}',
+
+  // cli.achievements.*
+  'cli.achievements.zen_count': '已解锁 {n}/{total} 个成就',
 
   // guide.* — 网页「怎么玩」教程
   'guide.title': '怎么玩',

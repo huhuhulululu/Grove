@@ -90,6 +90,9 @@ export const en: Catalog = {
   'reward.foil_need_shards': 'not enough shards — foil {name} needs {cost}, have {have}',
   'reward.foiled_capstone': '✦✦ {set} set fully foiled · capstone unlocked (cosmetic)',
 
+  // achievement (reduce.grantAchievements): a retroactive, cosmetic recognition
+  'reward.achievement': '🏆 {name} · {desc}',
+
   // prestige (reduce.buyPrestige): spend, earned, refusal
   'reward.prestige_spend': '-{cost} 🌰 · prestige {rank}',
   'reward.prestige_earned': '✦ Prestige {rank} earned (permanent cosmetic)',
@@ -384,6 +387,19 @@ export const en: Catalog = {
   'cli.help.cmd.ntfy': '  ntfy <topic> | off [--home DIR]\n      Opt-in mobile push (ntfy.sh). Default OFF · no push unless you set a topic.\n      <topic>  Set the topic; install the ntfy.sh app and subscribe to it.\n      off      Disable push. Big moments only (level-ups, legendaries, chests);\n      the message carries cosmetic events only · NEVER code/cwd/cost (ADR-0011).',
   'cli.help.cmd.help': '  help\n      Show this help message.',
   'cli.help.cmd.loadout': '  loadout [equip <ref> | unequip <N>] [--home DIR]\n      View or edit your 3-slot loadout (cosmetic build · ADR-0014).\n      Active synergies between equipped members boost XP / seeds / crit.\n      Empty loadout is first-class neutral · cosmetic only (ADR-0005).\n      equip <ref>   Equip a card/gear/buff. Format: kind/id[/tag]\n                    e.g.  sq loadout equip card/tools.hammer/tools\n                          sq loadout equip gear/gear.commit-hammer.42/Commit Hammer\n                          sq loadout equip buff/precast-spec\n      unequip <N>   Unequip slot N (1-based). e.g. sq loadout unequip 2',
+  'cli.help.cmd.achievements': '  achievements [--all] [--home DIR]\n      Show unlocked achievements (retroactive recognitions of cumulative progress).\n      Default: unlocked only. --all also shows locked ones. --zen prints a count only.\n      Cosmetic only · never expires (ADR-0015).',
+
+  // -------------------------------------------------------------------------
+  // ui.achievements.* — achievements panel (src/render/achievements.ts)
+  // -------------------------------------------------------------------------
+  'ui.achievements.title': 'ACHIEVEMENTS',
+  'ui.achievements.none': '  (none yet)',
+  'ui.achievements.unlocked_row': '  🏆 {name} · {desc}',
+  'ui.achievements.locked_header': '  locked:',
+  'ui.achievements.locked_row': '  · {name} · {desc}',
+
+  // cli.achievements.* — achievements subcommand messages
+  'cli.achievements.zen_count': '{n}/{total} achievements unlocked',
 
   // -------------------------------------------------------------------------
   // guide.* — the web "How to play" tutorial (src/web/page.ts guideSection)

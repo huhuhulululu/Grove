@@ -193,6 +193,49 @@ describe('loadState migration', () => {
       { kind: 'card', id: 'tools.hammer', tag: 'tools' },
     ])
   })
+
+  // -- Achievements (ADR-0015 rev.2) round-trip ------------------------------
+  it('a legacy state WITHOUT achievements migrates to the default []', () => {
+    const dir = makeTmpDir()
+    const legacy = {
+      version: 1,
+      player: { xp: 5, level: 1, currency: 0 },
+      cards: [],
+      gear: [],
+      pity: { sinceLegendary: 0 },
+      completedSets: [],
+    }
+    fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify(legacy), 'utf8')
+    const result = loadState(dir)
+    expect(result.achievements).toEqual([])
+  })
+
+  it('a saved state WITH achievements round-trips intact (save → load)', () => {
+    const dir = makeTmpDir()
+    const withAch: GameState = {
+      ...initialState(),
+      achievements: ['ach:level-5', 'ach:first-set'],
+    }
+    saveState(dir, withAch)
+    const result = loadState(dir)
+    expect(result.achievements).toEqual(withAch.achievements)
+  })
+
+  it('migrate drops a malformed (non-string) achievement entry', () => {
+    const dir = makeTmpDir()
+    const raw = {
+      version: 1,
+      player: { xp: 1, level: 1, currency: 0 },
+      cards: [],
+      gear: [],
+      pity: { sinceLegendary: 0 },
+      completedSets: [],
+      achievements: ['ach:level-5', 42, null, 'ach:first-foil'],
+    }
+    fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify(raw), 'utf8')
+    const result = loadState(dir)
+    expect(result.achievements).toEqual(['ach:level-5', 'ach:first-foil'])
+  })
 })
 
 // ---------------------------------------------------------------------------

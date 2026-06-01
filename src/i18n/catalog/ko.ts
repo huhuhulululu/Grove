@@ -65,6 +65,8 @@ export const ko: Catalog = {
   'reward.foil_need_shards': '조각 부족 · {name} 포일에 {cost} 필요, 보유 {have}',
   'reward.foiled_capstone': '✦✦ {set} 세트 전체 포일 · 캡스톤 해금(장식)',
 
+  'reward.achievement': '🏆 {name} · {desc}',
+
   'reward.prestige_spend': '-{cost} 🌰 · 프레스티지 {rank}',
   'reward.prestige_earned': '✦ 프레스티지 {rank} 획득(영구 장식)',
   'reward.not_enough_prestige': '🌰 부족 · 프레스티지 {rank} 는 {cost} 필요, 보유 {have}',
@@ -326,6 +328,17 @@ export const ko: Catalog = {
   'cli.help.cmd.ntfy': '  ntfy <토픽> | off [--home DIR]\n      선택적 모바일 푸시(ntfy.sh). 기본값은 꺼짐 · 토픽을 설정하지 않으면 푸시 없음.\n      <토픽>  토픽을 설정; ntfy.sh 앱을 설치하고 구독합니다.\n      off     푸시를 비활성화합니다. 주요 순간만(레벨업, 전설, 보물상자);\n      메시지에는 장식적 이벤트만 포함 · 코드/cwd/비용은 절대 포함 안 함 (ADR-0011)。',
   'cli.help.cmd.help': '  help\n      이 도움말 메시지를 표시합니다。',
   'cli.help.cmd.loadout': '  loadout [equip <ref> | unequip <N>] [--home DIR]\n      3슬롯 로드아웃을 보거나 편집합니다(장식적 빌드 · ADR-0014).\n      장착된 멤버 간 시너지로 XP/씨앗/치명타를 강화합니다.\n      빈 로드아웃은 1등급 중립 상태 · 장식 전용 (ADR-0005).',
+  'cli.help.cmd.achievements': '  achievements [--all] [--home DIR]\n      잠금 해제된 업적을 표시합니다(누적 진행의 소급 인정).\n      기본값: 잠금 해제된 것만. --all은 잠긴 것도 표시. --zen은 개수만 출력.\n      장식 전용 · 만료 없음 (ADR-0015).',
+
+  // ui.achievements.* — 업적 패널
+  'ui.achievements.title': '업적',
+  'ui.achievements.none': '  (아직 없음)',
+  'ui.achievements.unlocked_row': '  🏆 {name} · {desc}',
+  'ui.achievements.locked_header': '  잠김:',
+  'ui.achievements.locked_row': '  · {name} · {desc}',
+
+  // cli.achievements.*
+  'cli.achievements.zen_count': '{n}/{total} 업적 잠금 해제됨',
 
   // guide.* — 웹 「플레이 방법」튜토리얼
   'guide.title': '플레이 방법',

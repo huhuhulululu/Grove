@@ -179,6 +179,9 @@ const GameStateSchema = z.object({
       ),
     })
     .optional(),
+  // Achievements (ADR-0015 rev.2). Optional so legacy states (pre-achievements)
+  // still validate against the FAST path; migrate() fills the default [].
+  achievements: z.array(z.string()).optional(),
 })
 
 /**
@@ -243,6 +246,11 @@ function migrate(raw: Record<string, unknown>): GameState {
     work: migrateWork(raw['work'], defaults.work),
     // Track A loadout (ADR-0014) — legacy states predating it get a fresh {slots:[]}.
     loadout: migrateLoadout(raw['loadout'], defaults.loadout),
+    // Achievements (ADR-0015) — legacy states predating it get a fresh []. Keep only
+    // string ids (a malformed entry is dropped, never throws).
+    achievements: Array.isArray(raw['achievements'])
+      ? (raw['achievements'] as unknown[]).filter((x): x is string => typeof x === 'string')
+      : defaults.achievements,
     // Additive R3 field — legacy states predating gear-protect get a fresh default.
     protectedGear: Array.isArray(raw['protectedGear'])
       ? (raw['protectedGear'] as string[]).filter((x): x is string => typeof x === 'string')

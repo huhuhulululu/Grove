@@ -31,6 +31,8 @@ import { addCard, grantDupComp, craftableCardId, missingCardIds, SHARDS_PER_CRAF
 import type { Rarity } from '../core/rewards'
 import { makeGear, activeGearBonus } from './gear'
 import { computeLoadoutEffect } from './loadout'
+import { checkAchievements } from './achievements'
+import { ACHIEVEMENTS } from '../core/achievements'
 import { cardFromDef, unlockedSets, ALL_CARD_DEFS, setUnlockLevel, SET_UNLOCK_LEVEL, cardIdsInSet } from '../core/cards'
 import {
   applyQuests,
@@ -267,6 +269,11 @@ function cloneState(state: GameState): GameState {
     // Track A loadout (ADR-0014) — deep-copy the slots so a clone never shares the
     // slot array with the source (round-trip + no-op refusal must preserve it).
     loadout: { slots: state.loadout.slots.map((s) => ({ ...s })) },
+    // Achievements (ADR-0015) — spread the array so a clone never shares it with the
+    // source. OMITTING this would silently DROP achievements on every reduce.
+    // ?? [] guards against legacy saves that passed the fast-path schema parse with
+    // achievements: undefined (the schema marks it optional; the interface does not).
+    achievements: [...(state.achievements ?? [])],
     protectedGear: [...state.protectedGear],
     // R8 optional renewable/spark fields — preserve them through a clone so a
     // no-op refusal never silently drops a foiled list or spark progress.
@@ -279,6 +286,31 @@ function cloneState(state: GameState): GameState {
 /** Clamp a number into [lo, hi]. */
 function clamp(value: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, value))
+}
+
+/** Look up an achievement def by id (for its name/desc in the unlock reward). */
+const ACHIEVEMENT_BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a]))
+
+/**
+ * Recognize any achievements the WORKING state has just crossed (ADR-0015 rev.2):
+ * append each newly-satisfied id to `state.achievements` and push ONE cosmetic
+ * unlock reward per id. IDEMPOTENT: checkAchievements excludes ids already recorded,
+ * so reducing the same satisfying state twice yields ZERO new unlocks/rewards on the
+ * 2nd pass. Cosmetic-only (ADR-0005) — confers NO power, never reverts. Returns a
+ * NEW state. PURE: reads only state + the published table.
+ */
+function grantAchievements(state: GameState, rewards: Reward[]): GameState {
+  const unlocked = checkAchievements(state)
+  if (unlocked.length === 0) return state
+  for (const id of unlocked) {
+    const def = ACHIEVEMENT_BY_ID.get(id)
+    rewards.push({
+      kind: 'buff',
+      buff: id,
+      ...msg('reward.achievement', { name: def?.name ?? id, desc: def?.desc ?? '' }),
+    })
+  }
+  return { ...state, achievements: [...(state.achievements ?? []), ...unlocked] }
 }
 
 function xpAmount(type: GroveEvent['type'], magnitude: number): number {
@@ -1365,7 +1397,11 @@ export function reduce(
   // FIREWALL: failures never punish — no rng draw, no progress change.
   // (eventCount still advances + buffs still expire, both silent.)
   if (event.success === false) {
-    return { state: next, rewards: [] }
+    // A failure changes no cumulative progress, but a freshly-loaded state may have
+    // crossed a threshold that was never recorded — recognize it (idempotent).
+    const rewards: Reward[] = []
+    next = grantAchievements(next, rewards)
+    return { state: next, rewards }
   }
 
   const magnitude = event.magnitude
@@ -1471,6 +1507,10 @@ export function reduce(
 
   // Layer quest-specific effects (auras, multipliers, freshness, loot) on top.
   next = applyQuests(next, event, rng, rewards)
+
+  // Recognize any achievements just crossed (ADR-0015) — AFTER all reductions, so a
+  // level-up / set-completion / foil from THIS event is reflected. Idempotent.
+  next = grantAchievements(next, rewards)
 
   return { state: next, rewards }
 }

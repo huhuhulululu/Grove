@@ -33,6 +33,7 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     energy: { known: false, vigor: 100, sap: 100 },
     work: { workMeter: 0, lastCostUsd: 0, windowKey: 0, milestonesInWindow: 0 },
     loadout: { slots: [] },
+    achievements: [],
     protectedGear: [],
     ...overrides,
   }

@@ -138,6 +138,16 @@ export interface GameState {
    */
   loadout: LoadoutState
   /**
+   * Achievements (ADR-0015 rev.2). Ids of one-time, never-expiring RETROACTIVE
+   * recognitions the player has already unlocked (cumulative thresholds crossed).
+   * Derived PURELY by checkAchievements over existing state — adds ZERO new
+   * lifetime counters. Append-only: an unlocked achievement never reverts.
+   * Cosmetic-only (ADR-0005) — confers NO real-world power. MUST be in
+   * GameStateSchema (optional) + migrate() (default []) + cloneState() (spread) or
+   * it is silently dropped on load every reduce.
+   */
+  achievements: string[]
+  /**
    * Token-milestone floor (保底, ADR-0010). A "work meter" that accrues from REAL
    * cumulative cost (cost.total_cost_usd) so heavy work always pays out a fair,
    * COSMETIC-only chest — never xp/power (that would reward burning tokens). It
@@ -192,6 +202,7 @@ export function initialState(): GameState {
     energy: { known: false, vigor: 100, sap: 100 },
     work: { workMeter: 0, lastCostUsd: 0, windowKey: 0, milestonesInWindow: 0 },
     loadout: { slots: [] },
+    achievements: [],
     protectedGear: [],
     foiled: [],
     spark: 0,

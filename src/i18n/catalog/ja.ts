@@ -65,6 +65,8 @@ export const ja: Catalog = {
   'reward.foil_need_shards': 'シャード不足 · {name} のフォイルは {cost} 必要,所持 {have}',
   'reward.foiled_capstone': '✦✦ {set} セット全フォイル · キャップストーン解放(装飾)',
 
+  'reward.achievement': '🏆 {name} · {desc}',
+
   'reward.prestige_spend': '-{cost} 🌰 · プレステージ {rank}',
   'reward.prestige_earned': '✦ プレステージ {rank} 獲得(永続装飾)',
   'reward.not_enough_prestige': '🌰 不足 · プレステージ {rank} は {cost} 必要,所持 {have}',
@@ -326,6 +328,17 @@ export const ja: Catalog = {
   'cli.help.cmd.ntfy': '  ntfy <トピック> | off [--home DIR]\n      オプトインモバイルプッシュ(ntfy.sh)。デフォルトはオフ · トピック設定なしではプッシュなし。\n      <トピック>  トピックを設定; ntfy.sh アプリをインストールしてサブスクライブ。\n      off         プッシュを無効化。大事な瞬間のみ(レベルアップ、レジェンダリー、宝箱);\n      メッセージは装飾的イベントのみ · コード/cwd/コスト は絶対含まない (ADR-0011)。',
   'cli.help.cmd.help': '  help\n      このヘルプメッセージを表示。',
   'cli.help.cmd.loadout': '  loadout [equip <ref> | unequip <N>] [--home DIR]\n      3スロットのロードアウトを表示または編集(装飾的ビルド · ADR-0014)。\n      装備メンバー間のシナジーで XP/シード/クリットを強化。\n      空のロードアウトは一等公民の中立状態 · 装飾のみ (ADR-0005)。',
+  'cli.help.cmd.achievements': '  achievements [--all] [--home DIR]\n      解除済みアチーブメントを表示(累積進捗の事後認定)。\n      デフォルト: 解除済みのみ。--all で未解除も表示。--zen は件数のみ。\n      装飾のみ · 有効期限なし (ADR-0015)。',
+
+  // ui.achievements.* — アチーブメントパネル
+  'ui.achievements.title': 'アチーブメント',
+  'ui.achievements.none': '  (まだなし)',
+  'ui.achievements.unlocked_row': '  🏆 {name} · {desc}',
+  'ui.achievements.locked_header': '  未解除:',
+  'ui.achievements.locked_row': '  · {name} · {desc}',
+
+  // cli.achievements.*
+  'cli.achievements.zen_count': '{n}/{total} アチーブメント解除済み',
 
   // guide.* — ウェブ「遊び方」チュートリアル
   'guide.title': '遊び方',

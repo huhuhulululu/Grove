@@ -905,7 +905,7 @@ function defSet(cardId: string): string {
 }
 
 /** The capstone buff id granted when every card of `set` is foiled. */
-export function foiledSetBuffId(set: string): string {
+function foiledSetBuffId(set: string): string {
   return `foiled-set:${set}`
 }
 
@@ -962,7 +962,7 @@ export function prestigeBuffId(rank: number): string {
  * current rank → buying the (N+1)th) costs PRESTIGE_COST + N*PRESTIGE_COST_STEP, so
  * the late-game sink keeps deepening (a recurring target, never "spent forever").
  */
-export const PRESTIGE_COST_STEP = 250
+const PRESTIGE_COST_STEP = 250
 
 /**
  * Whether a buff id is EXACTLY a prestige rank id (not merely prefixed by one).

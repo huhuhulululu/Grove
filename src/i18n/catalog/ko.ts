@@ -126,6 +126,8 @@ export const ko: Catalog = {
   'ui.panel.quests': '퀘스트',
   'ui.panel.buffs': '버프',
   'ui.panel.economy': '경제',
+  'ui.panel.loadout': '로드아웃',
+  'ui.panel.achievements': '업적',
 
   'ui.web.energy': '⚡ 에너지',
   'ui.web.collection': '🃏 컬렉션',
@@ -242,6 +244,7 @@ export const ko: Catalog = {
   // tui-only chrome
   'ui.tui.keys': '키: p 뽑기 · P 프리미엄 · e 강화 · c 제작 · b 프레스티지 · r 새로고침 · tab 이동 · q 종료',
   'ui.tui.earn_hint': '출시해서 더 많이 벌어요',
+  'ui.tui.achievements_summary': '{n}/{total} 해제됨',
 
   // 로드아웃 패널
   'ui.loadout.title': '로드아웃',

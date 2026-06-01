@@ -14,8 +14,10 @@ import { EVENT_TYPES } from '../../core/events'
 import type { GroveEvent } from '../../core/events'
 import { scanRepo } from '../../detect/pillarb'
 import { QUESTS } from '../../core/quests'
-import { runTui } from '../../tui/app'
-import { startWebServer } from '../../web/server'
+// runTui and startWebServer are intentionally NOT statically imported.
+// They pull in Ink/React and the web server stack, which are heavy. Since
+// these are only needed for the `tui` and `serve` subcommands (never on the
+// hot path), they are loaded lazily via dynamic import() inside each handler.
 import { renderDashboard } from '../../render/dashboard'
 import { stateDir } from '../../store/paths'
 import type { Locale } from '../../i18n/types'
@@ -28,6 +30,7 @@ import {
   printContextualOffers,
   maybePush,
   printRewards,
+  isZen,
 } from './shared'
 
 export function handleEvent(
@@ -214,7 +217,10 @@ export function handleDashboard(flags: Record<string, string>, dir: string, loca
  */
 export async function handleTui(flags: Record<string, string>, dir: string): Promise<number> {
   const once = flags['once'] === 'true'
-  const frame = await runTui(dir, once ? { once: true } : {})
+  const zen = isZen(flags) // calm mode suppresses the loadout/achievements panels (ADR-0005)
+  // Lazy: Ink/React is heavy and only needed for the `tui` subcommand.
+  const { runTui } = await import('../../tui/app')
+  const frame = await runTui(dir, { ...(once ? { once: true } : {}), zen })
   // In --once mode log the frame so CI / pipes can assert on it. The live path
   // already rendered to the terminal via Ink; its returned frame is redundant
   // there, so only print on the once path.
@@ -235,6 +241,8 @@ export async function handleServe(flags: Record<string, string>, dir: string): P
   const host = flags['host']
   const noWait = flags['no-wait'] === 'true'
 
+  // Lazy: the web server stack is only needed for `serve`.
+  const { startWebServer } = await import('../../web/server')
   const server = startWebServer({
     dir,
     port,

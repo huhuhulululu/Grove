@@ -161,6 +161,8 @@ export const en: Catalog = {
   'ui.panel.quests': 'QUESTS',
   'ui.panel.buffs': 'BUFFS',
   'ui.panel.economy': 'ECONOMY',
+  'ui.panel.loadout': 'LOADOUT',
+  'ui.panel.achievements': 'ACHIEVEMENTS',
 
   // web section headings (page.ts — include their leading emoji)
   'ui.web.energy': '⚡ Energy',
@@ -286,9 +288,10 @@ export const en: Catalog = {
   'ui.seeds': '{n} seeds',
   'ui.shards': '{n} shards',
 
-  // tui-only chrome (key hints + earn hint)
+  // tui-only chrome (key hints + earn hint + achievements summary)
   'ui.tui.keys': 'keys: p pull · P premium · e enhance · c craft · b prestige · r refresh · tab move · q quit',
   'ui.tui.earn_hint': 'earn more by shipping',
+  'ui.tui.achievements_summary': '{n}/{total} unlocked',
 
   // loadout panel (render/loadout.ts · src/cli/commands/loadout.ts)
   // ZEN: these are never shown in calm mode. Empty loadout is first-class neutral.

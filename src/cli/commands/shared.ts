@@ -11,7 +11,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as url from 'node:url'
 import { shQuote } from '../../adapters/shquote'
-import { loadState, saveState, withStateLock } from '../../store/store'
+import { loadState } from '../../store/store'
 import { ingestEvent } from '../../app/ingest'
 import { formatReward } from '../../render/format'
 import { ntfyTopic, sendNtfy } from '../../adapters/ntfy'
@@ -76,7 +76,7 @@ export function calmConfirm(message: string, locale: Locale = 'en'): void {
  * is never signalled, so it blocks for the timeout without spinning a core
  * (unlike `while (Date.now() < until) {}`). Used only for the TTY reveal cadence.
  */
-export function sleepSync(ms: number): void {
+function sleepSync(ms: number): void {
   if (ms <= 0) return
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 }
@@ -295,7 +295,7 @@ function resolvePackageRoot(thisFile: string): string {
 // ---------------------------------------------------------------------------
 
 /** Known AI-coding CLIs Grove can ride alongside (ADR-0001, tool-agnostic). */
-export const KNOWN_AI_CLIS = ['claude', 'cursor', 'aider', 'codex', 'copilot', 'gemini'] as const
+const KNOWN_AI_CLIS = ['claude', 'cursor', 'aider', 'codex', 'copilot', 'gemini'] as const
 
 export interface DetectAiOpts {
   /** Probe whether `bin` resolves on PATH. Defaults to a real PATH scan. */
@@ -332,7 +332,3 @@ function binOnPath(bin: string): boolean {
   return false
 }
 
-// Re-export the imports that handler modules also need, so each group module
-// imports state plumbing from one place where convenient. (loadState etc. are
-// also imported directly by handlers; this keeps shared the single seam.)
-export { loadState, saveState, withStateLock, ingestEvent, formatReward }

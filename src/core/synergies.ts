@@ -169,8 +169,3 @@ export const SYNERGIES: SynergyDef[] = [
     effect: { xpMult: 1.01, critBonus: 0.03 },
   },
 ]
-
-/** Look up a synergy by id (null when unknown). */
-export function synergyById(id: string): SynergyDef | null {
-  return SYNERGIES.find((s) => s.id === id) ?? null
-}

@@ -51,7 +51,7 @@ export const STREAK_STEP = 0.1
 export const STREAK_CAP = 1.0
 
 /** Permanent +seeds aura the Clean Build quest (lint_clean) confers. */
-export const CLEAN_BUILD_SEED_BONUS = 0.05
+const CLEAN_BUILD_SEED_BONUS = 0.05
 
 // ---------------------------------------------------------------------------
 // Active-buff selectors (used by reduce to scale XP / seeds / crit)

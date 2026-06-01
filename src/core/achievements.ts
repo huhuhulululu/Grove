@@ -194,11 +194,3 @@ const ALL_SET_IDS: readonly string[] = [
   'circuits',
   'relics',
 ]
-
-// Re-export the small pure derivations only for tests/inspection (no engine dep).
-export const _internals = {
-  prestigeRankOf,
-  hasFullyFoiledSet,
-  distinctCardCount,
-  ALL_SET_IDS,
-}

@@ -62,7 +62,11 @@ export default defineConfig({
   },
   clean: true,
   sourcemap: false,
-  splitting: false,
+  // splitting: true lets esbuild emit the tui/app chunk as a separate file,
+  // so non-tui commands (event, status, commit-hook, dashboard…) never load
+  // Ink/React from node_modules. The hot path (sq event / commit-hook) pays
+  // only for the lightweight main chunk; `sq tui` pays the Ink cost on demand.
+  splitting: true,
   // tsup does not chmod output; the bin must be executable.
   onSuccess: async () => {
     chmodSync('dist/cli/sq.js', 0o755)

@@ -126,6 +126,8 @@ export const zhCN: Catalog = {
   'ui.panel.quests': '任务',
   'ui.panel.buffs': '增益',
   'ui.panel.economy': '经济',
+  'ui.panel.loadout': '构筑',
+  'ui.panel.achievements': '成就',
 
   'ui.web.energy': '⚡ 精力',
   'ui.web.collection': '🃏 收藏',
@@ -242,6 +244,7 @@ export const zhCN: Catalog = {
   // tui-only chrome
   'ui.tui.keys': '按键: p 抽取 · P 高级 · e 强化 · c 合成 · b 威望 · r 刷新 · tab 移动 · q 退出',
   'ui.tui.earn_hint': '多交付来赚取更多',
+  'ui.tui.achievements_summary': '{n}/{total} 已解锁',
 
   // loadout panel
   'ui.loadout.title': '构筑',

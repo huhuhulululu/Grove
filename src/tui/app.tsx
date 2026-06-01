@@ -49,7 +49,6 @@ import {
 import type { Locale } from '../i18n/types'
 import { resolveLocale } from '../i18n/locale'
 import { t } from '../i18n/t'
-import { renderLoadoutPanel } from '../render/loadout'
 
 // ---------------------------------------------------------------------------
 // dispatchKey — the PURE key → engine-action router
@@ -310,11 +309,45 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
   lines.push(`  ${can.length > 0 ? t(locale, 'ui.header.can', { actions: can.join(' · ') }) : t(locale, 'ui.tui.earn_hint')}`)
   lines.push('')
 
-  // -- Loadout (suppressed under zen per ADR-0014) ----------------------------
-  const loadoutPanel = renderLoadoutPanel(state, zen, locale)
-  if (loadoutPanel) {
+  // -- Loadout panel (suppressed under zen per ADR-0014) ----------------------
+  if (!zen) {
+    lines.push(panelTitle(t(locale, 'ui.panel.loadout'), focus === 'Loadout'))
+    const lo = m.loadout
+    for (const slot of lo.slots) {
+      if (!slot.filled) {
+        lines.push(t(locale, 'ui.loadout.slot_empty', { n: slot.n }))
+      } else {
+        lines.push(t(locale, 'ui.loadout.slot_filled', { n: slot.n, label: slot.label, kind: slot.kind }))
+      }
+    }
+    if (lo.active.length > 0) {
+      lines.push(t(locale, 'ui.loadout.active_header'))
+      for (const s of lo.active) {
+        lines.push('✦ ' + t(locale, 'ui.loadout.active_row', { name: s.name, effect: s.effect }))
+      }
+    }
+    if (lo.chase.length > 0) {
+      lines.push(t(locale, 'ui.loadout.chase_header'))
+      for (const s of lo.chase) {
+        lines.push('◇ ' + t(locale, 'ui.loadout.chase_row', { name: s.name, effect: s.effect }))
+      }
+    }
     lines.push('')
-    lines.push(loadoutPanel)
+  }
+
+  // -- Achievements panel (unlocked-only per ADR-0015; suppressed under zen) --
+  if (!zen) {
+    lines.push(panelTitle(t(locale, 'ui.panel.achievements'), focus === 'Achievements'))
+    const ach = m.achievements
+    lines.push(`  ${t(locale, 'ui.tui.achievements_summary', { n: ach.unlockedCount, total: ach.total })}`)
+    if (ach.unlocked.length === 0) {
+      lines.push(`  ${t(locale, 'ui.achievements.none')}`)
+    } else {
+      for (const a of ach.unlocked) {
+        lines.push(t(locale, 'ui.achievements.unlocked_row', { name: a.name, desc: a.desc }))
+      }
+    }
+    lines.push('')
   }
 
   // -- Key legend -------------------------------------------------------------
@@ -355,6 +388,12 @@ export interface AppProps {
   animate?: boolean
   /** the active locale for UI labels; defaults to 'en'. */
   locale?: Locale
+  /**
+   * Calm mode (ADR-0005 / ADR-0014 / ADR-0015): when true, the loadout and
+   * achievements panels are suppressed (no synergy nag, no achievement FOMO).
+   * Defaults to false.
+   */
+  zen?: boolean
 }
 
 /**
@@ -367,6 +406,7 @@ export function App(props: AppProps): React.ReactElement {
   const { dir, initial, seed } = props
   const animate = props.animate ?? true
   const locale: Locale = props.locale ?? 'en'
+  const zen: boolean = props.zen ?? false
   const app = useApp()
 
   const [state, setState] = useState<GameState>(initial)
@@ -555,6 +595,7 @@ export function App(props: AppProps): React.ReactElement {
       animatedXpFraction={animatedXpFraction}
       pulse={pulse}
       locale={locale}
+      zen={zen}
     />
   )
 }
@@ -572,8 +613,11 @@ function AppView(props: {
   pulse: PulseTarget | null
   /** the active locale for UI labels. */
   locale: Locale
+  /** calm mode: suppresses the loadout and achievements panels. */
+  zen?: boolean
 }): React.ReactElement {
   const { model, focus, focusedGearIndex, flash, flashRarity, animatedXpFraction, pulse, locale } = props
+  const zen = props.zen ?? false
   const h = model.header
 
   // Rarity-as-colour on the flash line: a legendary/shiny drop glows yellow+bold,
@@ -647,6 +691,47 @@ function AppView(props: {
         <Text dimColor>{economyHint(model, locale)}</Text>
       </PanelBox>
 
+      {!zen && (
+        <PanelBox title={t(locale, 'ui.panel.loadout')} focused={focus === 'Loadout'}>
+          {model.loadout.slots.map((slot) =>
+            slot.filled ? (
+              <Text key={slot.n}>{t(locale, 'ui.loadout.slot_filled', { n: slot.n, label: slot.label, kind: slot.kind })}</Text>
+            ) : (
+              <Text key={slot.n} dimColor>{t(locale, 'ui.loadout.slot_empty', { n: slot.n })}</Text>
+            )
+          )}
+          {model.loadout.active.length > 0 && (
+            <>
+              <Text dimColor>{t(locale, 'ui.loadout.active_header')}</Text>
+              {model.loadout.active.map((s) => (
+                <Text key={s.id} color="green">{'✦ ' + t(locale, 'ui.loadout.active_row', { name: s.name, effect: s.effect })}</Text>
+              ))}
+            </>
+          )}
+          {model.loadout.chase.length > 0 && (
+            <>
+              <Text dimColor>{t(locale, 'ui.loadout.chase_header')}</Text>
+              {model.loadout.chase.map((s) => (
+                <Text key={s.id} dimColor>{'◇ ' + t(locale, 'ui.loadout.chase_row', { name: s.name, effect: s.effect })}</Text>
+              ))}
+            </>
+          )}
+        </PanelBox>
+      )}
+
+      {!zen && (
+        <PanelBox title={t(locale, 'ui.panel.achievements')} focused={focus === 'Achievements'}>
+          <Text dimColor>{t(locale, 'ui.tui.achievements_summary', { n: model.achievements.unlockedCount, total: model.achievements.total })}</Text>
+          {model.achievements.unlocked.length === 0 ? (
+            <Text dimColor>{t(locale, 'ui.achievements.none')}</Text>
+          ) : (
+            model.achievements.unlocked.map((a) => (
+              <Text key={a.id}>{t(locale, 'ui.achievements.unlocked_row', { name: a.name, desc: a.desc })}</Text>
+            ))
+          )}
+        </PanelBox>
+      )}
+
       <Text dimColor>
         {t(locale, 'ui.tui.keys')}
       </Text>
@@ -695,6 +780,8 @@ export interface RunTuiOpts {
    * tests). Mirrors the CLI's playReveal TTY guard so output stays deterministic.
    */
   noAnim?: boolean
+  /** calm mode (--zen): suppress the loadout / achievements panels (ADR-0005/0014/0015). */
+  zen?: boolean
 }
 
 /**
@@ -703,7 +790,7 @@ export interface RunTuiOpts {
  * stdout (pipe / CI / test) is treated as no-animation so the reveal settles
  * instantly and deterministically — the same guard the CLI's playReveal uses.
  */
-export function shouldAnimate(opts: RunTuiOpts = {}): boolean {
+function shouldAnimate(opts: RunTuiOpts = {}): boolean {
   if (opts.noAnim === true) return false
   return process.stdout.isTTY === true
 }
@@ -724,9 +811,10 @@ export function shouldAnimate(opts: RunTuiOpts = {}): boolean {
 export async function runTui(dir: string, opts: RunTuiOpts = {}): Promise<string> {
   const state = loadState(dir)
   const locale = resolveLocale()
+  const zen = opts.zen ?? false
 
   if (opts.once) {
-    return renderTuiFrame(state, { locale })
+    return renderTuiFrame(state, { locale, zen })
   }
 
   const instance = inkRender(
@@ -735,10 +823,11 @@ export async function runTui(dir: string, opts: RunTuiOpts = {}): Promise<string
       initial={state}
       animate={shouldAnimate(opts)}
       locale={locale}
+      zen={zen}
       {...(opts.seed !== undefined ? { seed: opts.seed } : {})}
     />,
   )
   await instance.waitUntilExit()
   // On exit, return a final static frame of the latest persisted state.
-  return renderTuiFrame(loadState(dir), { locale })
+  return renderTuiFrame(loadState(dir), { locale, zen })
 }

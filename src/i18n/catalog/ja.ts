@@ -126,6 +126,8 @@ export const ja: Catalog = {
   'ui.panel.quests': 'クエスト',
   'ui.panel.buffs': 'バフ',
   'ui.panel.economy': 'エコノミー',
+  'ui.panel.loadout': 'ロードアウト',
+  'ui.panel.achievements': 'アチーブメント',
 
   'ui.web.energy': '⚡ エナジー',
   'ui.web.collection': '🃏 コレクション',
@@ -242,6 +244,7 @@ export const ja: Catalog = {
   // tui-only chrome
   'ui.tui.keys': 'キー: p 抽選 · P プレミアム · e 強化 · c 製作 · b プレステージ · r 更新 · tab 移動 · q 終了',
   'ui.tui.earn_hint': '出荷してもっと稼ごう',
+  'ui.tui.achievements_summary': '{n}/{total} 解除済み',
 
   // ロードアウトパネル
   'ui.loadout.title': 'ロードアウト',

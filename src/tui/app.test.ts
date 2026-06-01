@@ -103,6 +103,57 @@ describe('renderTuiFrame — static frame for headless testing', () => {
     expect(withDefault).toContain('keys: p pull')
     expect(withDefault).toContain('q quit')
   })
+
+  it('shows LOADOUT panel with empty slots in the default frame', () => {
+    const frame = renderTuiFrame(initialState())
+    expect(frame).toContain('LOADOUT')
+    // 3 empty slots visible
+    expect(frame).toContain('[1] empty')
+    expect(frame).toContain('[2] empty')
+    expect(frame).toContain('[3] empty')
+  })
+
+  it('shows ACHIEVEMENTS panel with count summary in the default frame', () => {
+    const frame = renderTuiFrame(initialState())
+    expect(frame).toContain('ACHIEVEMENTS')
+    // Summary line: 0/11 unlocked
+    expect(frame).toContain('0/')
+    expect(frame).toContain('(none yet)')
+  })
+
+  it('shows unlocked achievements in the ACHIEVEMENTS panel', () => {
+    const state: GameState = {
+      ...initialState(),
+      achievements: ['ach:level-5'],
+      player: { xp: 0, level: 5, currency: 0, shards: 0 },
+    }
+    const frame = renderTuiFrame(state)
+    expect(frame).toContain('Finding Footing')
+    expect(frame).toContain('1/')
+  })
+
+  it('shows filled loadout slots and active synergies when equipped', () => {
+    const state: GameState = {
+      ...initialState(),
+      loadout: {
+        slots: [
+          { kind: 'card', id: 'forest.sapling', tag: 'forest' },
+        ],
+      },
+    }
+    const frame = renderTuiFrame(state)
+    expect(frame).toContain('[1] card · forest')
+    expect(frame).toContain('[2] empty')
+  })
+
+  it('zen suppresses LOADOUT and ACHIEVEMENTS panels', () => {
+    const frame = renderTuiFrame(initialState(), { zen: true })
+    expect(frame).not.toContain('LOADOUT')
+    expect(frame).not.toContain('ACHIEVEMENTS')
+    // But still shows the core panels
+    expect(frame).toContain('COLLECTION')
+    expect(frame).toContain('ECONOMY')
+  })
 })
 
 describe('dispatchKey — pure key → engine action router', () => {

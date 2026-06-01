@@ -151,4 +151,27 @@ describe('renderPage', () => {
       expect(html).not.toContain(phrase.toLowerCase())
     }
   })
+
+  it('renders a language switcher with links for EN, 中, and 日', () => {
+    // Default locale (en): EN is the active label (no link), others are links.
+    const en = renderPage(seededState())
+    expect(en).toContain('lang-switcher')
+    expect(en).toContain('?lang=zh-CN')
+    expect(en).toContain('?lang=ja')
+    // The active locale must NOT be a link (it's a <span class="lang-active">).
+    expect(en).not.toContain('?lang=en')
+    expect(en).toContain('class="lang-active"')
+
+    // zh-CN: 中 is active, EN and 日 are links.
+    const zh = renderPage(seededState(), 'zh-CN')
+    expect(zh).toContain('?lang=en')
+    expect(zh).toContain('?lang=ja')
+    expect(zh).not.toContain('?lang=zh-CN')
+
+    // ja: 日 is active, EN and 中 are links.
+    const ja = renderPage(seededState(), 'ja')
+    expect(ja).toContain('?lang=en')
+    expect(ja).toContain('?lang=zh-CN')
+    expect(ja).not.toContain('?lang=ja')
+  })
 })

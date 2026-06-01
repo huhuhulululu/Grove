@@ -129,6 +129,62 @@
 - **2026-06-01 — Content expansion DONE.** Card catalogue: **7 sets / 39 cards** (forest · tools ·
   creatures · syntax · deploy · circuits · relics). Three sets level-gated to prevent content cliff (R5).
 - **2026-06-01 — Test suite: 1667 tests passing** (tsc clean). Up from 1152 at the M5-partial milestone.
+- **2026-06-01 — PUBLIC on GitHub + commons + CI.** Source pushed to **https://github.com/huhuhulululu/Grove**
+  (public, default branch `main`). `.github/workflows/ci.yml` (typecheck+test+build on push/PR, node 20 & 22 —
+  GREEN) is the verified-outcome gate. `CONTRIBUTING.md` + a `commons` issue label + a first task backlog
+  establish the community-build "commons" (ADR-0013 rev.2: GitHub-native, human-in-the-loop PRs; firewall code
+  maintainer-gated). `docs/COMMONS-TOS.md` records per-tool AI ToS findings.
+- **2026-06-01 — Web dashboard LIVE & persistent: https://game.aanao.cc** (alias b.aanao.cc). systemd
+  `grove-web` (`sq serve` @ 127.0.0.1:8722, auto-restart + boot-enabled) behind the host's shared nginx
+  (chain-safe vhost) behind Cloudflare. Auto-detects visitor locale (`Accept-Language`, `?lang=` override),
+  an on-page EN·中·日·한 language switcher, and a collapsible "How to play" tutorial — all 4 locales.
+  `webSafeState` strips cost from the wire. Ops: `/home/ubuntu/grove-deploy/README.md`.
+- **2026-06-01 — Flake ROOT-CAUSED + fixed.** The rare full-suite-only flake was 2 `sq.test.ts` pull tests that
+  earned seeds via un-seeded `sq event` (5% serendipity → random card → the deterministic `--seed` pull
+  occasionally hit a DUPLICATE → broke strict cards/currency asserts). Fixed by seeding state directly + empty
+  collection (deterministic). Verified 25×pull + 6×full = 0 fails.
+- **2026-06-01 — Deep-optimize pass DONE & verified.** (1) TUI deepening: the Ink TUI now surfaces LOADOUT +
+  ACHIEVEMENTS panels (6 panels, zen-suppressed, i18n×4) — the primary interactive surface (ADR-0007) now shows
+  the new mechanics. (2) **Perf ~6×**: the CLI hot path (commit-hook/event/status/dashboard) no longer eagerly
+  imports Ink/React — `handleTui`/`handleServe` use dynamic `import()`, tsup `splitting:true`; cold-start
+  490ms→~70ms, main bundle 378KB→100KB (Ink loads only for `sq tui`). (3) Dead-code cleanup (6 files). **1682
+  tests, tsc clean, build OK, firewall intact.**
+
+## Current snapshot (2026-06-01)
+
+**What Grove is now:** a local-first, tool-agnostic, multilingual GAME layer over AI-assisted coding, with a real
+productivity toolkit underneath. Pure engine (xp · gacha+pity · risk-gear · collection · quests · crit · energy ·
+prestige · **synergy/loadout** · **achievements**) + seeds/shards economy + 3-layer progression (outcomes +
+token-milestone floor + serendipity). Surfaces: CLI, navigable Ink **TUI**, read-only **web** dashboard. Content:
+8 synergies, 7 card sets / 39 cards, 12 achievements. i18n en/zh-CN/ja/ko everywhere. Two pillars: relieve
+fatigue (invisible wins → loot) + drive good habits (chores → quests). Ethics firewall by construction (ADR-0005).
+
+**Metrics:** 1682 tests · tsc clean · purity firewall green · main bundle 100KB · CLI cold-start ~70ms · 31 commits.
+**Live:** https://game.aanao.cc · **Repo:** https://github.com/huhuhulululu/Grove (CI green).
+**ADRs:** 0001–0015 (decisions.md). 10-lens audit reached straight-A (docs/AUDIT.md).
+
+## Open decisions & next steps (awaiting user)
+
+**Balance recommendations (from the deep-optimize audit — SUBJECTIVE, user calibrates; NOT yet applied):**
+- **P1 (pacing wall):** XP curve caps at 2000/level from L12; the L20 achievement ≈ a year of grind with no
+  content beats after L10 (last set unlocks L10). → lower the L20 threshold OR extend the curve.
+- **P2 (collection grind):** `cards-25` / all-sets achievements sit near full completion (39 dup-heavy cards). →
+  `cards-25`→`cards-20` OR add cards.
+- **P3 (objective, low-risk):** enhance L0–3 are 100% success (a no-decision tax); enhancing past a gear's effect
+  CAP is pure break-risk for zero benefit (dead). → surface the effect cap; compress the free band.
+- **P4 (objective, low-risk):** 3-member synergies (naturalist/deployer) consume all 3 slots → can never combo. →
+  drop to 2 members OR raise SLOT_CAP to 4.
+- **P5 (objective, safety):** XP `scale` is an uncapped product of 5 multipliers. → cap the total.
+  *(Recommendation: P3+P4+P5 are objective/low-risk and ready to apply; P1/P2 are experience-curve calls for the user.)*
+
+**Deferred / roadmap:**
+- Commons P1: the `sq commons` client (claim a labelled task → AI-draft → user opens PR). ADR-0013 rev.2.
+- Global leaderboard: needs a server-verified-outcomes backend (ADR-0011) — still deferred.
+- "Real value / tokens": resolved to Track-B (ungated helper utility for everyone) + cosmetic game depth;
+  a redeemable-value/crypto model was rejected (gambling/Ponzi/ToS + anti-burnout). Commons = a code-contribution
+  commons, not a fund.
+- i18n: USAGE help + a few `Error:` diagnostics intentionally English.
+- Latent: a `sq tui --zen` CLI-wiring gap was closed in the deep-optimize pass (panels now suppress under zen).
 
 ## Origin / research
 A 10-agent research workflow produced: pain-point map (fatigue + competency pains), prior-art review,

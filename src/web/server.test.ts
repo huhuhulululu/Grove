@@ -201,9 +201,12 @@ describe('startWebServer', () => {
           res.setEncoding('utf8')
           res.on('data', (chunk: string) => {
             received.push(chunk)
-            // Once we've seen the second snapshot (post-change) we're done.
-            const dataLines = received.join('').match(/data: /g) ?? []
-            if (dataLines.length >= 2) {
+            // Resolve once a pushed frame REFLECTS the change (xp=999), not merely
+            // on the 2nd frame: fs.watch can deliver an early/spurious event right
+            // after watch-start, pushing a pre-change snapshot as frame #2 — waiting
+            // for the 999 content is what the contract actually promises and is
+            // deterministic regardless of how many intermediate frames arrive.
+            if (received.join('').includes('999')) {
               req.destroy()
               resolve()
             }
@@ -225,7 +228,7 @@ describe('startWebServer', () => {
         // if we haven't resolved yet.
         if (received.length === 0) reject(e)
       })
-      setTimeout(() => reject(new Error('SSE: no two snapshots within timeout')), 4000)
+      setTimeout(() => reject(new Error('SSE: change (xp=999) not pushed within timeout')), 4000)
     })
 
     const joined = received.join('')

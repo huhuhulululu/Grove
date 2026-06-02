@@ -67,6 +67,7 @@ export const ja: Catalog = {
 
   'reward.achievement': '🏆 {name} · {desc}',
   'reward.mastered': '🌳 板についた · 熟達に到達(装飾)',
+  'reward.comeback': '🌿 巻き返し · テスト再び成功',
 
   'reward.prestige_spend': '-{cost} 🌰 · プレステージ {rank}',
   'reward.prestige_earned': '✦ プレステージ {rank} 獲得(永続装飾)',

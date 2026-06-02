@@ -179,6 +179,16 @@ export interface GameState {
    *  - `milestonesInWindow` — chests already granted in the current window (cap-limited).
    */
   work: WorkMeterState
+  /**
+   * Comeback bit ("tests green again" · ADR-0005 cosmetic-only). Tracks ONLY the last
+   * test_result's failure flag, so a red→green edge (a stuck suite finally passing) can
+   * be recognized with one warm line. A DERIVED outcome — not activity/time/streak: red
+   * sets it, green clears it, the reward fires only on the edge (one-shot, no counter,
+   * no expiry, no shame for staying red). Read by NO xp/seed/crit selector → ZERO power.
+   * MUST be in GameStateSchema (optional) + migrate() (default false) + cloneState()
+   * (?? false) or it is silently dropped on load → a missed/duplicated comeback line.
+   */
+  lastTestFailed: boolean
 }
 
 /**
@@ -221,6 +231,7 @@ export function initialState(): GameState {
     loadout: { slots: [] },
     achievements: [],
     mastered: false,
+    lastTestFailed: false,
     protectedGear: [],
     foiled: [],
     spark: 0,

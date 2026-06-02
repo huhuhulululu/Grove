@@ -140,6 +140,24 @@ describe('--zen calm mode', () => {
         else process.env['GROVE_ZEN'] = prev
       }
     })
+
+    it('a red→green comeback renders NO 🌿 line under --zen, yet still clears the bit', () => {
+      // A failing test_result records the red bit (calmly, no spectacle)...
+      const red = captureRun([
+        'event', 'test_result', '--success', 'false', '--zen', '--home', tmpHome,
+      ])
+      expect(red.code).toBe(0)
+      assertNoSpectacle(red.output)
+      expect(loadState(stateDir(tmpHome)).lastTestFailed).toBe(true)
+      // ...and the green-after-red comeback fires in the engine but is suppressed.
+      const green = captureRun([
+        'event', 'test_result', '--success', 'true', '--zen', '--home', tmpHome,
+      ])
+      expect(green.code).toBe(0)
+      assertNoSpectacle(green.output) // SPECTACLE_MARKERS includes 🌿
+      // The engine still ran: the comeback bit was cleared by the green.
+      expect(loadState(stateDir(tmpHome)).lastTestFailed).toBe(false)
+    })
   })
 
   // ---- the non-zen contrast (spectacle MUST remain) -------------------------

@@ -287,6 +287,11 @@ function cloneState(state: GameState): GameState {
     // achievements: undefined (the schema marks it optional; the interface does not).
     achievements: [...(state.achievements ?? [])],
     mastered: state.mastered ?? false,
+    // Comeback bit (ADR-0005) — tracks only the LAST test_result's failure flag so
+    // a red→green edge can be recognized. ?? false guards legacy fast-path saves
+    // that lack it (schema marks it optional; the interface does not). OMITTING this
+    // would drop the bit on every reduce → a missed or duplicated comeback line.
+    lastTestFailed: state.lastTestFailed ?? false,
     protectedGear: [...state.protectedGear],
     // R8 optional renewable/spark fields — preserve them through a clone so a
     // no-op refusal never silently drops a foiled list or spark progress.
@@ -1421,6 +1426,13 @@ export function reduce(
   // FIREWALL: failures never punish — no rng draw, no progress change.
   // (eventCount still advances + buffs still expire, both silent.)
   if (event.success === false) {
+    // A failing test suite records the "red" bit so a later green can be recognized
+    // as a comeback. This is a boolean write only — NO rng draw, no xp/card/progress
+    // change — so the firewall (failures never punish) and determinism both hold. A
+    // red still costs nothing; the bit only enables warmth on the climb back out.
+    if (event.type === 'test_result') {
+      next = { ...next, lastTestFailed: true }
+    }
     // A failure changes no cumulative progress, but a freshly-loaded state may have
     // crossed a threshold that was never recorded — recognize it (idempotent).
     const rewards: Reward[] = []
@@ -1464,9 +1476,25 @@ export function reduce(
       break
     }
 
-    // R3: a green test/build/lint now grants SEEDS + a serendipity chance ONLY —
-    // the guaranteed auto-pull is GONE. Pulls are a deliberate choice (sq pull).
-    case 'test_result':
+    // A green test suite: grant SEEDS + a serendipity chance (R3, no auto-pull), and
+    // recognize a red→green COMEBACK (the stuck suite finally passing) with ONE warm
+    // cosmetic line. The green ALWAYS clears the red bit; the reward fires only on the
+    // edge, so the same green reduced twice rewards once (one-shot, no streak, no
+    // counter, no shame for staying red). Cosmetic only — kind:'buff', no real power.
+    case 'test_result': {
+      const wasComeback = next.lastTestFailed === true
+      next = { ...next, lastTestFailed: false }
+      next = grantXp(next, 'test_result', magnitude, rewards, scale, critChance, rng)
+      next = grantCurrency(next, 'test_result', magnitude, rewards, seedScale)
+      if (wasComeback) {
+        rewards.push({ kind: 'buff', buff: 'comeback', ...msg('reward.comeback') })
+      }
+      serendipityEligible = true
+      break
+    }
+
+    // R3: a green build/lint grants SEEDS + a serendipity chance ONLY — the
+    // guaranteed auto-pull is GONE. Pulls are a deliberate choice (sq pull).
     case 'build_result':
     case 'lint_clean': {
       next = grantXp(next, event.type, magnitude, rewards, scale, critChance, rng)

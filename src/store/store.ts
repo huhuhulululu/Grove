@@ -222,6 +222,7 @@ const GameStateSchema = z.object({
   // still validate against the FAST path; migrate() fills the default [].
   achievements: z.array(z.string()).optional(),
   mastered: z.boolean().optional(),
+  lastTestFailed: z.boolean().optional(),
   // R8/R9 economy fields. Optional so legacy states still validate; both the FAST
   // path (returns the raw parsed object) and migrate() now preserve them.
   foiled: z.array(z.string()).optional(),
@@ -264,7 +265,7 @@ function migrate(raw: Record<string, unknown>): GameState {
   const KNOWN_KEYS = new Set([
     'version', 'player', 'cards', 'gear', 'pity', 'completedSets', 'buffs',
     'eventCount', 'quests', 'energy', 'work', 'loadout', 'achievements',
-    'mastered', 'protectedGear', 'foiled', 'spark', 'sparkTarget',
+    'mastered', 'lastTestFailed', 'protectedGear', 'foiled', 'spark', 'sparkTarget',
   ])
   const carried: Record<string, unknown> = {}
   for (const k of Object.keys(raw)) {
@@ -314,6 +315,9 @@ function migrate(raw: Record<string, unknown>): GameState {
       : defaults.achievements,
     // Mastery marker — a non-boolean / absent value defaults to false (never lost).
     mastered: typeof raw['mastered'] === 'boolean' ? raw['mastered'] : defaults.mastered,
+    // Comeback bit — a non-boolean / absent value defaults to false (legacy states).
+    lastTestFailed:
+      typeof raw['lastTestFailed'] === 'boolean' ? raw['lastTestFailed'] : defaults.lastTestFailed,
     // Additive R3 field — legacy states predating gear-protect get a fresh default.
     protectedGear: Array.isArray(raw['protectedGear'])
       ? (raw['protectedGear'] as string[]).filter((x): x is string => typeof x === 'string')

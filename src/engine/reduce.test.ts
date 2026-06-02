@@ -1110,3 +1110,81 @@ describe('reduce — mastery wiring (grant once, idempotent, both paths)', () =>
     expect(rewards.some((r) => r.kind === 'buff' && r.buff === 'mastered')).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Comeback beat — a red→green test_result edge (a stuck suite finally passing)
+// earns ONE warm cosmetic line. Derived purely from state.lastTestFailed; not
+// activity/time/streak. red→red & green→green & first-green are silent; the green
+// always clears the bit (one-shot). A red NEVER punishes (firewall, no rng draw).
+// ---------------------------------------------------------------------------
+
+describe('reduce — comeback beat (red→green edge)', () => {
+  const hasComeback = (rewards: { kind: string; buff?: string }[]) =>
+    rewards.some((r) => r.kind === 'buff' && r.buff === 'comeback')
+
+  it('red→green fires exactly one comeback and clears the bit', () => {
+    const s1 = reduce(initialState(), ev({ type: 'test_result', success: false }), mulberry32(1)).state
+    expect(s1.lastTestFailed).toBe(true)
+    const { state: s2, rewards } = reduce(s1, ev({ type: 'test_result', success: true }), mulberry32(2))
+    expect(rewards.filter((r) => r.kind === 'buff' && r.buff === 'comeback').length).toBe(1)
+    expect(s2.lastTestFailed).toBe(false)
+  })
+
+  it('green→green is silent', () => {
+    const s1 = reduce(initialState(), ev({ type: 'test_result', success: false }), mulberry32(1)).state
+    const s2 = reduce(s1, ev({ type: 'test_result', success: true }), mulberry32(2)).state
+    const { rewards } = reduce(s2, ev({ type: 'test_result', success: true }), mulberry32(3))
+    expect(hasComeback(rewards)).toBe(false)
+  })
+
+  it('red→red is silent and keeps the bit set', () => {
+    const s1 = reduce(initialState(), ev({ type: 'test_result', success: false }), mulberry32(1)).state
+    const { state: s2, rewards } = reduce(s1, ev({ type: 'test_result', success: false }), mulberry32(2))
+    expect(hasComeback(rewards)).toBe(false)
+    expect(s2.lastTestFailed).toBe(true)
+  })
+
+  it('first-ever green is silent (bit defaults false)', () => {
+    const { rewards } = reduce(initialState(), ev({ type: 'test_result', success: true }), mulberry32(1))
+    expect(hasComeback(rewards)).toBe(false)
+  })
+
+  it('is one-shot — a second green after the comeback yields nothing', () => {
+    const s1 = reduce(initialState(), ev({ type: 'test_result', success: false }), mulberry32(1)).state
+    const s2 = reduce(s1, ev({ type: 'test_result', success: true }), mulberry32(2)).state
+    const { rewards } = reduce(s2, ev({ type: 'test_result', success: true }), mulberry32(2))
+    expect(hasComeback(rewards)).toBe(false)
+  })
+
+  it('firewall: a failing test_result records the red bit but punishes nothing', () => {
+    const s0 = initialState()
+    const { state, rewards } = reduce(s0, ev({ type: 'test_result', success: false }), mulberry32(1))
+    expect(state.lastTestFailed).toBe(true)
+    expect(hasComeback(rewards)).toBe(false)
+    expect(state.player).toEqual(s0.player)
+    expect(state.cards).toEqual(s0.cards)
+    expect(state.pity).toEqual(s0.pity)
+    expect(state.completedSets).toEqual(s0.completedSets)
+  })
+
+  it('a failing test_result consumes no rng (determinism preserved)', () => {
+    // Path 1: red then green sharing ONE rng stream.
+    const rng1 = mulberry32(7)
+    const s1 = reduce(initialState(), ev({ type: 'test_result', success: false }), rng1).state
+    const green1 = reduce(s1, ev({ type: 'test_result', success: true }), rng1)
+    // Path 2: a green from an ALREADY-red state with a fresh identical rng — the red
+    // never drew from it. If path 1's red had drawn, the streams would diverge.
+    const rng2 = mulberry32(7)
+    const green2 = reduce({ ...initialState(), lastTestFailed: true }, ev({ type: 'test_result', success: true }), rng2)
+    expect(green1.rewards).toEqual(green2.rewards)
+  })
+
+  it('non-test events do not clear the bit (a commit between red and green is transparent)', () => {
+    let s = reduce(initialState(), ev({ type: 'test_result', success: false }), mulberry32(1)).state
+    expect(s.lastTestFailed).toBe(true)
+    s = reduce(s, ev({ type: 'commit' }), mulberry32(2)).state
+    expect(s.lastTestFailed).toBe(true) // commit left the bit untouched
+    const { rewards } = reduce(s, ev({ type: 'test_result', success: true }), mulberry32(3))
+    expect(hasComeback(rewards)).toBe(true)
+  })
+})

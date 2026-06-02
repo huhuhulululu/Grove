@@ -93,6 +93,7 @@ export const en: Catalog = {
   // achievement (reduce.grantAchievements): a retroactive, cosmetic recognition
   'reward.achievement': '🏆 {name} · {desc}',
   'reward.mastered': "🌳 You've got the groove · mastery reached (cosmetic)",
+  'reward.comeback': '🌿 comeback · tests green again',
 
   // prestige (reduce.buyPrestige): spend, earned, refusal
   'reward.prestige_spend': '-{cost} 🌰 · prestige {rank}',

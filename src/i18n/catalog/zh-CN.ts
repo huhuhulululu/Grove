@@ -67,6 +67,7 @@ export const zhCN: Catalog = {
 
   'reward.achievement': '🏆 {name} · {desc}',
   'reward.mastered': '🌳 渐入佳境 · 已达精通(装饰性)',
+  'reward.comeback': '🌿 逆转 · 测试重新转绿',
 
   'reward.prestige_spend': '-{cost} 🌰 · 威望 {rank}',
   'reward.prestige_earned': '✦ 获得威望 {rank}(永久装饰)',

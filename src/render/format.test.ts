@@ -35,6 +35,7 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     loadout: { slots: [] },
     achievements: [],
     mastered: false,
+    lastTestFailed: false,
     protectedGear: [],
     ...overrides,
   }

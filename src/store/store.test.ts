@@ -4,7 +4,8 @@ import * as path from 'node:path'
 import * as os from 'node:os'
 import { initialState } from '../core/state'
 import type { GameState } from '../core/state'
-import { loadState, saveState, appendEvent, readEvents, withStateLock } from './store'
+import { loadState, saveState, appendEvent, readEvents, withStateLock, withGlobalLock } from './store'
+import { activeGearBonus } from '../engine/gear'
 
 // Each test gets its own fresh temp HOME with an isolated per-repo state dir
 // nested under it (`<home>/repo`). Nesting matters: the account-global energy/
@@ -255,6 +256,54 @@ describe('loadState migration', () => {
     const result = loadState(dir)
     expect(result.protectedGear).toEqual(['gear.x.1', 'gear.y.2'])
   })
+
+  // R2 api-contract-1 (ADR-0005: rewards can never be lost). A state routed through
+  // migrate() (here: missing protectedGear -> fails the FAST schema) used to lose
+  // foiled / spark / sparkTarget — the fresh migrate object never copied them.
+  it('migrate preserves foiled / spark / sparkTarget (rewards are never lost on load)', () => {
+    const dir = makeTmpDir()
+    const raw = {
+      version: 1,
+      player: { xp: 5, level: 2, currency: 10, shards: 3 },
+      cards: [],
+      gear: [],
+      pity: { sinceLegendary: 0 },
+      completedSets: [],
+      // NO protectedGear -> fails the fast schema -> routes through migrate()
+      foiled: ['tools.debugger', 'forest.oak'],
+      spark: 7,
+      sparkTarget: 'relics.grimoire',
+    }
+    fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify(raw), 'utf8')
+    const result = loadState(dir)
+    expect(result.foiled).toEqual(['tools.debugger', 'forest.oak'])
+    expect(result.spark).toBe(7)
+    expect(result.sparkTarget).toBe('relics.grimoire')
+  })
+
+  // R2 resilience-2: migrate() typed gear/cards as z.unknown() and cast unchecked, so
+  // a `level:'abc'` element poisoned activeGearBonus with NaN. Drop malformed elements.
+  it('migrate drops a malformed gear element (no NaN poisoning of activeGearBonus)', () => {
+    const dir = makeTmpDir()
+    const raw = {
+      version: 1,
+      player: { xp: 5, level: 2, currency: 0 },
+      cards: [],
+      gear: [
+        { id: 'g.bad', name: 'Commit Hammer', level: 'abc', rarity: 'rare', broken: false },
+        { id: 'g.ok', name: 'Commit Hammer', level: 5, rarity: 'rare', broken: false },
+      ],
+      pity: { sinceLegendary: 0 },
+      completedSets: [],
+      // no protectedGear -> routes through migrate()
+    }
+    fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify(raw), 'utf8')
+    const result = loadState(dir)
+    expect(result.gear).toEqual([
+      { id: 'g.ok', name: 'Commit Hammer', level: 5, rarity: 'rare', broken: false },
+    ])
+    expect(Number.isFinite(activeGearBonus(result).currencyPct)).toBe(true)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -457,5 +506,46 @@ describe('readEvents', () => {
     // If parseEvent would throw the event would have been skipped — it being
     // returned means it is a valid GroveEvent.
     expect(events[0]?.source).toBe('test')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Cross-process lock — reentrancy + ownership release (R2 concurrency hardening)
+// ---------------------------------------------------------------------------
+
+describe('cross-process lock — reentrancy + ownership', () => {
+  it('a nested same-lock acquire passes through (reentrant — no self-deadlock/steal)', () => {
+    const dir = makeTmpDir()
+    const r = withGlobalLock(dir, () => withGlobalLock(dir, () => 'inner'))
+    expect(r).toBe('inner')
+  })
+
+  it('saveState (global-inner) nests safely inside the ingest lock ordering', () => {
+    const dir = makeTmpDir()
+    // per-repo OUTER, global INNER — the ingest ordering; saveState re-takes the
+    // global lock internally, which must reenter rather than self-deadlock/steal.
+    const ran = withStateLock(dir, () =>
+      withGlobalLock(dir, () => {
+        saveState(dir, {
+          ...initialState(),
+          player: { xp: 9, level: 1, currency: 0, shards: 0 },
+        })
+        return true
+      }),
+    )
+    expect(ran).toBe(true)
+    expect(loadState(dir).player.xp).toBe(9)
+  })
+
+  it('release unlinks by token — never deletes a successor lock that stole ours mid-hold', () => {
+    const dir = makeTmpDir()
+    const lockPath = path.join(dir, '.lock')
+    withStateLock(dir, () => {
+      // Simulate: our lock was stale-stolen and a successor recreated it with THEIR id.
+      fs.writeFileSync(lockPath, 'SUCCESSOR-TOKEN')
+    })
+    // Our release must NOT have unlinked the successor's live lock.
+    expect(fs.existsSync(lockPath)).toBe(true)
+    expect(fs.readFileSync(lockPath, 'utf8')).toBe('SUCCESSOR-TOKEN')
   })
 })

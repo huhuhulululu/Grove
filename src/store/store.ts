@@ -1,5 +1,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { initialState } from '../core/state'
 import type { GameState, EnergyState, WorkMeterState } from '../core/state'
@@ -10,12 +11,27 @@ import type { GroveEvent } from '../core/events'
 // Cross-process exclusive lock
 // ---------------------------------------------------------------------------
 
-/** Max time to wait acquiring the lock before stealing/giving up (ms). */
-const LOCK_TIMEOUT_MS = 3000
+/**
+ * Max time to wait acquiring the lock before the fallback steal (ms). Set EQUAL to
+ * LOCK_STALE_MS (concurrency-3): the deadline can only arrive after the lock is
+ * genuinely stale, so the timeout-steal is — by construction — only ever of an
+ * abandoned lock. A smaller timeout would steal a LIVE lock from a slow-but-healthy
+ * holder (a large capEventLog trim, slow disk, a paused TUI action under the lock),
+ * admitting a second concurrent writer.
+ */
+const LOCK_TIMEOUT_MS = 10_000
 /** A lock whose file is older than this is considered abandoned and stolen (ms). */
 const LOCK_STALE_MS = 10_000
 /** Pause between acquisition attempts (ms). */
 const LOCK_RETRY_MS = 25
+
+/**
+ * Per-PROCESS reentrancy: lockPath -> nesting depth currently held by THIS process.
+ * The OS lock (`wx` create) is NOT reentrant, so a nested same-path acquire — e.g.
+ * saveState's account-global write inside an ingest that already holds the global
+ * lock — must PASS THROUGH rather than EEXIST-spin and then steal its OWN live lock.
+ */
+const heldLocks = new Map<string, number>()
 
 /** Block the current thread for `ms` milliseconds (sync — runs inside a CLI process). */
 function sleepSync(ms: number): void {
@@ -38,12 +54,30 @@ function withLockDir<T>(lockDir: string, fn: () => T): T {
   fs.mkdirSync(lockDir, { recursive: true })
   const lockPath = path.join(lockDir, '.lock')
 
+  // Reentrant fast path: THIS process already holds this exact lock (nested acquire)
+  // → run fn under the held lock without touching the file. Avoids self-deadlock /
+  // self-steal when saveState's global write nests inside an ingest holding it.
+  const depth = heldLocks.get(lockPath) ?? 0
+  if (depth > 0) {
+    heldLocks.set(lockPath, depth + 1)
+    try {
+      return fn()
+    } finally {
+      heldLocks.set(lockPath, (heldLocks.get(lockPath) ?? 1) - 1)
+    }
+  }
+
   const deadline = Date.now() + LOCK_TIMEOUT_MS
+  // Self-identifying token: release unlinks ONLY if the file still holds OUR token,
+  // so a holder that was stale-stolen mid-hold never deletes its successor's LIVE
+  // lock (concurrency-2). `wx` still guarantees we are the sole creator.
+  const token = randomUUID()
   let fd: number | undefined
 
   for (;;) {
     try {
       fd = fs.openSync(lockPath, 'wx')
+      fs.writeSync(fd, token)
       break
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
@@ -61,8 +95,8 @@ function withLockDir<T>(lockDir: string, fn: () => T): T {
       }
 
       if (Date.now() >= deadline) {
-        // Last resort after waiting the full timeout: treat as stale and steal,
-        // rather than failing the (fail-open) ingest path.
+        // The deadline == the staleness window, so reaching it means the lock is
+        // stale: steal it rather than failing the (fail-open) ingest path.
         try {
           fs.unlinkSync(lockPath)
         } catch {
@@ -74,16 +108,21 @@ function withLockDir<T>(lockDir: string, fn: () => T): T {
     }
   }
 
+  heldLocks.set(lockPath, 1)
   try {
     return fn()
   } finally {
+    heldLocks.delete(lockPath)
     try {
       fs.closeSync(fd)
     } catch {
       /* ignore */
     }
+    // Release by IDENTITY, not by path: only unlink the lock if it still holds OUR
+    // token. If we were stale-stolen mid-hold, a successor recreated it with a
+    // different token — unlinking by path would delete their live lock.
     try {
-      fs.unlinkSync(lockPath)
+      if (fs.readFileSync(lockPath, 'utf8') === token) fs.unlinkSync(lockPath)
     } catch {
       /* already gone */
     }
@@ -182,6 +221,11 @@ const GameStateSchema = z.object({
   // Achievements (ADR-0015 rev.2). Optional so legacy states (pre-achievements)
   // still validate against the FAST path; migrate() fills the default [].
   achievements: z.array(z.string()).optional(),
+  // R8/R9 economy fields. Optional so legacy states still validate; both the FAST
+  // path (returns the raw parsed object) and migrate() now preserve them.
+  foiled: z.array(z.string()).optional(),
+  spark: z.number().optional(),
+  sparkTarget: z.string().optional(),
 })
 
 /**
@@ -226,8 +270,8 @@ function migrate(raw: Record<string, unknown>): GameState {
           ? (player['shards'] as number)
           : (defaults.player.shards ?? 0),
     },
-    cards: Array.isArray(raw['cards']) ? (raw['cards'] as GameState['cards']) : defaults.cards,
-    gear: Array.isArray(raw['gear']) ? (raw['gear'] as GameState['gear']) : defaults.gear,
+    cards: migrateCards(raw['cards'], defaults.cards),
+    gear: migrateGear(raw['gear'], defaults.gear),
     pity:
       raw['pity'] && typeof (raw['pity'] as Record<string, unknown>)['sinceLegendary'] === 'number'
         ? (raw['pity'] as GameState['pity'])
@@ -255,7 +299,56 @@ function migrate(raw: Record<string, unknown>): GameState {
     protectedGear: Array.isArray(raw['protectedGear'])
       ? (raw['protectedGear'] as string[]).filter((x): x is string => typeof x === 'string')
       : defaults.protectedGear,
+    // R8/R9 economy fields — a state routed through migrate() (e.g. one missing a
+    // newer field, or with any malformed sub-field) must NOT lose the foil collection
+    // or spark-guarantee progress. ADR-0005: rewards can never be lost. Mirror the
+    // protectedGear/achievements filter idiom.
+    foiled: Array.isArray(raw['foiled'])
+      ? (raw['foiled'] as unknown[]).filter((x): x is string => typeof x === 'string')
+      : (defaults.foiled ?? []),
+    spark:
+      typeof raw['spark'] === 'number' && Number.isFinite(raw['spark'])
+        ? (raw['spark'] as number)
+        : (defaults.spark ?? 0),
+    ...(typeof raw['sparkTarget'] === 'string' ? { sparkTarget: raw['sparkTarget'] } : {}),
   }
+}
+
+/**
+ * Keep only well-shaped gear elements (drop malformed, never throw). The migrate
+ * path types gear loosely (MigratableSchema uses z.array(z.unknown())); without this
+ * a `level:'abc'` element would poison activeGearBonus with NaN (resilience). Mirrors
+ * the migrateLoadout element-filter idiom.
+ */
+function migrateGear(raw: unknown, defaults: GameState['gear']): GameState['gear'] {
+  if (!Array.isArray(raw)) return defaults
+  return (raw as unknown[]).filter((g): g is GameState['gear'][number] => {
+    if (typeof g !== 'object' || g === null) return false
+    const r = g as Record<string, unknown>
+    return (
+      typeof r['id'] === 'string' &&
+      typeof r['name'] === 'string' &&
+      typeof r['level'] === 'number' &&
+      Number.isFinite(r['level']) &&
+      typeof r['rarity'] === 'string' &&
+      typeof r['broken'] === 'boolean'
+    )
+  })
+}
+
+/** Keep only well-shaped card elements (drop malformed, never throw). */
+function migrateCards(raw: unknown, defaults: GameState['cards']): GameState['cards'] {
+  if (!Array.isArray(raw)) return defaults
+  return (raw as unknown[]).filter((c): c is GameState['cards'][number] => {
+    if (typeof c !== 'object' || c === null) return false
+    const r = c as Record<string, unknown>
+    return (
+      typeof r['id'] === 'string' &&
+      typeof r['name'] === 'string' &&
+      typeof r['rarity'] === 'string' &&
+      typeof r['set'] === 'string'
+    )
+  })
 }
 
 /**

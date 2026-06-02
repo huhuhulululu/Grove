@@ -4,7 +4,7 @@ import { mulberry32, hashStringToSeed } from '../core/rng'
 import type { GameState } from '../core/state'
 import type { Reward } from '../core/rewards'
 import { reduce } from '../engine/reduce'
-import { loadState, saveState, appendEvent, withStateLock } from '../store/store'
+import { loadState, saveState, appendEvent, withStateLock, withGlobalLock } from '../store/store'
 
 /**
  * Ingest a raw event into the Grove store for the given directory.
@@ -18,10 +18,14 @@ import { loadState, saveState, appendEvent, withStateLock } from '../store/store
  *  5. Persist the new state and append the event.
  *  6. Return `{ state, rewards }`.
  *
- * The entire load→reduce→save→append read-modify-write runs inside an exclusive
- * cross-process lock (`withStateLock`) so concurrent ingests — e.g. a post-commit
- * hook firing while the high-frequency statusline pipe ingests a quota_update —
- * cannot lose each other's updates.
+ * The entire load→reduce→save→append read-modify-write runs inside the per-repo
+ * lock (`withStateLock`) so same-repo ingests can't lose each other's updates, AND
+ * inside the account-global lock (`withGlobalLock`) so the shared energy/work file's
+ * read (loadState→readGlobal) and write (saveState→writeGlobal) are ONE atomic RMW —
+ * two DIFFERENT repos (distinct per-repo locks) accruing the work-meter concurrently
+ * can no longer clobber each other (concurrency: the R6 P1 cross-repo lost-update).
+ * Ordering is per-repo OUTER, global INNER everywhere (saveState also takes the
+ * global lock inner — reentrant here), so there is no lock-ordering deadlock.
  *
  * This is the single seam that all adapters (git, sq-wrap, claude-code, …) call.
  */
@@ -32,7 +36,7 @@ export function ingestEvent(
 ): { state: GameState; rewards: Reward[] } {
   const event: GroveEvent = parseEvent(raw)
 
-  return withStateLock(dir, () => {
+  return withStateLock(dir, () => withGlobalLock(dir, () => {
     const state: GameState = loadState(dir)
 
     // Seed from the already-loaded state.eventCount instead of re-reading and
@@ -51,5 +55,5 @@ export function ingestEvent(
     appendEvent(dir, event)
 
     return { state: next, rewards }
-  })
+  }))
 }

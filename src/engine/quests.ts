@@ -296,6 +296,22 @@ export function applyQuests(
       return { ...state, buffs, quests: setQuest(state.quests, 'precast-spec', 'done', completions) }
     }
 
+    // ---- Plan Ahead (a recognized onboarding chore, NO standing buff) ------
+    // Mirrors the one-shot quest pattern but grants ZERO power: just a warm
+    // celebratory line every plan, plus a first-time "unlocked" line once. The
+    // artifact already exists (plan_written is an ingested signal); this only
+    // RECORDS recognition. No rng draw, no state.buffs entry → purely cosmetic.
+    case 'plan_written': {
+      rewards.push({ kind: 'buff', buff: 'quest:plan-ahead', ...msg('reward.quest.plan_ahead_buff') })
+
+      const q = findQuest(state.quests, 'plan-ahead')
+      const completions = (q?.completions ?? 0) + 1
+      if (completions === 1) {
+        rewards.push({ kind: 'buff', buff: 'plan-ahead', ...msg('reward.quest.plan_ahead_unlocked') })
+      }
+      return { ...state, quests: setQuest(state.quests, 'plan-ahead', 'done', completions) }
+    }
+
     // ---- Tend the Living Map -----------------------------------------------
     case 'doc_updated': {
       if (event.meta.drift === true) {

@@ -477,6 +477,53 @@ describe('applyQuests — review_confirmed / review-loop', () => {
 })
 
 // ---------------------------------------------------------------------------
+// PLAN-AHEAD quest (plan_written → a recognized chore, NO standing buff)
+// ---------------------------------------------------------------------------
+
+describe('applyQuests — plan_written / plan-ahead', () => {
+  it('marks plan-ahead done on a plan_written, completions 1', () => {
+    const s0 = initialState()
+    const next = applyQuests(s0, ev({ type: 'plan_written' }), mulberry32(1), [])
+    expect(quest(next, 'plan-ahead')).toEqual({ id: 'plan-ahead', status: 'done', completions: 1 })
+  })
+
+  it('adds NO standing buff (cosmetic recognition only)', () => {
+    const s0 = initialState()
+    const next = applyQuests(s0, ev({ type: 'plan_written' }), mulberry32(1), [])
+    expect(next.buffs.length).toBe(s0.buffs.length) // no power-up entered state.buffs
+  })
+
+  it('pushes the celebratory flavour line every time + the unlocked line exactly once', () => {
+    let state = initialState()
+    const r1: Reward[] = []
+    state = applyQuests(state, ev({ type: 'plan_written' }), mulberry32(1), r1)
+    expect(r1.some((r) => r.kind === 'buff' && r.buff === 'quest:plan-ahead')).toBe(true)
+    expect(r1.some((r) => r.kind === 'buff' && r.buff === 'plan-ahead')).toBe(true) // first-time unlocked
+    const r2: Reward[] = []
+    state = applyQuests(state, ev({ type: 'plan_written' }), mulberry32(1), r2)
+    expect(r2.some((r) => r.kind === 'buff' && r.buff === 'quest:plan-ahead')).toBe(true) // flavour repeats
+    expect(r2.some((r) => r.kind === 'buff' && r.buff === 'plan-ahead')).toBe(false) // unlocked is one-shot
+    expect(quest(state, 'plan-ahead')!.completions).toBe(2)
+  })
+
+  it('rewards the OUTCOME not the effort — magnitude does not change the quest result', () => {
+    const small: Reward[] = []
+    const sSmall = applyQuests(initialState(), ev({ type: 'plan_written', magnitude: 1 }), mulberry32(1), small)
+    const big: Reward[] = []
+    const sBig = applyQuests(initialState(), ev({ type: 'plan_written', magnitude: 9 }), mulberry32(1), big)
+    expect(quest(sSmall, 'plan-ahead')).toEqual(quest(sBig, 'plan-ahead'))
+    expect(small.filter((r) => r.kind === 'buff').length).toBe(big.filter((r) => r.kind === 'buff').length)
+  })
+
+  it('is pure — the plan-ahead arm draws no rng', () => {
+    const throwingRng = (() => {
+      throw new Error('plan-ahead must not draw rng')
+    }) as unknown as () => number
+    expect(() => applyQuests(initialState(), ev({ type: 'plan_written' }), throwingRng, [])).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
 // CLEAN-BUILD quest (lint_clean → a small permanent seed aura)
 // ---------------------------------------------------------------------------
 

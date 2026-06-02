@@ -84,6 +84,8 @@ export const ko: Catalog = {
   'reward.quest.clean_build_aura': 'lint 클린 · +씨앗 오라(영구)',
   'reward.quest.merge_buff': 'PR 병합 · 모멘텀',
   'reward.quest.merge_unlocked': '「PR 병합」해금',
+  'reward.quest.plan_ahead_buff': '계획 수립 · 시작 준비 완료',
+  'reward.quest.plan_ahead_unlocked': '잠금 해제: 먼저 계획',
 
   'reward.buff.refreshed': '새로고침',
   'reward.buff.second_wind': '제2의 바람',
@@ -118,6 +120,8 @@ export const ko: Catalog = {
   'quest.merge-master.desc': '풀 리퀘스트 병합 · 확정 드롭 + 장비。',
   'quest.doc-streak.title': '문서 연속',
   'quest.doc-streak.desc': '매주 문서를 최신 상태로 유지 · 단계적, 갱신 가능한 연속。',
+  'quest.plan-ahead.title': '먼저 계획',
+  'quest.plan-ahead.desc': '시작 전에 계획 작성 · 완료로 표시.',
 
   // ui.* — render / web / tui chrome
   'ui.panel.energy': '에너지',

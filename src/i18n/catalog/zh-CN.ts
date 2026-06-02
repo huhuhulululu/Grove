@@ -84,6 +84,8 @@ export const zhCN: Catalog = {
   'reward.quest.clean_build_aura': 'lint 干净 · +种子光环(永久)',
   'reward.quest.merge_buff': 'PR 合并 · 势头',
   'reward.quest.merge_unlocked': '解锁「合并 PR」',
+  'reward.quest.plan_ahead_buff': '计划已定 · 可以开工',
+  'reward.quest.plan_ahead_unlocked': '解锁：先规划',
 
   'reward.buff.refreshed': '焕新',
   'reward.buff.second_wind': '再振',
@@ -118,6 +120,8 @@ export const zhCN: Catalog = {
   'quest.merge-master.desc': '合并一个拉取请求 · 保底掉落 + 装备。',
   'quest.doc-streak.title': '文档连击',
   'quest.doc-streak.desc': '周复一周保持文档鲜活 · 分级、可续的连击。',
+  'quest.plan-ahead.title': '先规划',
+  'quest.plan-ahead.desc': '动手前先写计划 · 标记完成。',
 
   // ui.* — render / web / tui chrome
   'ui.panel.energy': '精力',

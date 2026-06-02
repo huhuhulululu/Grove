@@ -84,6 +84,8 @@ export const ja: Catalog = {
   'reward.quest.clean_build_aura': 'lint クリーン · +シードオーラ(永続)',
   'reward.quest.merge_buff': 'PR マージ · モメンタム',
   'reward.quest.merge_unlocked': '「PR をマージ」解放',
+  'reward.quest.plan_ahead_buff': '計画策定 · 着手準備OK',
+  'reward.quest.plan_ahead_unlocked': 'アンロック：先に計画',
 
   'reward.buff.refreshed': 'リフレッシュ',
   'reward.buff.second_wind': 'セカンドウィンド',
@@ -118,6 +120,8 @@ export const ja: Catalog = {
   'quest.merge-master.desc': 'プルリクエストをマージ · 確定ドロップ + ギア。',
   'quest.doc-streak.title': 'ドキュメント連続',
   'quest.doc-streak.desc': '週ごとにドキュメントを新鮮に保つ · 段階的で更新できる連続。',
+  'quest.plan-ahead.title': '先に計画',
+  'quest.plan-ahead.desc': '着手前に計画を書く · 完了として記録。',
 
   // ui.* — render / web / tui chrome
   'ui.panel.energy': 'エナジー',

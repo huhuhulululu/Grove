@@ -62,6 +62,12 @@ export const QUESTS: QuestDef[] = [
     description: 'Keep docs fresh, week over week · a tiered, renewable streak.',
     pillar: 'B',
   },
+  {
+    id: 'plan-ahead',
+    title: 'Plan Ahead',
+    description: 'Write a plan before you build · marks the chore done.',
+    pillar: 'B',
+  },
 ]
 
 // ---------------------------------------------------------------------------

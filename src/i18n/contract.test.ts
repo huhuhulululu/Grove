@@ -102,6 +102,8 @@ describe('contract — engine reward.* keys reproduce the legacy English byte-fo
     ['reward.quest.clean_build_aura', undefined, 'lint clean · +seeds aura (permanent)'],
     ['reward.quest.merge_buff', undefined, 'PR merged · Momentum'],
     ['reward.quest.merge_unlocked', undefined, 'Merge the PR unlocked'],
+    ['reward.quest.plan_ahead_buff', undefined, 'plan set · ready to build'],
+    ['reward.quest.plan_ahead_unlocked', undefined, 'Plan Ahead unlocked'],
 
     // XP_FLAVOUR sub-strings (composed into reward.xp by the engine)
     ['reward.flavour.commit', undefined, 'commit'],
@@ -131,6 +133,8 @@ describe('contract — engine reward.* keys reproduce the legacy English byte-fo
     ['quest.merge-master.desc', undefined, 'Merge a pull request · guaranteed loot + gear.'],
     ['quest.doc-streak.title', undefined, 'Doc Streak'],
     ['quest.doc-streak.desc', undefined, 'Keep docs fresh, week over week · a tiered, renewable streak.'],
+    ['quest.plan-ahead.title', undefined, 'Plan Ahead'],
+    ['quest.plan-ahead.desc', undefined, 'Write a plan before you build · marks the chore done.'],
   ]
 
   for (const [key, args, expected] of cases) {

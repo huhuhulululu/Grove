@@ -112,6 +112,8 @@ export const en: Catalog = {
   'reward.quest.clean_build_aura': 'lint clean · +seeds aura (permanent)',
   'reward.quest.merge_buff': 'PR merged · Momentum',
   'reward.quest.merge_unlocked': 'Merge the PR unlocked',
+  'reward.quest.plan_ahead_buff': 'plan set · ready to build',
+  'reward.quest.plan_ahead_unlocked': 'Plan Ahead unlocked',
 
   // engine buff labels (the `label` carried on a Buff, surfaced by renderers)
   'reward.buff.refreshed': 'Refreshed',
@@ -149,6 +151,8 @@ export const en: Catalog = {
   'quest.merge-master.desc': 'Merge a pull request · guaranteed loot + gear.',
   'quest.doc-streak.title': 'Doc Streak',
   'quest.doc-streak.desc': 'Keep docs fresh, week over week · a tiered, renewable streak.',
+  'quest.plan-ahead.title': 'Plan Ahead',
+  'quest.plan-ahead.desc': 'Write a plan before you build · marks the chore done.',
 
   // -------------------------------------------------------------------------
   // ui.* — render / web / tui chrome (dashboard.ts, format.ts, page.ts)

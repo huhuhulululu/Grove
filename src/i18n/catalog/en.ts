@@ -326,6 +326,11 @@ export const en: Catalog = {
   'cli.broke_hint': 'earn more 🌰 by shipping · commits, green tests, merges, docs.',
   'cli.commit_recorded': 'commit recorded · {n} signal(s)',
   'cli.merge_recorded': 'merge recorded · PR drop',
+  'cli.export.wrote': '  ✓ exported · {path}',
+  'cli.import.usage': '  usage: sq import <file> · reads a sq export JSON and replaces local state (backed up first).',
+  'cli.import.bad_file': '  could not read that file as JSON · nothing was changed.',
+  'cli.import.invalid': '  that file is not a valid Grove export · nothing was changed.',
+  'cli.import.done': '  ✓ imported · {path} · your previous state was backed up.',
   'cli.init.merge_hook': '  🌳 Grove post-merge hook installed · auto-detects a real PR merge (not a fast-forward pull).',
 
   // calm-mode confirmations (calmConfirm — the quiet `✓` line)
@@ -448,6 +453,8 @@ export const en: Catalog = {
   'cli.help.cmd.uninstall': '  uninstall [--repo DIR]\n      Remove Grove\'s contribution from the post-commit hook. Other hooks intact.\n      Defaults to process.cwd() if --repo is omitted.',
   'cli.help.cmd.commit_hook': '  commit-hook [--repo DIR] [--home DIR]\n      Called automatically by the installed post-commit hook on every commit.\n      Scans the repo for Pillar-B signals and ingests events.',
   'cli.help.cmd.merge_hook': '  merge-hook [--repo DIR] [--home DIR]\n      Called automatically by the installed post-merge hook. Emits a pr_merged\n      outcome ONLY on a real merge commit (a fast-forward pull never over-rewards).',
+  'cli.help.cmd.export': '  export [file] [--home DIR]\n      Write your current Grove state as a portable, versioned JSON envelope to a\n      file (atomic) or stdout. Read-only · cosmetic stats only.',
+  'cli.help.cmd.import': '  import <file> [--home DIR]\n      Read a sq export JSON and SAFELY replace local state. Your current state is\n      backed up first; a bad file is refused without changing anything.',
   'cli.help.cmd.suggest_commit': '  suggest-commit [--repo DIR]\n      Read-only: print a suggested commit message from staged diff. No AI ·\n      type inferred from file paths (test/docs/chore/feat). Copy the output.\n      If nothing is staged, prints a hint to run git add first.',
   'cli.help.cmd.checkpoint': '  checkpoint [-m MSG] [--repo DIR] [--home DIR]\n      📍 Safety-net: snapshot working state via git stash create (read-only ·\n      never modifies tree/index), record to grove state, ingest a checkpoint\n      event for the rest-buff reward. Prints how to restore with git stash apply.',
   'cli.help.cmd.checkpoints': '  checkpoints [--limit N] [--home DIR]\n      Read-only: list the last N safety-net snapshots (default 10) from sq checkpoint.\n      Shows branch, message, change shape, and a copyable git stash apply command.\n      Never runs git or mutates state (ADR-0005).',

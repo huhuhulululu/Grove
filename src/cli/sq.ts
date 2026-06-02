@@ -83,6 +83,7 @@ import { handleWrap, handleShare, handleNtfy } from './commands/share'
 import { handleLoadout } from './commands/loadout'
 import { handleAchievements } from './commands/achievements'
 import { handleTry } from './commands/try'
+import { handleExport, handleImport } from './commands/portability'
 
 // Re-export the public surface the tests / other layers import from './sq', so
 // the God-file split is transparent to every existing import site.
@@ -172,7 +173,7 @@ const SUBCOMMANDS = [
   'protect', 'craft', 'foil', 'convert', 'prestige', 'dashboard', 'tui', 'serve',
   'statusline-ingest', 'statusline', 'init', 'uninstall', 'commit-hook', 'merge-hook',
   'suggest-commit', 'checkpoint', 'checkpoints', 'wrap', 'share', 'ntfy', 'loadout',
-  'achievements', 'promise', 'try', 'demo', 'help',
+  'achievements', 'promise', 'try', 'demo', 'export', 'import', 'help',
 ] as const
 
 /** Classic Levenshtein edit distance (pure). */
@@ -421,6 +422,14 @@ Subcommands:
       Taste the loot loop in a throwaway scratch dir · runs a few canned outcomes
       through the engine. Your real state + repo are NEVER touched (ADR-0005).
 
+  export [file] [--home DIR]
+      Write your current Grove state as a portable, versioned JSON envelope to a
+      file (atomic) or stdout. Read-only · cosmetic stats only.
+
+  import <file> [--home DIR]
+      Read a sq export JSON and SAFELY replace local state. Your current state is
+      backed up first; a bad file is refused without changing anything.
+
   help
       Show this help message.
 `.trim()
@@ -527,6 +536,10 @@ export function buildUsageText(locale: Locale): string {
     t(locale, 'cli.help.cmd.promise'),
     '',
     t(locale, 'cli.help.cmd.try'),
+    '',
+    t(locale, 'cli.help.cmd.export'),
+    '',
+    t(locale, 'cli.help.cmd.import'),
     '',
     t(locale, 'cli.help.cmd.help'),
   ]
@@ -710,6 +723,12 @@ export function run(argv: string[]): number {
     case 'try':
     case 'demo':
       return handleTry(zen, locale)
+
+    case 'export':
+      return handleExport(rest, dir, locale)
+
+    case 'import':
+      return handleImport(rest, dir, locale)
 
     case 'help':
     case undefined:

@@ -4,7 +4,16 @@ import * as path from 'node:path'
 import * as os from 'node:os'
 import { initialState } from '../core/state'
 import type { GameState } from '../core/state'
-import { loadState, saveState, appendEvent, readEvents, withStateLock, withGlobalLock } from './store'
+import {
+  loadState,
+  saveState,
+  appendEvent,
+  readEvents,
+  withStateLock,
+  withGlobalLock,
+  validateImported,
+  backupStateFile,
+} from './store'
 import { activeGearBonus } from '../engine/gear'
 
 // Each test gets its own fresh temp HOME with an isolated per-repo state dir
@@ -569,5 +578,48 @@ describe('cross-process lock — reentrancy + ownership', () => {
     // Our release must NOT have unlinked the successor's live lock.
     expect(fs.existsSync(lockPath)).toBe(true)
     expect(fs.readFileSync(lockPath, 'utf8')).toBe('SUCCESSOR-TOKEN')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// validateImported + backupStateFile — sq export/import helpers
+// ---------------------------------------------------------------------------
+
+describe('validateImported + backupStateFile', () => {
+  it('validateImported: fast path returns the object, preserving forward-compat keys', () => {
+    const out = validateImported({ ...initialState(), futureField: 7 } as unknown)
+    expect(out).not.toBeNull()
+    expect((out as unknown as Record<string, unknown>)['futureField']).toBe(7)
+  })
+
+  it('validateImported: a migratable legacy shape is migrated', () => {
+    const out = validateImported({
+      version: 1,
+      player: { xp: 5, level: 2 },
+      cards: [],
+      gear: [],
+      pity: { sinceLegendary: 0 },
+    })
+    expect(out).not.toBeNull()
+    expect(out!.player.xp).toBe(5)
+  })
+
+  it('validateImported: garbage returns null (no throw)', () => {
+    expect(validateImported(5)).toBeNull()
+    expect(validateImported({ hello: 'world' })).toBeNull()
+    expect(validateImported(null)).toBeNull()
+  })
+
+  it('backupStateFile: copies state.json to a .bak.<ts> and returns its path', () => {
+    const dir = makeTmpDir()
+    saveState(dir, initialState())
+    const bak = backupStateFile(dir)
+    expect(bak).not.toBeNull()
+    expect(fs.existsSync(bak!)).toBe(true)
+    expect(path.basename(bak!).startsWith('state.json.bak.')).toBe(true)
+  })
+
+  it('backupStateFile: returns null when there is no state.json', () => {
+    expect(backupStateFile(makeTmpDir())).toBeNull()
   })
 })

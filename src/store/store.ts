@@ -483,6 +483,24 @@ function backupCorrupt(file: string, raw: string): void {
   }
 }
 
+/**
+ * Back up the current state.json as `state.json.bak.<ts>` BEFORE a destructive op
+ * (e.g. `sq import`), rotating to BACKUP_KEEP. Returns the backup path, or null when
+ * there is no state to back up (or the copy failed). Best-effort: never throws.
+ */
+export function backupStateFile(dir: string): string | null {
+  const file = path.join(dir, 'state.json')
+  if (!fs.existsSync(file)) return null
+  try {
+    const backup = `${file}.bak.${Date.now()}`
+    fs.copyFileSync(file, backup)
+    rotateBackups(dir, 'state.json.bak.')
+    return backup
+  } catch {
+    return null
+  }
+}
+
 // ---------------------------------------------------------------------------
 // ACCOUNT-GLOBAL energy/work store (AI-eng P1) — quota/energy is account-WIDE,
 // not per-repo: the 5h/7d usage windows are shared by every repo you work in. So
@@ -586,19 +604,30 @@ function loadStateLocal(dir: string): GameState {
     return initialState()
   }
 
-  // Already a full, current-shape state → fast path, no migration needed.
-  if (GameStateSchema.safeParse(parsed).success) {
-    return parsed as GameState
-  }
-
-  // Recoverable iff the engine-critical core is present and well-typed.
-  if (MigratableSchema.safeParse(parsed).success) {
-    return migrate(parsed as Record<string, unknown>)
-  }
+  // Validate via the shared recovery ladder (fast path → migrate → null).
+  const valid = validateImported(parsed)
+  if (valid !== null) return valid
 
   // Structurally invalid beyond migration → back up + reset.
   backupCorrupt(file, raw)
   return initialState()
+}
+
+/**
+ * Validate an in-memory parsed object up to a current-shape GameState via the SAME
+ * recovery ladder loadState uses: the FAST path returns the RAW object (preserving
+ * forward-compat unknown keys — NEVER GameStateSchema.parse output, which would strip
+ * them); else migrate() a migratable shape; else null (the caller decides). Pure (no
+ * I/O). Shared by loadStateLocal + `sq import`.
+ */
+export function validateImported(parsed: unknown): GameState | null {
+  if (GameStateSchema.safeParse(parsed).success) {
+    return parsed as GameState
+  }
+  if (MigratableSchema.safeParse(parsed).success) {
+    return migrate(parsed as Record<string, unknown>)
+  }
+  return null
 }
 
 /**

@@ -33,7 +33,7 @@ import { t } from '../i18n/t'
  *
  * PURE: reads slots only.
  */
-function isOneAway(def: SynergyDef, slots: GameState['loadout']['slots']): boolean {
+export function isOneAway(def: SynergyDef, slots: GameState['loadout']['slots']): boolean {
   let gap = 0
   for (const req of def.requires) {
     const matchingIds = new Set<string>()

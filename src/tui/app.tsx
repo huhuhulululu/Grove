@@ -310,13 +310,10 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
   // -- Economy / actions ------------------------------------------------------
   lines.push(panelTitle(t(locale, 'ui.panel.economy'), focus === 'Economy'))
   const e = m.economy
-  const can: string[] = []
-  if (e.canPull) can.push(t(locale, 'ui.can.pull', { cost: e.pullCost }))
-  if (e.canPremium) can.push(t(locale, 'ui.can.premium', { cost: e.premiumCost }))
-  if (e.canCraft) can.push(t(locale, 'ui.can.craft'))
-  if (e.canPrestige) can.push(t(locale, 'ui.can.prestige', { cost: e.prestigeCost }))
   lines.push(`  🌰 ${e.seeds} · 🔧 ${e.shards}`)
-  lines.push(`  ${can.length > 0 ? t(locale, 'ui.header.can', { actions: can.join(' · ') }) : t(locale, 'ui.tui.earn_hint')}`)
+  // Reuse economyHint() — the SAME builder AppView consumes — so the two render
+  // paths can't drift on a new action key (R2 refactor; byte-identical output).
+  lines.push(`  ${economyHint(m, locale)}`)
   lines.push('')
 
   // -- Loadout panel (suppressed under zen per ADR-0014) ----------------------

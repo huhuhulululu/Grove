@@ -33,6 +33,7 @@ import {
 } from '../engine/reduce'
 import { craftableCardId, SHARDS_PER_CRAFT } from '../engine/collection'
 import { computeLoadoutEffect, SLOT_CAP } from '../engine/loadout'
+import { isOneAway } from '../render/loadout'
 import { SYNERGIES } from '../core/synergies'
 import type { SynergyEffect } from '../core/synergies'
 
@@ -278,29 +279,6 @@ function buildQuests(state: GameState): QuestVM[] {
   })
 }
 
-/** Whether a synergy needs exactly 1 more distinct member to activate. */
-function isOneAway(
-  def: { requires: Array<{ kind: string; tag?: string; id?: string; min: number }> },
-  slots: GameState['loadout']['slots'],
-): boolean {
-  let gap = 0
-  for (const req of def.requires) {
-    const matchingIds = new Set<string>()
-    for (const ref of slots) {
-      if (
-        ref.kind === req.kind &&
-        (req.tag === undefined || ref.tag === req.tag) &&
-        (req.id === undefined || ref.id === req.id)
-      ) {
-        matchingIds.add(ref.id)
-      }
-    }
-    const need = Math.max(1, req.min)
-    const have = matchingIds.size
-    if (have < need) gap += need - have
-  }
-  return gap === 1
-}
 
 /** Build the loadout view-model: slots + active synergies + one-away chase. */
 function buildLoadout(state: GameState): LoadoutVM {

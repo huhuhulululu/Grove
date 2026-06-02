@@ -189,3 +189,31 @@ describe('(e) reveal is non-blocking + skipped when not a TTY', () => {
     expect(elapsed).toBeLessThan(300)
   })
 })
+
+describe('(f) enhance on a BROKEN gear refuses without debit (bugs-2)', () => {
+  let tmpHome: string
+  beforeEach(() => { tmpHome = makeTmpHome() })
+  afterEach(() => { fs.rmSync(tmpHome, { recursive: true, force: true }) })
+
+  it('a broken gear is not charged seeds and keeps its protect flag (no-op enhance)', () => {
+    const dir = stateDir(tmpHome)
+    const s = loadState(dir)
+    const id = 'gear.commit-hammer.1'
+    saveState(dir, {
+      ...s,
+      player: { ...s.player, currency: 200 },
+      gear: [{ id, name: 'Commit Hammer', level: 5, rarity: 'rare' as const, broken: true }],
+      protectedGear: [id],
+    })
+    const { code } = captureRun(['enhance', id, '--seed', '1', '--home', tmpHome])
+    expect(code).toBe(0)
+    const after = loadState(dir)
+    // No debit: enhancing a broken piece is a no-op (the engine short-circuits to 'stay').
+    expect(after.player.currency).toBe(200)
+    // The one-shot protection flag must NOT be consumed for a no-op.
+    expect(after.protectedGear).toContain(id)
+    // Gear unchanged (still broken, same level).
+    expect(after.gear[0]!.broken).toBe(true)
+    expect(after.gear[0]!.level).toBe(5)
+  })
+})

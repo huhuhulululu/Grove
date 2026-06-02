@@ -236,6 +236,25 @@ describe('loadState migration', () => {
     const result = loadState(dir)
     expect(result.achievements).toEqual(['ach:level-5', 'ach:first-foil'])
   })
+
+  // coverage-2: protectedGear's malformed-entry filter mirrors achievements/loadout
+  // (both of which ARE tested) but was itself untested. A non-string id leaking into
+  // the engine's protected-set drives gear-break protection, so guard the filter.
+  it('migrate drops a malformed (non-string) protectedGear entry', () => {
+    const dir = makeTmpDir()
+    const raw = {
+      version: 1,
+      player: { xp: 1, level: 1, currency: 0 },
+      cards: [],
+      gear: [],
+      pity: { sinceLegendary: 0 },
+      completedSets: [],
+      protectedGear: ['gear.x.1', 42, null, 'gear.y.2'],
+    }
+    fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify(raw), 'utf8')
+    const result = loadState(dir)
+    expect(result.protectedGear).toEqual(['gear.x.1', 'gear.y.2'])
+  })
 })
 
 // ---------------------------------------------------------------------------

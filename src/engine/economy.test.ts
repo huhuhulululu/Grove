@@ -304,6 +304,23 @@ describe('token-milestone floor — cost fills a work meter, chests are cosmetic
     expect(rewards.some((r) => r.kind === 'xp')).toBe(false)
     expect(state.work.workMeter).toBeCloseTo((WORK_MILESTONE / 2) * COST_TO_WORK, 6)
   })
+
+  // coverage-1: the `Number.isFinite(costUsd)` guard is the ONLY thing keeping the
+  // `while (workMeter >= WORK_MILESTONE)` drain loop terminating on a malformed
+  // frame. meta is z.record(z.unknown()), so an adapter CAN deliver Infinity/NaN.
+  // Without the guard, Infinity loops forever (hanging the pure engine while ingest
+  // holds the state lock); NaN silently corrupts state.work. These lock both.
+  it('a non-finite costUsd (Infinity) is ignored — the drain loop terminates, no reward', () => {
+    const out = reduce(initialState(), costFrame({ costUsd: Infinity }), mulberry32(5))
+    expect(out.state.work).toEqual(initialState().work)
+    expect(out.rewards).toEqual([])
+  })
+
+  it('a NaN costUsd is ignored — work state stays intact, no reward', () => {
+    const out = reduce(initialState(), costFrame({ costUsd: NaN }), mulberry32(5))
+    expect(out.state.work).toEqual(initialState().work)
+    expect(out.rewards).toEqual([])
+  })
 })
 
 // ---------------------------------------------------------------------------

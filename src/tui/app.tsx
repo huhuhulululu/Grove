@@ -49,6 +49,7 @@ import {
 import type { Locale } from '../i18n/types'
 import { resolveLocale } from '../i18n/locale'
 import { t } from '../i18n/t'
+import { synergyEffectLine } from '../render/loadout'
 
 // ---------------------------------------------------------------------------
 // dispatchKey — the PURE key → engine-action router
@@ -254,9 +255,13 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
   // -- Header -----------------------------------------------------------------
   const h = m.header
   const bar = progressBar(h.xpFraction, 12)
-  lines.push(`GROVE · Level ${h.level}   XP [${bar}] ${h.xp}/${h.xpForLevel}`)
+  lines.push(`${t(locale, 'ui.header.title', { level: h.level })}   XP [${bar}] ${h.xp}/${h.xpForLevel}`)
   lines.push(
-    `🌰 ${h.seeds} seeds · 🔧 ${h.shards} shards · ✦ Prestige ${h.prestigeRank} (next ${h.nextPrestigeCost} 🌰)`,
+    [
+      t(locale, 'ui.header.seeds', { seeds: h.seeds }),
+      t(locale, 'ui.header.shards', { shards: h.shards }),
+      t(locale, 'ui.header.prestige', { rank: h.prestigeRank, cost: h.nextPrestigeCost }),
+    ].join(' · '),
   )
   if (opts.flash) lines.push(opts.flash)
   lines.push('')
@@ -265,10 +270,10 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
   lines.push(panelTitle(t(locale, 'ui.panel.collection'), focus === 'Collection'))
   for (const c of m.collection) {
     if (c.locked) {
-      lines.push(`  ${c.set}  🔒 L${c.unlockLevel}`)
+      lines.push(`  ${t(locale, 'ui.collection.locked', { set: c.set, level: c.unlockLevel })}`)
     } else {
-      const done = c.complete ? '  ✓' : ''
-      lines.push(`  ${c.set}  ${c.owned}/${c.total}${done}`)
+      const done = c.complete ? t(locale, 'ui.collection.done') : ''
+      lines.push(`  ${t(locale, 'ui.collection.row', { set: c.set, owned: c.owned, total: c.total, done })}`)
     }
   }
   lines.push('')
@@ -293,7 +298,12 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
   lines.push(panelTitle(t(locale, 'ui.panel.quests'), focus === 'Quests'))
   for (const q of m.quests) {
     const glyph = q.status === 'done' ? '✓' : q.status === 'active' ? '◆' : '·'
-    lines.push(`  ${glyph} ${q.title}`)
+    // Re-translate by id (the VM carries the raw English def.title), matching the
+    // dashboard/format renderers; fall back to the raw title for a custom QuestDef
+    // with no catalog entry (t() returns the key itself on a miss).
+    const key = `quest.${q.id}.title`
+    const ttl = t(locale, key)
+    lines.push(`  ${glyph} ${ttl !== key ? ttl : q.title}`)
   }
   lines.push('')
 
@@ -323,13 +333,13 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
     if (lo.active.length > 0) {
       lines.push(t(locale, 'ui.loadout.active_header'))
       for (const s of lo.active) {
-        lines.push('✦ ' + t(locale, 'ui.loadout.active_row', { name: s.name, effect: s.effect }))
+        lines.push('✦ ' + t(locale, 'ui.loadout.active_row', { name: s.name, effect: synergyEffectLine(s.effect, locale) }))
       }
     }
     if (lo.chase.length > 0) {
       lines.push(t(locale, 'ui.loadout.chase_header'))
       for (const s of lo.chase) {
-        lines.push('◇ ' + t(locale, 'ui.loadout.chase_row', { name: s.name, effect: s.effect }))
+        lines.push('◇ ' + t(locale, 'ui.loadout.chase_row', { name: s.name, effect: synergyEffectLine(s.effect, locale) }))
       }
     }
     lines.push('')
@@ -630,11 +640,15 @@ function AppView(props: {
   return (
     <Box flexDirection="column">
       <Text bold>
-        {`GROVE · Level ${h.level}`}
+        {t(locale, 'ui.header.title', { level: h.level })}
         <Text color="green">{`   XP [${progressBar(xpFraction, 12)}] ${h.xp}/${h.xpForLevel}`}</Text>
       </Text>
       <Text>
-        {`🌰 ${h.seeds} seeds · 🔧 ${h.shards} shards · ✦ Prestige ${h.prestigeRank} (next ${h.nextPrestigeCost} 🌰)`}
+        {[
+          t(locale, 'ui.header.seeds', { seeds: h.seeds }),
+          t(locale, 'ui.header.shards', { shards: h.shards }),
+          t(locale, 'ui.header.prestige', { rank: h.prestigeRank, cost: h.nextPrestigeCost }),
+        ].join(' · ')}
       </Text>
       {flash ? <Text color={flashColor.color} bold={flashColor.bold}>{flash}</Text> : null}
 
@@ -650,8 +664,8 @@ function AppView(props: {
               bold={pulsing || (!c.locked && tint.bold)}
             >
               {c.locked
-                ? `${c.set}  🔒 L${c.unlockLevel}`
-                : `${pulsing ? '✦ ' : ''}${c.set}  ${c.owned}/${c.total}${c.complete ? '  ✓' : ''}`}
+                ? t(locale, 'ui.collection.locked', { set: c.set, level: c.unlockLevel })
+                : `${pulsing ? '✦ ' : ''}${t(locale, 'ui.collection.row', { set: c.set, owned: c.owned, total: c.total, done: c.complete ? t(locale, 'ui.collection.done') : '' })}`}
             </Text>
           )
         })}
@@ -679,11 +693,14 @@ function AppView(props: {
       </PanelBox>
 
       <PanelBox title={t(locale, 'ui.panel.quests')} focused={focus === 'Quests'}>
-        {model.quests.map((q) => (
-          <Text key={q.id}>
-            {`${q.status === 'done' ? '✓' : q.status === 'active' ? '◆' : '·'} ${q.title}`}
-          </Text>
-        ))}
+        {model.quests.map((q) => {
+          // Re-translate by id (the VM carries the raw English def.title); fall back
+          // to the raw title for a custom QuestDef with no catalog entry.
+          const key = `quest.${q.id}.title`
+          const ttl = t(locale, key)
+          const glyph = q.status === 'done' ? '✓' : q.status === 'active' ? '◆' : '·'
+          return <Text key={q.id}>{`${glyph} ${ttl !== key ? ttl : q.title}`}</Text>
+        })}
       </PanelBox>
 
       <PanelBox title={t(locale, 'ui.panel.economy')} focused={focus === 'Economy'}>
@@ -704,7 +721,7 @@ function AppView(props: {
             <>
               <Text dimColor>{t(locale, 'ui.loadout.active_header')}</Text>
               {model.loadout.active.map((s) => (
-                <Text key={s.id} color="green">{'✦ ' + t(locale, 'ui.loadout.active_row', { name: s.name, effect: s.effect })}</Text>
+                <Text key={s.id} color="green">{'✦ ' + t(locale, 'ui.loadout.active_row', { name: s.name, effect: synergyEffectLine(s.effect, locale) })}</Text>
               ))}
             </>
           )}
@@ -712,7 +729,7 @@ function AppView(props: {
             <>
               <Text dimColor>{t(locale, 'ui.loadout.chase_header')}</Text>
               {model.loadout.chase.map((s) => (
-                <Text key={s.id} dimColor>{'◇ ' + t(locale, 'ui.loadout.chase_row', { name: s.name, effect: s.effect })}</Text>
+                <Text key={s.id} dimColor>{'◇ ' + t(locale, 'ui.loadout.chase_row', { name: s.name, effect: synergyEffectLine(s.effect, locale) })}</Text>
               ))}
             </>
           )}

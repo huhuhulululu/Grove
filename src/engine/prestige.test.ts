@@ -101,4 +101,15 @@ describe('tiered prestige — renewable, escalating cosmetic ranks', () => {
     buyPrestige(s0)
     expect(s0).toEqual(snap)
   })
+
+  // bugs-1: the economy spend exports (pull/premium/craft/foil/prestige) used to
+  // bypass reduce()'s grantAchievements, so an achievement crossed ONLY by a spend
+  // (e.g. ach:prestige-1, reachable only via buyPrestige) went unrecorded at
+  // earn-time. The exports now grant achievements on the success path themselves.
+  it('records ach:prestige-1 at earn-time (no longer bypasses achievements)', () => {
+    const { state, rewards } = buyPrestige(fund(prestigeCost(0)))
+    expect(prestigeRank(state)).toBe(1)
+    expect(state.achievements).toContain('ach:prestige-1')
+    expect(rewards.some((r) => r.kind === 'buff' && r.buff === 'ach:prestige-1')).toBe(true)
+  })
 })

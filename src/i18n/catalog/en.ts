@@ -234,6 +234,9 @@ export const en: Catalog = {
   'ui.gear.effect.seeds': '+{n}% commit seeds',
   'ui.gear.effect.xp': '+{n}% XP',
   'ui.gear.effect.crit': '+{n}pp crit',
+  'ui.synergy.effect.xp': '+{n}% XP',
+  'ui.synergy.effect.seeds': '+{n}% seeds',
+  'ui.synergy.effect.crit': '+{n}pp crit',
 
   // enhance reveal (render/enhance.ts)
   'ui.enhance.odds_transition': '{name} +{level} → +{next}',
@@ -342,6 +345,7 @@ export const en: Catalog = {
   'cli.gear.none_repair': '(no gear yet · nothing to repair)',
   'cli.gear.none_protect': '(no gear yet · nothing to protect)',
   'cli.gear.not_broken': '  {name} +{level} isn\'t broken · nothing to repair.',
+  'cli.gear.enhance_broken': '  {name} +{level} is broken · repair it first.',
   'cli.gear.already_protected': '  {name} +{level} is already protected.',
   'cli.gear.repaired': '  🔧 REPAIRED · {name} +{level} · -{cost} 🌰',
   'cli.gear.protected': '  🛡 PROTECTED · {name} +{level} · -{cost} 🌰 (one enhance)',

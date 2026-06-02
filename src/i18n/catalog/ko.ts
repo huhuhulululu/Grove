@@ -191,6 +191,9 @@ export const ko: Catalog = {
   'ui.gear.effect.seeds': '+{n}% 커밋 씨앗',
   'ui.gear.effect.xp': '+{n}% XP',
   'ui.gear.effect.crit': '+{n}pp 치명타',
+  'ui.synergy.effect.xp': '+{n}% XP',
+  'ui.synergy.effect.seeds': '+{n}% 씨앗',
+  'ui.synergy.effect.crit': '+{n}pp 치명타',
 
   'ui.enhance.odds_transition': '{name} +{level} → +{next}',
   'ui.enhance.odds': '성공 {success}%  강등 {downgrade}%  파손 {break}%',
@@ -290,6 +293,7 @@ export const ko: Catalog = {
   'cli.gear.none_repair': '(장비 없음 · 수리할 대상 없음)',
   'cli.gear.none_protect': '(장비 없음 · 보호할 대상 없음)',
   'cli.gear.not_broken': '  {name} +{level} 파손되지 않음 · 수리 불필요。',
+  'cli.gear.enhance_broken': '  {name} +{level} 파손됨 · 먼저 수리하세요。',
   'cli.gear.already_protected': '  {name} +{level} 이미 보호 중。',
   'cli.gear.repaired': '  🔧 수리됨 · {name} +{level} · -{cost} 🌰',
   'cli.gear.protected': '  🛡 보호됨 · {name} +{level} · -{cost} 🌰(강화 1회)',

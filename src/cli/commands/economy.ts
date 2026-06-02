@@ -186,6 +186,13 @@ export function handleEnhance(
     }
     const cur = fresh.gear[idx]!
 
+    // A broken gear can't be enhanced (the engine short-circuits to result:'stay');
+    // refuse BEFORE pricing so neither seeds nor the one-shot protection are
+    // consumed for a no-op. Mirrors handleRepair's notbroken guard (calm · ADR-0005).
+    if (cur.broken) {
+      return { kind: 'brokenstay' as const, gear: cur }
+    }
+
     // R6 P0: price the attempt with the engine's LEVEL-SCALING enhanceCost (was a
     // flat 20 the CLI ignored · chasing a high +N must be a deepening sink).
     const cost = enhanceCost(cur.level)
@@ -236,6 +243,12 @@ export function handleEnhance(
     return 0
   }
 
+  if (outcome.kind === 'brokenstay') {
+    // No debit, no protection consumed — a broken piece is repaired, not enhanced.
+    console.log(t(locale, 'cli.gear.enhance_broken', { name: outcome.gear.name, level: outcome.gear.level }))
+    return 0
+  }
+
   if (zen) {
     // Calm: the attempt ran & persisted; suppress the odds + juicy result reveal.
     calmConfirm(t(locale, 'cli.confirm.enhance_recorded', { name: before.name }), locale)
@@ -245,11 +258,11 @@ export function handleEnhance(
   // Print odds (the suspense), play the dice-roll reveal, then the result ·
   // only when an attempt happened. Mirrors the pull reveal (playReveal is
   // TTY-only and skipped in pipes/tests, so output stays deterministic).
-  console.log(renderEnhanceOdds(before))
+  console.log(renderEnhanceOdds(before, locale))
   // The dice-roll suspense escalates with the gear's rarity (a legendary piece
   // builds longer than a common), matching the pull reveal + the Ink TUI.
   playReveal(renderEnhanceFrames(before.rarity))
-  console.log(renderEnhanceResult(before, outcome.after, outcome.result))
+  console.log(renderEnhanceResult(before, outcome.after, outcome.result, locale))
 
   return 0
 }

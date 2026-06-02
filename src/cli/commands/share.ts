@@ -144,10 +144,11 @@ export function handleWrap(command: string[], asType: string | undefined, dir: s
  * --zen (zen strips spectacle from automatic output; an explicit `share` is the
  * thing the user asked for, not spectacle).
  */
-export function handleShare(flags: Record<string, string>, dir: string): number {
+export function handleShare(flags: Record<string, string>, dir: string, locale: Locale = 'en'): number {
   const state = loadState(dir)
   const badge = flags['badge'] === 'true'
-  console.log(badge ? renderReadmeBadge(state) : renderShareCard(state))
+  // renderReadmeBadge carries no prose; the share card's flex line IS localized.
+  console.log(badge ? renderReadmeBadge(state) : renderShareCard(state, { locale }))
   return 0
 }
 

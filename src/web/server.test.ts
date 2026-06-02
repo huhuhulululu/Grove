@@ -49,16 +49,26 @@ afterEach(() => {
 })
 
 describe('cost isolation — work.lastCostUsd never crosses the network (R-safety)', () => {
-  it('webSafeState strips lastCostUsd but keeps the other (cosmetic) work fields', () => {
+  it('webSafeState strips cost + real quota-window timestamps but keeps cosmetic stats', () => {
     const s: GameState = {
       ...initialState(),
       work: { workMeter: 7, lastCostUsd: 42.5, windowKey: 99, milestonesInWindow: 1 },
+      energy: { known: true, vigor: 60, sap: 80, vigorResetsAt: 1234567, sapResetsAt: 7654321 },
     }
     const safe = webSafeState(s)
-    expect((safe.work as Record<string, unknown>)['lastCostUsd']).toBeUndefined()
+    const work = safe.work as Record<string, unknown>
+    const energy = safe.energy as Record<string, unknown>
+    // schedule metadata about the user's real Claude quota windows — OFF the wire
+    expect(work['lastCostUsd']).toBeUndefined()
+    expect(work['windowKey']).toBeUndefined()
+    expect(energy['vigorResetsAt']).toBeUndefined()
+    expect(energy['sapResetsAt']).toBeUndefined()
+    // cosmetic game stats — kept
     expect(safe.work.workMeter).toBe(7)
-    expect(safe.work.windowKey).toBe(99)
     expect(safe.work.milestonesInWindow).toBe(1)
+    expect(safe.energy.vigor).toBe(60)
+    expect(safe.energy.sap).toBe(80)
+    expect(safe.energy.known).toBe(true)
   })
 
   it('GET /api/state omits the real spend figure (lastCostUsd) from the payload', async () => {

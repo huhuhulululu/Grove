@@ -191,6 +191,9 @@ export const ja: Catalog = {
   'ui.gear.effect.seeds': '+{n}% コミットシード',
   'ui.gear.effect.xp': '+{n}% XP',
   'ui.gear.effect.crit': '+{n}pp クリティカル',
+  'ui.synergy.effect.xp': '+{n}% XP',
+  'ui.synergy.effect.seeds': '+{n}% シード',
+  'ui.synergy.effect.crit': '+{n}pp クリティカル',
 
   'ui.enhance.odds_transition': '{name} +{level} → +{next}',
   'ui.enhance.odds': '成功 {success}%  ダウングレード {downgrade}%  破損 {break}%',
@@ -290,6 +293,7 @@ export const ja: Catalog = {
   'cli.gear.none_repair': '(ギアなし · 修復対象なし)',
   'cli.gear.none_protect': '(ギアなし · 保護対象なし)',
   'cli.gear.not_broken': '  {name} +{level} は壊れていない · 修復不要。',
+  'cli.gear.enhance_broken': '  {name} +{level} は壊れている · まず修復を。',
   'cli.gear.already_protected': '  {name} +{level} は既に保護中。',
   'cli.gear.repaired': '  🔧 修復 · {name} +{level} · -{cost} 🌰',
   'cli.gear.protected': '  🛡 保護 · {name} +{level} · -{cost} 🌰(強化 1 回)',

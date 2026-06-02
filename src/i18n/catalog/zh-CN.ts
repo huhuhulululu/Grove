@@ -191,6 +191,9 @@ export const zhCN: Catalog = {
   'ui.gear.effect.seeds': '+{n}% 提交种子',
   'ui.gear.effect.xp': '+{n}% XP',
   'ui.gear.effect.crit': '+{n}pp 暴击',
+  'ui.synergy.effect.xp': '+{n}% XP',
+  'ui.synergy.effect.seeds': '+{n}% 种子',
+  'ui.synergy.effect.crit': '+{n}pp 暴击',
 
   'ui.enhance.odds_transition': '{name} +{level} → +{next}',
   'ui.enhance.odds': '成功 {success}%  降级 {downgrade}%  损坏 {break}%',
@@ -290,6 +293,7 @@ export const zhCN: Catalog = {
   'cli.gear.none_repair': '(暂无装备 · 无可修复)',
   'cli.gear.none_protect': '(暂无装备 · 无可保护)',
   'cli.gear.not_broken': '  {name} +{level} 未损坏 · 无需修复。',
+  'cli.gear.enhance_broken': '  {name} +{level} 已损坏 · 请先修复。',
   'cli.gear.already_protected': '  {name} +{level} 已处于保护中。',
   'cli.gear.repaired': '  🔧 已修复 · {name} +{level} · -{cost} 🌰',
   'cli.gear.protected': '  🛡 已保护 · {name} +{level} · -{cost} 🌰(一次强化)',

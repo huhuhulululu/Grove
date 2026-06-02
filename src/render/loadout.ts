@@ -16,7 +16,7 @@
  */
 
 import type { GameState } from '../core/state'
-import type { SynergyDef } from '../core/synergies'
+import type { SynergyDef, SynergyEffect } from '../core/synergies'
 import { SYNERGIES } from '../core/synergies'
 import { computeLoadoutEffect, SLOT_CAP } from '../engine/loadout'
 import type { Locale } from '../i18n/types'
@@ -59,17 +59,19 @@ function isOneAway(def: SynergyDef, slots: GameState['loadout']['slots']): boole
 // ---------------------------------------------------------------------------
 
 /**
- * Terse one-line summary of a synergy's effect: "+5% XP", "+6% seeds",
- * "+4pp crit", or combined "XP+seed" for naturalist.
+ * Terse one-line summary of a synergy's cosmetic effect, LOCALIZED:
+ * "+5% XP", "+6% seeds", "+4pp crit", joined by ' · '. Shared by the dashboard,
+ * the loadout panel, and the TUI so the unit copy (seeds/crit) localizes in ONE
+ * place — XP stays literal in every locale. Pure (no I/O, no clock, no RNG).
  */
-function effectLine(def: SynergyDef): string {
+export function synergyEffectLine(effect: SynergyEffect, locale: Locale = 'en'): string {
   const parts: string[] = []
-  const xp = def.effect.xpMult ?? 1
-  const seed = def.effect.seedMult ?? 1
-  const crit = def.effect.critBonus ?? 0
-  if (xp !== 1) parts.push(`+${Math.round((xp - 1) * 100)}% XP`)
-  if (seed !== 1) parts.push(`+${Math.round((seed - 1) * 100)}% seeds`)
-  if (crit !== 0) parts.push(`+${Math.round(crit * 100)}pp crit`)
+  const xp = effect.xpMult ?? 1
+  const seed = effect.seedMult ?? 1
+  const crit = effect.critBonus ?? 0
+  if (xp !== 1) parts.push(t(locale, 'ui.synergy.effect.xp', { n: Math.round((xp - 1) * 100) }))
+  if (seed !== 1) parts.push(t(locale, 'ui.synergy.effect.seeds', { n: Math.round((seed - 1) * 100) }))
+  if (crit !== 0) parts.push(t(locale, 'ui.synergy.effect.crit', { n: Math.round(crit * 100) }))
   return parts.join(' · ')
 }
 
@@ -117,7 +119,7 @@ export function renderLoadoutPanel(
     for (const id of effect.activeSynergies) {
       const def = SYNERGIES.find((s) => s.id === id)
       if (def === undefined) continue
-      lines.push('✦ ' + t(locale, 'ui.loadout.active_row', { name: def.name, effect: effectLine(def) }))
+      lines.push('✦ ' + t(locale, 'ui.loadout.active_row', { name: def.name, effect: synergyEffectLine(def.effect, locale) }))
     }
   }
 
@@ -135,7 +137,7 @@ export function renderLoadoutPanel(
       lines.push(t(locale, 'ui.loadout.chase_header'))
       for (const def of oneAway) {
         lines.push(
-          '◇ ' + t(locale, 'ui.loadout.chase_row', { name: def.name, effect: effectLine(def) }),
+          '◇ ' + t(locale, 'ui.loadout.chase_row', { name: def.name, effect: synergyEffectLine(def.effect, locale) }),
         )
       }
     }

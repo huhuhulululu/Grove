@@ -118,6 +118,10 @@ describe('<App> — live Ink component', () => {
     expect(frame).toContain('任务')
     expect(frame).toContain('经济')
     expect(frame).toContain('退出')
+    // header + quest titles must also localize (i18n-3/4: previously English-only)
+    expect(frame).toContain('等级') // ui.header.title 'GROVE  等级 {level}'
+    expect(frame).toContain('写 CLAUDE.md') // quest.grimoire.title, re-translated
+    expect(frame).not.toContain('Level 3') // the English header must be gone
     unmount()
   })
 })

@@ -707,7 +707,7 @@ export function pull(
     rewards,
   )
 
-  return { state: next, rewards }
+  return { state: grantAchievements(next, rewards), rewards }
 }
 
 /**
@@ -774,7 +774,7 @@ export function pullPremium(
       // a foil-finish that closes a set fires the same fully-foiled capstone.
       next = grantFoiledSetCapstone(next, def.set, nextFoiled, rewards)
     }
-    return { state: next, rewards }
+    return { state: grantAchievements(next, rewards), rewards }
   }
 
   // Normal premium roll.
@@ -794,7 +794,7 @@ export function pullPremium(
     rewards,
   )
 
-  return { state: next, rewards }
+  return { state: grantAchievements(next, rewards), rewards }
 }
 
 // ---------------------------------------------------------------------------
@@ -822,8 +822,8 @@ export function pullPremium(
  */
 export function craftCard(
   state: GameState,
-  cardId?: string,
-  rng: Rng = () => 0,
+  cardId: string | undefined,
+  rng: Rng,
 ): { state: GameState; rewards: Reward[] } {
   const rewards: Reward[] = []
   const haveShards = state.player.shards ?? 0
@@ -896,7 +896,7 @@ export function craftCard(
     rewards,
   )
 
-  return { state: next, rewards }
+  return { state: grantAchievements(next, rewards), rewards }
 }
 
 /** The set a card id belongs to (for the locked-set refusal message). */
@@ -1033,14 +1033,12 @@ export function buyPrestige(
   // kind:'rest' is purely cosmetic — NOT read by any XP/seed/crit selector — so
   // prestige confers ZERO economic effect (ADR-0005: cosmetic-only, no power).
   const buff: Buff = { id: buffId, label: msg('reward.buff.prestige_rank', { rank: nextRank }).message, kind: 'rest', msgKey: 'reward.buff.prestige_rank', msgArgs: { rank: nextRank } }
-  return {
-    state: {
-      ...state,
-      player: { ...state.player, currency: spent },
-      buffs: [...state.buffs, buff],
-    },
-    rewards,
+  const next: GameState = {
+    ...state,
+    player: { ...state.player, currency: spent },
+    buffs: [...state.buffs, buff],
   }
+  return { state: grantAchievements(next, rewards), rewards }
 }
 
 // ---------------------------------------------------------------------------
@@ -1155,7 +1153,7 @@ export function foilCard(
   // R9 capstone: foiling the LAST card of a set unlocks a distinct one-time flair.
   if (def) next = grantFoiledSetCapstone(next, def.set, nextFoiled, rewards)
 
-  return { state: next, rewards }
+  return { state: grantAchievements(next, rewards), rewards }
 }
 
 // ---------------------------------------------------------------------------

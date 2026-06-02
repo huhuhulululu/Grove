@@ -34,6 +34,7 @@ import {
 import { craftableCardId, SHARDS_PER_CRAFT } from '../engine/collection'
 import { computeLoadoutEffect, SLOT_CAP } from '../engine/loadout'
 import { SYNERGIES } from '../core/synergies'
+import type { SynergyEffect } from '../core/synergies'
 
 /**
  * The keyboard-navigable panels, in focus-cycle order. Tab / arrows move focus
@@ -129,15 +130,15 @@ export interface LoadoutSlotVM {
 export interface LoadoutSynergyVM {
   id: string
   name: string
-  /** Terse effect text: "+5% XP", "+6% seeds", etc. */
-  effect: string
+  /** Raw cosmetic effect bundle; the renderer localizes it via synergyEffectLine. */
+  effect: SynergyEffect
 }
 
 /** One-away synergy row (the chase: needs one more member). */
 export interface LoadoutChaseVM {
   id: string
   name: string
-  effect: string
+  effect: SynergyEffect
 }
 
 /** Loadout view-model: slots N/3 + active synergies + one-away chase. */
@@ -277,18 +278,6 @@ function buildQuests(state: GameState): QuestVM[] {
   })
 }
 
-/** Terse one-line summary of a synergy's effect: "+5% XP", "+6% seeds", "+4pp crit". */
-function synergyEffectLine(def: { effect: { xpMult?: number; seedMult?: number; critBonus?: number } }): string {
-  const parts: string[] = []
-  const xp = def.effect.xpMult ?? 1
-  const seed = def.effect.seedMult ?? 1
-  const crit = def.effect.critBonus ?? 0
-  if (xp !== 1) parts.push(`+${Math.round((xp - 1) * 100)}% XP`)
-  if (seed !== 1) parts.push(`+${Math.round((seed - 1) * 100)}% seeds`)
-  if (crit !== 0) parts.push(`+${Math.round(crit * 100)}pp crit`)
-  return parts.join(' · ')
-}
-
 /** Whether a synergy needs exactly 1 more distinct member to activate. */
 function isOneAway(
   def: { requires: Array<{ kind: string; tag?: string; id?: string; min: number }> },
@@ -331,15 +320,15 @@ function buildLoadout(state: GameState): LoadoutVM {
   const active: LoadoutSynergyVM[] = effect.activeSynergies.map((id) => {
     const def = SYNERGIES.find((s) => s.id === id)
     return def
-      ? { id, name: def.name, effect: synergyEffectLine(def) }
-      : { id, name: id, effect: '' }
+      ? { id, name: def.name, effect: def.effect }
+      : { id, name: id, effect: {} }
   })
 
   const freeSlots = SLOT_CAP - slots.length
   const chase: LoadoutChaseVM[] = freeSlots > 0
     ? SYNERGIES
         .filter((def) => !effect.activeSynergies.includes(def.id) && isOneAway(def, slots))
-        .map((def) => ({ id: def.id, name: def.name, effect: synergyEffectLine(def) }))
+        .map((def) => ({ id: def.id, name: def.name, effect: def.effect }))
     : []
 
   return { slots: slotRows, active, chase }

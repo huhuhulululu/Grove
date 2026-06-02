@@ -54,17 +54,24 @@ function randomPort(): number {
 }
 
 /**
- * Strip COST data before a state crosses the network. The web dashboard never
- * renders cost — only the raw /api/state JSON + SSE snapshot ever carried
- * `work.lastCostUsd` (the user's real cumulative spend). When the server is
- * opt-in LAN-exposed (`--host 0.0.0.0`, e.g. to reach it from a phone), this
- * keeps that figure OFF the wire. Only cosmetic game stats are transmitted.
+ * Strip private real-account metadata before a state crosses the network. The
+ * web dashboard renders only cosmetic game stats, but the raw GameState carries
+ * data sourced from the user's real Claude usage: `work.lastCostUsd` (cumulative
+ * spend) and the real quota-window reset schedule (`work.windowKey`,
+ * `energy.vigorResetsAt`, `energy.sapResetsAt` — all epoch-ms wall-clock from the
+ * rate-limit frames). When the server is opt-in LAN-exposed (`--host 0.0.0.0`,
+ * e.g. to reach it from a phone), this keeps that schedule + spend OFF the wire.
+ * The page never reads any of these fields, so they are pure leak otherwise.
  */
 export function webSafeState(
   state: GameState,
-): Omit<GameState, 'work'> & { work: Omit<GameState['work'], 'lastCostUsd'> } {
-  const { lastCostUsd: _cost, ...work } = state.work
-  return { ...state, work }
+): Omit<GameState, 'work' | 'energy'> & {
+  work: Omit<GameState['work'], 'lastCostUsd' | 'windowKey'>
+  energy: Omit<GameState['energy'], 'vigorResetsAt' | 'sapResetsAt'>
+} {
+  const { lastCostUsd: _cost, windowKey: _w, ...work } = state.work
+  const { vigorResetsAt: _v, sapResetsAt: _s, ...energy } = state.energy
+  return { ...state, work, energy }
 }
 
 /** Read the current state JSON string (read-only, cost stripped). Never throws to the caller. */

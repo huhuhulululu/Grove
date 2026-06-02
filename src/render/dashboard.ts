@@ -37,6 +37,7 @@ import {
 import { craftableCardId } from '../engine/collection'
 import { computeLoadoutEffect, SLOT_CAP } from '../engine/loadout'
 import { displayWidth, padToWidth, truncateToWidth } from './width'
+import { synergyEffectLine } from './loadout'
 import type { Locale } from '../i18n/types'
 import { t } from '../i18n/t'
 
@@ -512,15 +513,7 @@ function renderLoadout(state: GameState, width: number, locale: Locale = 'en'): 
   const activeRows = effect.activeSynergies.map((id) => {
     const def = SYNERGIES.find((s) => s.id === id)
     if (def === undefined) return null
-    const parts: string[] = []
-    const xp = def.effect.xpMult ?? 1
-    const seed = def.effect.seedMult ?? 1
-    const crit = def.effect.critBonus ?? 0
-    if (xp !== 1) parts.push(`+${Math.round((xp - 1) * 100)}% XP`)
-    if (seed !== 1) parts.push(`+${Math.round(seed * 100 - 100)}% seeds`)
-    if (crit !== 0) parts.push(`+${Math.round(crit * 100)}pp crit`)
-    const effectStr = parts.join(' · ')
-    return boxRow(`${def.name} · ${effectStr}`, width)
+    return boxRow(`${def.name} · ${synergyEffectLine(def.effect, locale)}`, width)
   }).filter((r): r is string => r !== null)
 
   return [

@@ -657,7 +657,7 @@ export function run(argv: string[]): number {
       return handleCheckpoint(flags, dir, zen, locale)
 
     case 'share':
-      return handleShare(flags, dir)
+      return handleShare(flags, dir, locale)
 
     case 'ntfy':
       return handleNtfy(rest, dir, locale)

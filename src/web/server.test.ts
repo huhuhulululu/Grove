@@ -352,3 +352,56 @@ describe('startWebServer', () => {
     expect(headers['x-content-type-options']).toBe('nosniff')
   })
 })
+
+// ---------------------------------------------------------------------------
+// R2 security hardening — LAN-warning breadth, Host validation, SSE cap
+// ---------------------------------------------------------------------------
+
+describe('web security hardening (R2)', () => {
+  it('warns when bound to a non-loopback host (LAN exposure disclosure, not just 0.0.0.0)', () => {
+    const dir = makeStateDir()
+    saveState(dir, seededState())
+    const errs: string[] = []
+    const spy = vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => {
+      errs.push(a.map(String).join(' '))
+    })
+    const srv = startWebServer({ dir, port: 0, host: '::' }) // IPv6 wildcard — was silent before
+    servers.push(srv)
+    spy.mockRestore()
+    expect(errs.join('\n')).toMatch(/reachable from other devices/)
+  })
+
+  it('rejects a non-loopback Host header on a loopback bind (DNS-rebinding 403)', async () => {
+    const dir = makeStateDir()
+    saveState(dir, seededState())
+    const srv = startWebServer({ dir, port: 0 })
+    servers.push(srv)
+    const url = new URL('/api/state', srv.url).toString()
+    const evil = await get(url, { host: 'evil.com' })
+    expect(evil.status).toBe(403)
+    const ok = await get(url, { host: '127.0.0.1' })
+    expect(ok.status).toBe(200)
+  })
+
+  it('caps concurrent SSE streams (503 once maxSse is reached)', async () => {
+    const dir = makeStateDir()
+    saveState(dir, seededState())
+    const srv = startWebServer({ dir, port: 0, maxSse: 2 })
+    servers.push(srv)
+    const port = Number(new URL(srv.url).port)
+    const open: http.ClientRequest[] = []
+    const openOne = (): Promise<number> =>
+      new Promise((resolve) => {
+        const req = http.get({ host: '127.0.0.1', port, path: '/events' }, (res) => {
+          res.on('data', () => {}) // drain so the socket stays open
+          resolve(res.statusCode ?? 0)
+        })
+        req.on('error', () => resolve(0))
+        open.push(req)
+      })
+    expect(await openOne()).toBe(200)
+    expect(await openOne()).toBe(200)
+    expect(await openOne()).toBe(503) // 3rd exceeds maxSse=2
+    for (const r of open) r.destroy()
+  })
+})

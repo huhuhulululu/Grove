@@ -29,6 +29,8 @@ export interface WebServerOptions {
   port?: number
   /** bind host; defaults to loopback. '0.0.0.0' exposes on the LAN (opt-in). */
   host?: string
+  /** max concurrent SSE (/events) streams before new ones are refused (default 64). */
+  maxSse?: number
 }
 
 export interface WebServerHandle {
@@ -121,16 +123,19 @@ export function startWebServer(opts: WebServerOptions): WebServerHandle {
   const explicit = opts.port !== undefined && opts.port !== 0
   let boundPort = explicit ? (opts.port as number) : randomPort()
 
-  if (host === '0.0.0.0') {
+  if (host !== LOOPBACK && host !== '::1' && host !== 'localhost') {
     // LAN exposure is opt-in and loud: anyone on the network can READ this view.
+    // Fires for ANY non-loopback bind ('0.0.0.0', '::', a concrete LAN IP) — not just
+    // the literal '0.0.0.0' — so the loud-opt-in disclosure can't be bypassed.
     // eslint-disable-next-line no-console
     console.error(
-      '⚠ Grove web bound to 0.0.0.0 · reachable from other devices on your LAN (read-only).',
+      `⚠ Grove web bound to ${host} · reachable from other devices (read-only).`,
     )
   }
 
   // The set of live SSE responses to push snapshots to.
   const clients = new Set<http.ServerResponse>()
+  const maxSse = opts.maxSse ?? 64
 
   const server = http.createServer((req, res) => {
     // Read-only: only GET is served. HEAD is treated as GET-without-body upstream.
@@ -141,6 +146,19 @@ export function startWebServer(opts: WebServerOptions): WebServerHandle {
     if (method !== 'GET' && method !== 'HEAD') {
       send(res, 405, 'text/plain; charset=utf-8', 'method not allowed')
       return
+    }
+
+    // DNS-rebinding defense: on a LOOPBACK bind, only serve requests whose Host
+    // header is loopback. A remote page that rebinds its DNS to 127.0.0.1 sends its
+    // own hostname (evil.com) as Host → 403. An explicit LAN bind opted into network
+    // reach, so the check is skipped there. (Read-only payload, but defense-in-depth.)
+    if (host === LOOPBACK) {
+      const raw = (req.headers.host ?? '').toLowerCase()
+      const hostname = raw.startsWith('[') ? raw.slice(1, raw.indexOf(']')) : (raw.split(':')[0] ?? '')
+      if (hostname !== '127.0.0.1' && hostname !== 'localhost' && hostname !== '::1') {
+        send(res, 403, 'text/plain; charset=utf-8', 'forbidden')
+        return
+      }
     }
 
     if (pathname === '/' || pathname === '/index.html') {
@@ -164,6 +182,13 @@ export function startWebServer(opts: WebServerOptions): WebServerHandle {
     }
 
     if (pathname === '/events') {
+      // Cap concurrent streams: `clients` is unbounded otherwise, so a LAN-exposed
+      // server could be flooded with long-lived /events connections (socket/FD DoS,
+      // amplifying every state change into N writes). Benign on loopback.
+      if (clients.size >= maxSse) {
+        send(res, 503, 'text/plain; charset=utf-8', 'too many streams')
+        return
+      }
       openSseStream(res, dir, clients)
       return
     }

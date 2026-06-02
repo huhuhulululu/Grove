@@ -80,8 +80,15 @@ export interface DashboardOptions {
  * @param opts  - Optional layout options.
  * @returns     - Multi-line string suitable for terminal display.
  */
+/** Clamp bounds for the dashboard width. The MIN floor is load-bearing: the box
+ *  borders do `'─'.repeat(width - 2)` and rows pad to `width - 4`, so a width < 2
+ *  throws a RangeError (negative repeat) on a very narrow terminal. The MAX ceiling
+ *  keeps an oversized terminal from producing absurdly wide boxes. */
+const MIN_DASH_WIDTH = 24
+const MAX_DASH_WIDTH = 100
+
 export function renderDashboard(state: GameState, opts: DashboardOptions = {}): string {
-  const width = opts.width ?? 60
+  const width = Math.max(MIN_DASH_WIDTH, Math.min(opts.width ?? 60, MAX_DASH_WIDTH))
   const locale: Locale = opts.locale ?? 'en'
 
   const sections: string[] = [

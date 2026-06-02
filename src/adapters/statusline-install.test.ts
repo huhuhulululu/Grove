@@ -11,6 +11,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { execFileSync } from 'node:child_process'
 import { installStatusline, uninstallStatusline } from './statusline-install'
 
 // ---------------------------------------------------------------------------
@@ -300,16 +301,24 @@ describe('installStatusline — wrapper hardening', () => {
     installStatusline(settingsPath, wrapperPath)
     const wrapper = fs.readFileSync(wrapperPath, 'utf-8')
 
-    // The original is intentionally EXECUTED (that's the chain), but its
-    // placement must not allow a breakout: the run line must not contain the raw
-    // `; touch SL_PWNED;` as a top-level shell statement.
-    // The original command is now invoked via `sh -c <shQuoted-original>`, so the
-    // quote-escape idiom must be present.
-    expect(wrapper).toContain("'\\''")
-    // Round-trip: extract the quoted original token and confirm /bin/sh parses it
-    // back to EXACTLY the evil string (literal arg to sh -c, not extra commands).
-    const runLine = wrapper.split('\n').find((l) => l.includes("sh -c"))!
+    expect(wrapper).toContain("'\\''") // the quote-escape idiom is present
+
+    // The PASSTHROUGH line carrying the ORIGINAL command is the LAST `sh -c` line —
+    // NOT the first (that is the ingest line). Target it explicitly.
+    const shLines = wrapper.split('\n').filter((l) => l.includes('sh -c '))
+    const runLine = shLines[shLines.length - 1]
     expect(runLine).toBeDefined()
+
+    // Pull the shQuoted token that follows `sh -c ` and ACTUALLY run /bin/sh on it.
+    // A correct escape makes printf receive the evil string as ONE literal arg; a
+    // broken escape would let `; touch SL_PWNED;` execute as a top-level statement.
+    const quoted = runLine!.slice(runLine!.indexOf('sh -c ') + 'sh -c '.length).trim()
+    const out = execFileSync('/bin/sh', ['-c', 'printf %s ' + quoted], {
+      cwd: tmpDir,
+      encoding: 'utf-8',
+    })
+    expect(out).toBe(evil) // parsed back to the literal string, no command split
+    expect(fs.existsSync(path.join(tmpDir, 'SL_PWNED'))).toBe(false) // payload inert
   })
 
   it('uninstall restores a multi-special original command exactly', () => {

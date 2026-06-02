@@ -1121,3 +1121,24 @@ describe('renderDashboard — zh-CN locale', () => {
     }
   })
 })
+
+// ---------------------------------------------------------------------------
+// Width clamping (R3 finding) — never RangeError on a tiny/huge terminal
+// ---------------------------------------------------------------------------
+
+describe('renderDashboard — width is clamped (no RangeError)', () => {
+  it('a tiny width (1) does not throw and yields aligned, equal-width borders', () => {
+    expect(() => renderDashboard(initialState(), { width: 1 })).not.toThrow()
+    const out = renderDashboard(initialState(), { width: 1 })
+    // Every box border row (┌ ├ └) is the SAME clamped width — aligned, not torn.
+    const borders = out.split('\n').filter((l) => /^[┌├└]/.test(l))
+    expect(borders.length).toBeGreaterThan(0)
+    expect(new Set(borders.map((l) => [...l].length)).size).toBe(1)
+  })
+
+  it('an enormous width is clamped to the MAX ceiling', () => {
+    const out = renderDashboard(initialState(), { width: 9999 })
+    const top = out.split('\n').find((l) => l.startsWith('┌'))!
+    expect([...top].length).toBeLessThanOrEqual(100)
+  })
+})

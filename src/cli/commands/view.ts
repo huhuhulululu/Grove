@@ -55,8 +55,10 @@ export function handleEvent(
   }
 
   // Guard NaN: a non-numeric / empty --magnitude (e.g. `--magnitude abc`, `--magnitude=`)
-  // would poison every downstream reward calc with NaN · default to 1 instead.
-  const magnitude = parsePositiveIntFlag(flags['magnitude'], 1)
+  // would poison every downstream reward calc with NaN · default to 1 instead. Also
+  // clamp the UPPER bound to the GroveEvent schema's max (10) — symmetric with the
+  // silent default-to-1, so `--magnitude 999` no longer dumps a raw ZodError.
+  const magnitude = Math.min(10, parsePositiveIntFlag(flags['magnitude'], 1))
   const successFlag = flags['success']
   const success = successFlag !== 'false'
   const source = flags['source'] ?? 'cli'

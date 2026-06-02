@@ -61,10 +61,12 @@ function normaliseResetsAt(value: unknown): number | undefined {
   return undefined
 }
 
-/** Safely coerce `used_percentage` to a number, returning undefined if absent. */
+/** Safely coerce `used_percentage` to a FINITE number, else undefined (no fabrication). */
 function extractPct(win: Record<string, unknown>): number | undefined {
   const v = win['used_percentage']
-  return typeof v === 'number' ? v : undefined
+  // Mirror the isFinite guard of the two sibling extractors: a JSON-valid overflow
+  // (1e400 -> Infinity) must not pass through and yield a silently-wrong 0%/100%.
+  return typeof v === 'number' && Number.isFinite(v) ? v : undefined
 }
 
 /** Read a finite number at `obj[key]`, else undefined (no fabrication). */

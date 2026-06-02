@@ -418,3 +418,37 @@ describe('makeCard', () => {
     expect(cards.size).toBeGreaterThan(1)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Golden determinism (R2) — guards replay / buddy-hunt reproducibility
+// ---------------------------------------------------------------------------
+
+describe('gacha determinism (golden)', () => {
+  // The rng->outcome mapping is anchored to data iteration order (Object.keys) with
+  // nothing pinning it. A routine "tidy the card/odds data" edit would silently shift
+  // every seed's result — breaking replay/buddy-hunt reproducibility, invisible to the
+  // probability tests. These golden anchors turn such a shift into a loud failure.
+  it('pins seed -> rarity for fixed seeds', () => {
+    expect(pull({ sinceLegendary: 0 }, mulberry32(1)).rarity).toBe('uncommon')
+    expect(pull({ sinceLegendary: 0 }, mulberry32(7)).rarity).toBe('common')
+  })
+
+  it('pins seed -> card id for fixed (rarity, seed)', () => {
+    expect(makeCard('rare', mulberry32(1), 1).id).toBe('tools.debugger')
+    expect(makeCard('common', mulberry32(3), 1).id).toBe('tools.wrench')
+  })
+
+  it('soft-pity hardcoded rarity order equals Object.keys(RARITY_ODDS) (paths must not diverge)', () => {
+    // The base-pull path iterates Object.keys(odds); the soft-pity branch hardcodes
+    // the same order. They agree only by coincidence — pin it so a data reorder, which
+    // would diverge the two pity paths, fails loudly here.
+    expect(Object.keys(RARITY_ODDS)).toEqual([
+      'common',
+      'uncommon',
+      'rare',
+      'epic',
+      'legendary',
+      'shiny',
+    ])
+  })
+})

@@ -173,73 +173,17 @@ describe('enhance: downgrade', () => {
     expect(out.level).toBe(4)
   })
 
-  it('downgrade at level 0 floors to 0, not negative', () => {
-    // level 0 is <=3 band (success=1), so we need to use level 4+ and find
-    // a downgrade then manually test with level=0 using a mocked rng
-    // Since level <=3 always succeeds, we test via a level 4 gear
-    // that downgraded to 0 via Math.max — we just directly test the floor logic
-    // by crafting a scenario where the gear is already at level 0 in 4-6 band
-    // Actually level 4 is the only way to get downgrade when level <=3 is impossible
-    // So: start at 4, get downgrade -> level 3 (not <=0, but confirms Math.max)
-    // To test floor=0, we need a level 1 gear in a band where downgrade is possible.
-    // Level 1 is <=3 band => always success. So we can't reach it naturally.
-    // Instead test the floor with a crafted rng that picks downgrade:
-
-    // We create a gear at level 1 and inject a fake rng that returns just above
-    // the success threshold for the <=3 band — but <=3 always succeeds so downgrade
-    // is impossible from that band.
-    //
-    // Per spec "downgrade -> level = Math.max(0, level-1)":
-    // Test with level 4 gear downgrading to 3 (confirms decrement):
-    const gear = makeTestGear(4)
-    let seed = 0
-    for (; seed < 10000; seed++) {
-      const { result } = enhance(gear, mulberry32(seed))
-      if (result === 'downgrade') break
-    }
-    const { gear: out } = enhance(gear, mulberry32(seed))
-    expect(out.level).toBe(3)
-
-    // And confirm Math.max(0, -1) = 0 via a direct-rng fabrication with level=0 and
-    // a band that can downgrade. We create a synthetic low rng that forces downgrade
-    // by making a rng that returns a value in the downgrade window for 4-6 band,
-    // but applied to a level 0 gear — note: level 0 is <=3 band so it always succeeds,
-    // the Math.max is defensive code. We verify this path by testing level 4 gear
-    // at band edge and separately that Math.max(0, 0-1) = 0 holds in the function.
-    //
-    // The cleanest deterministic test: level 4 gear, find downgrade seed, confirm out.level===3
-    // already done above. The floor=0 clause is explicitly tested below via rng injection:
-    const level0gear = makeTestGear(0)
-    // level 0 => always success, so downgrade path can never be hit organically for lvl 0
-    // but we verify the return value is still >= 0 for ALL seeds (no negative level):
-    for (let s = 0; s < 100; s++) {
-      const { gear: g } = enhance(level0gear, mulberry32(s))
-      expect(g.level).toBeGreaterThanOrEqual(0)
-    }
-  })
-
-  it('downgrade result never produces negative level', () => {
-    // Force downgrade path via a fabricated rng that returns 0.95 (in downgrade window
-    // for 4-6 band: success=0.9, so [0.9,1.0) is downgrade/break territory;
-    // since break=0 for 4-6, 0.9+ => downgrade)
-    // weightedPick uses: r = rng() * total; subtract weights in order.
-    // weights: success=0.9, downgrade=0.1, break=0
-    // r = 0.95 * 1 = 0.95; after success (0.9): r=0.05 >= 0; after downgrade (0.1): r=-0.05 < 0 => 'downgrade'
-    const fakeRng = () => 0.95
-    const gear = makeTestGear(4)
-    const { gear: out, result } = enhance(gear, fakeRng)
+  it('downgrade at the lowest risk band (level 2) decrements to level 1', () => {
+    // P3 made level 2 the LOWEST downgrade-producing band (0.9/0.1). rng()=0.95
+    // lands in the downgrade window (after success 0.9; break is 0), so this forces
+    // the downgrade branch deterministically and pins the decrement.
+    const { gear: out, result } = enhance(makeTestGear(2), () => 0.95)
     expect(result).toBe('downgrade')
-    expect(out.level).toBe(3) // 4 - 1 = 3
-
-    // Now test with level artificially at a point where Math.max(0, level-1) matters:
-    // We can't set level=0 and get downgrade from <=3 band, so we verify the
-    // Math.max guard via a level=1 gear in 4-6 band (but level 1 is <=3 band).
-    // The Math.max guard is defensive. Confirm it doesn't go negative for any reachable level:
-    const gear2 = makeTestGear(4)
-    for (let s = 0; s < 500; s++) {
-      const { gear: g } = enhance(gear2, mulberry32(s))
-      expect(g.level).toBeGreaterThanOrEqual(0)
-    }
+    expect(out.level).toBe(1)
+    // The `Math.max(0, level - 1)` floor in enhance() is UNREACHABLE in practice —
+    // levels 0/1 always succeed, so a downgrade can never start from level 0. It is
+    // defensive-only; we pin the decrement, not the dead floor (a loop asserting
+    // `level >= 0` is trivially true and would not catch a regression).
   })
 })
 

@@ -385,3 +385,25 @@ describe('parseStatuslinePayload — cost + output_tokens for the token-mileston
     expect(() => GroveEvent.parse(firstEvent(payload))).not.toThrow()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Non-finite used_percentage (R2 boundary hardening) — extractPct must fail closed
+// ---------------------------------------------------------------------------
+
+describe('parseStatuslinePayload — non-finite used_percentage', () => {
+  it('an overflow (Infinity) used_percentage is omitted, not a silently-wrong reading', () => {
+    const payload = {
+      rate_limits: {
+        five_hour: window_(Infinity, EPOCH_5H_SEC),
+        seven_day: window_(25, EPOCH_7D_SEC),
+      },
+      session_id: 'sess-overflow',
+    }
+    const ev = firstEvent(payload)
+    // extractPct mirrors its sibling isFinite guard: a non-finite pct is dropped
+    // rather than passed through to clamp(100 - Infinity) = a wrong 0%/100% energy.
+    expect(ev.meta.fiveHourPct).toBeUndefined()
+    // the well-formed window still parses normally
+    expect(ev.meta.sevenDayPct).toBe(25)
+  })
+})

@@ -24,7 +24,7 @@ import {
   SPARK_THRESHOLD,
   PREMIUM_PULL_COST,
 } from './reduce'
-import { unlockedSets } from '../core/cards'
+import { unlockedSets, ALL_CARD_DEFS, cardFromDef } from '../core/cards'
 import { missingCardIds } from './collection'
 
 /** A state funded with seeds, owning `owned` cards, with an optional spark count + target. */
@@ -69,13 +69,14 @@ describe('spark — targeted premium guarantee (saving 225 = choosing a TARGET)'
     expect(p.guaranteedNext).toBe(false)
   })
 
-  it('a premium pull that MISSES the target increments spark', () => {
-    // a target the player is missing, but seed the rng so the pull does not land it
+  it('a premium pull that MISSES the target increments spark 0 -> 1', () => {
+    // a target the player is missing; mulberry32(123) is chosen so the pull MISSES it.
     const target = missingCardIds([], unlockedSets(1))[0]!
     const { state } = pullPremium(withState(PREMIUM_PULL_COST, [], 0, target), mulberry32(123))
-    // either it incremented (miss) or reset (hit). Assert the counter is a number 0..threshold.
-    expect(typeof state.spark).toBe('number')
-    expect(state.spark!).toBeGreaterThanOrEqual(0)
+    // Pin the miss-then-increment: a regression dropping/negating reduce.ts's `+ 1`
+    // (the whole point of the targeted banner) must fail here, not pass vacuously.
+    expect(state.cards.some((c) => c.id === target)).toBe(false) // confirm it actually missed
+    expect(state.spark).toBe(1)
   })
 
   it('once spark reaches SPARK_THRESHOLD the next premium pull GUARANTEES the target', () => {
@@ -115,15 +116,18 @@ describe('spark — targeted premium guarantee (saving 225 = choosing a TARGET)'
   })
 
   it('a guarantee with no chosen target and nothing missing does NOT crash (falls back to a normal pull)', () => {
-    // own everything in unlocked sets → nothing missing → guarantee can't fire a missing card
-    const owned: Card[] = unlockedSets(1).flatMap((set) =>
-      // build from defs via missingCardIds inverse is awkward; just give a non-empty owned set
-      [],
-    )
-    void owned
-    const { state } = pullPremium(withState(PREMIUM_PULL_COST, [], SPARK_THRESHOLD), mulberry32(3))
-    // still produced a card (premium pull always lands one)
-    expect(state.cards.length).toBeGreaterThan(0)
+    // ACTUALLY own everything in the unlocked sets → nothing missing → the guarantee
+    // branch can't fire a missing card and must fall back to a normal pull.
+    const ownedDefs = ALL_CARD_DEFS.filter((d) => unlockedSets(1).includes(d.set))
+    const owned: Card[] = ownedDefs.map(cardFromDef)
+    const s = withState(PREMIUM_PULL_COST, owned, SPARK_THRESHOLD)
+    expect(missingCardIdsForPlayer(s)).toEqual([]) // precondition: nothing missing
+    const before = s.cards.length
+    const { state } = pullPremium(s, mulberry32(3))
+    // The fallback normal pull still lands at least one card (a set re-completion may
+    // mint a bonus too). With `before` now non-empty this is a real constraint — the
+    // old `> 0` was vacuous because `owned` was empty.
+    expect(state.cards.length).toBeGreaterThan(before)
   })
 
   it('never mutates the input state (purity)', () => {

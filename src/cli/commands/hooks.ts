@@ -515,14 +515,27 @@ export function handleCheckpoints(
   const entries = raw
     .split('\n')
     .filter((l) => l.trim() !== '')
-    .map((l): CheckpointRecord | null => {
+    .map((l): unknown => {
       try {
-        return JSON.parse(l) as CheckpointRecord
+        return JSON.parse(l)
       } catch {
         return null
       }
     })
-    .filter((e): e is CheckpointRecord => e !== null)
+    // Validate SHAPE, not just non-null: a line that parses to a primitive (5,
+    // "oops") or an object missing fields would otherwise render a literal
+    // "undefined" + a bogus `git stash apply undefined` recall. Drop wrong-shape
+    // records the same way unparseable lines are dropped.
+    .filter((e): e is CheckpointRecord => {
+      if (typeof e !== 'object' || e === null) return false
+      const r = e as Record<string, unknown>
+      return (
+        typeof r['ts'] === 'string' &&
+        typeof r['ref'] === 'string' &&
+        typeof r['branch'] === 'string' &&
+        typeof r['message'] === 'string'
+      )
+    })
 
   if (entries.length === 0) {
     console.log(t(locale, 'cli.checkpoints.empty'))
@@ -532,9 +545,14 @@ export function handleCheckpoints(
   const recent = entries.slice(-limit).reverse()
   console.log(t(locale, 'cli.checkpoints.header', { count: recent.length }))
   for (const e of recent) {
-    const shape = e.diffStat
-      ? `${e.diffStat.fileCount}f +${e.diffStat.insertions}/-${e.diffStat.deletions}`
-      : t(locale, 'cli.checkpoints.clean')
+    const ds = e.diffStat
+    const shape =
+      ds &&
+      typeof ds.fileCount === 'number' &&
+      typeof ds.insertions === 'number' &&
+      typeof ds.deletions === 'number'
+        ? `${ds.fileCount}f +${ds.insertions}/-${ds.deletions}`
+        : t(locale, 'cli.checkpoints.clean')
     console.log(
       t(locale, 'cli.checkpoints.entry', {
         ago: relTime(e.ts, locale),

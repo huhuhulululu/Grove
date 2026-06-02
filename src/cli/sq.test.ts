@@ -2100,3 +2100,31 @@ describe('promise subcommand (sq promise)', () => {
     expect(output.join('\n')).toMatch(/^\s*promise/m)
   })
 })
+
+describe('checkpoints subcommand (sq checkpoints) — dispatch', () => {
+  it('lists snapshots via run() with the durable-SHA recall (locks the --home/flags path)', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'grove-sq-cp-'))
+    try {
+      const dir = stateDir(home)
+      fs.mkdirSync(dir, { recursive: true })
+      fs.writeFileSync(
+        path.join(dir, 'checkpoints.jsonl'),
+        JSON.stringify({
+          ts: '2026-06-01T10:00:00.000Z',
+          ref: 'cafe1234cafe1234',
+          branch: 'main',
+          message: 'wip',
+          diffStat: null,
+        }) + '\n',
+        'utf8',
+      )
+      const { code, output } = captureRun(['checkpoints', '--home', home])
+      expect(code).toBe(0)
+      const out = output.join('\n')
+      expect(out).toContain('main')
+      expect(out).toContain('git stash apply cafe1234cafe1234')
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true })
+    }
+  })
+})

@@ -327,7 +327,7 @@ export const ja: Catalog = {
   'cli.promise.calm': 'デフォルトで静か · 罰なし、催促なし、失う連続記録もなし。',
   'cli.checkpoints.header': '  📍 チェックポイント · 最新 {count}',
   'cli.checkpoints.entry': '  {ago} · {branch} · {message} · {shape}',
-  'cli.checkpoints.recall': '    復元:git stash apply {ref}',
+  'cli.checkpoints.recall': '    復元: git stash apply {ref}',
   'cli.checkpoints.clean': 'クリーン',
   'cli.checkpoints.empty': '  📍 チェックポイントなし · `sq checkpoint` で作業状態をスナップショット。',
   'cli.time.just_now': 'たった今',

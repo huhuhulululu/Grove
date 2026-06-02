@@ -103,4 +103,45 @@ describe('sq checkpoints (read-only list)', () => {
     const out = capture(() => handleCheckpoints({}, dir, 'en')).join('\n')
     expect(out).toContain('ok')
   })
+
+  it('drops a line that parses to the WRONG SHAPE (no "undefined" leak) — FC-1', () => {
+    fs.writeFileSync(
+      path.join(dir, 'checkpoints.jsonl'),
+      [
+        '5', // primitive
+        '"oops"', // primitive
+        JSON.stringify({ ts: '2026-06-01T10:00:00.000Z', branch: 'main' }), // missing ref/message
+        JSON.stringify({
+          ts: '2026-06-01T11:00:00.000Z',
+          ref: 'eeee',
+          branch: 'main',
+          message: 'good',
+          diffStat: null,
+        }),
+      ].join('\n') + '\n',
+      'utf8',
+    )
+    const out = capture(() => handleCheckpoints({}, dir, 'en')).join('\n')
+    expect(out).toContain('good') // the one well-shaped record survives
+    expect(out).not.toContain('undefined') // no field-missing leak
+    expect(out).not.toContain('git stash apply undefined') // no bogus recall
+  })
+
+  it('falls back to the clean label for a non-numeric diffStat (no null/undefined in shape)', () => {
+    fs.writeFileSync(
+      path.join(dir, 'checkpoints.jsonl'),
+      JSON.stringify({
+        ts: '2026-06-01T10:00:00.000Z',
+        ref: 'ffff',
+        branch: 'main',
+        message: 'm',
+        diffStat: { fileCount: 'x', insertions: null, deletions: 2 },
+      }) + '\n',
+      'utf8',
+    )
+    const out = capture(() => handleCheckpoints({}, dir, 'en')).join('\n')
+    expect(out).not.toContain('undefined')
+    expect(out).not.toContain('null')
+    expect(out).toMatch(/clean/)
+  })
 })

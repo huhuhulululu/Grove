@@ -96,6 +96,7 @@ export const en: Catalog = {
   'reward.mastered': "🌳 You've got the groove · mastery reached (cosmetic)",
   'reward.comeback': '🌿 comeback · tests green again',
   'reward.first_light': '🌅 first light · build green for the first time',
+  'reward.commons': '🌱 commons · contribution merged (thanks)',
 
   // prestige (reduce.buyPrestige): spend, earned, refusal
   'reward.prestige_spend': '-{cost} 🌰 · prestige {rank}',
@@ -464,6 +465,12 @@ export const en: Catalog = {
   'cli.help.cmd.merge_hook': '  merge-hook [--repo DIR] [--home DIR]\n      Called automatically by the installed post-merge hook. Emits a pr_merged\n      outcome ONLY on a real merge commit (a fast-forward pull never over-rewards).',
   'cli.help.cmd.export': '  export [file] [--home DIR]\n      Write your current Grove state as a portable, versioned JSON envelope to a\n      file (atomic) or stdout. Read-only · cosmetic stats only.',
   'cli.help.cmd.import': '  import <file> [--home DIR]\n      Read a sq export JSON and SAFELY replace local state. Your current state is\n      backed up first; a bad file is refused without changing anything.',
+  'cli.commons.row': '#{number} · {title} · {labels}',
+  'cli.commons.empty': 'no claimable commons tasks right now · check back later',
+  'cli.commons.brief': 'task #{number}: {title}\n  Your AI drafts the patch · YOU review and open the PR (ADR-0013).\n  Grove never writes code or runs it · GitHub Actions runs CI.',
+  'cli.commons.open_hint': 'fork, then open the PR under YOUR identity:\n  gh pr create --repo {repo} --title "fix #{number}"',
+  'cli.commons.usage': 'Usage: sq commons list | draft <N> | open <N>',
+  'cli.help.cmd.commons': '  commons [list | draft <N> | open <N>] [--repo OWNER/REPO]\n      Opt-in: list claimable commons tasks (GitHub issues labelled commons),\n      help your AI draft a patch you review, then YOU open the PR (ADR-0013).\n      Grove never writes code, never runs it, never opens the PR · read-only.',
   'cli.help.cmd.suggest_commit': '  suggest-commit [--repo DIR]\n      Read-only: print a suggested commit message from staged diff. No AI ·\n      type inferred from file paths (test/docs/chore/feat). Copy the output.\n      If nothing is staged, prints a hint to run git add first.',
   'cli.help.cmd.checkpoint': '  checkpoint [-m MSG] [--repo DIR] [--home DIR]\n      📍 Safety-net: snapshot working state via git stash create (read-only ·\n      never modifies tree/index), record to grove state, ingest a checkpoint\n      event for the rest-buff reward. Prints how to restore with git stash apply.',
   'cli.help.cmd.checkpoints': '  checkpoints [--limit N] [--home DIR]\n      Read-only: list the last N safety-net snapshots (default 10) from sq checkpoint.\n      Shows branch, message, change shape, and a copyable git stash apply command.\n      Never runs git or mutates state (ADR-0005).',

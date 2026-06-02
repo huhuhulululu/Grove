@@ -43,6 +43,21 @@ describe('core/events — quota_update vocabulary', () => {
     expect(e.meta.present).toBe(true)
     expect(e.meta.fiveHourPct).toBe(30)
   })
+
+  it('commons_contribution is a valid event type (ADR-0013 commons P0)', () => {
+    expect((EVENT_TYPES as readonly string[]).includes('commons_contribution')).toBe(true)
+  })
+
+  it('parses a commons_contribution event (a merged commons PR outcome)', () => {
+    const e = parseEvent({
+      source: 'commons-merge-hook',
+      sessionId: 's1',
+      type: 'commons_contribution',
+      ts: '2026-05-30T00:00:00Z',
+    })
+    expect(e.type).toBe('commons_contribution')
+    expect(e.success).toBe(true)
+  })
 })
 
 describe('core/rng', () => {

@@ -59,6 +59,7 @@ const SPECTACLE_MARKERS = [
   '🪙', // currency reward
   '🌿', // buff reward
   '🌅', // first-light reward
+  '🌱', // commons contribution reward
   '🆙', // levelup
   '✦', // serendipity / celebratory mark
   '💥', // CRIT tag + crit offer
@@ -168,6 +169,17 @@ describe('--zen calm mode', () => {
       assertNoSpectacle(output) // SPECTACLE_MARKERS includes 🌅
       // The engine still ran: first-light was recognized and persisted.
       expect(loadState(stateDir(tmpHome)).firstLightSeen).toBe(true)
+    })
+
+    it('a merged commons contribution renders NO 🌱 loot under --zen, yet records the payout', () => {
+      const before = loadState(stateDir(tmpHome))
+      const { code, output } = captureRun([
+        'event', 'commons_contribution', '--success', 'true', '--zen', '--home', tmpHome,
+      ])
+      expect(code).toBe(0)
+      assertNoSpectacle(output) // SPECTACLE_MARKERS includes 🌱 (+ all loot glyphs)
+      // The engine still ran: the merge payout (seeds) was recorded.
+      expect(loadState(stateDir(tmpHome)).player.currency).toBeGreaterThan(before.player.currency)
     })
   })
 

@@ -347,3 +347,18 @@ a fully-foiled set, all-gear-owned. **DEFERRED** (need a NEW lifetime counter th
 rev.2 fixes the critic's findings: derivable-only (no hidden counter/contradiction), structural anti-FOMO (no
 locked-completionist nag), all four round-trip sites, an explicit idempotency gate, and a crisp
 not-a-second-quest-system distinction.
+
+## ADR-0013 P0 — Commons client (implementation note, append-only)
+**Status:** implemented · 2026-06-02 (owner-mode delivery, vetted batch 6/6)
+**Delivered (MVP, ADR-0013 rev.2 P0):**
+- New normalized event type `commons_contribution` (the closed `EVENT_TYPES` vocabulary opens by one). A merged
+  commons PR is a publicly-verifiable MERGE OUTCOME, so the `reduce()` arm pays the SAME cosmetic shape as
+  `pr_merged` (xp + seeds + a guaranteed pull + a gear drop + a `buff:'commons'` line). A closed/un-merged PR
+  (`success:false`) hits the existing failure early-return → grants nothing, draws no rng.
+- Read-only `sq commons` client (`list | draft <N> | open <N>`): a GET-only GitHub adapter
+  (`src/adapters/commons-github.ts`, no POST/PUT/PATCH, no child_process/exec, token optional + never persisted)
+  + an attended CLI handler that PRINTS the brief + the exact `gh pr create` the user runs under their OWN identity.
+  Grove never writes a patch, opens a PR, or runs contributor code (GitHub Actions does). The handler never ingests.
+**Firewall (ADR-0005):** engine stays pure; networking lives in the impure adapter/CLI shell; the reward is
+cosmetic-only and read by no power selector. **Deferred (P1/P2):** reputation/contribution-count, leaderboard,
+auto-poll/daemon, scratch-dir auto-clone — none built (no new GameState field).

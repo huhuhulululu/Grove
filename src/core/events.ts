@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 // The closed event vocabulary. Adapters normalize every tool-specific signal into one of these.
-// Pillar A (fatigue relief): session_*, commit, test_result, build_result, pr_merged, lint_clean, checkpoint.
+// Pillar A (fatigue relief): session_*, commit, test_result, build_result, pr_merged, commons_contribution, lint_clean, checkpoint.
 // Pillar B (good habits): doc_updated, spec_written, plan_written, file_presence, review_confirmed.
 export const EVENT_TYPES = [
   'session_start',
@@ -11,6 +11,9 @@ export const EVENT_TYPES = [
   'test_added',
   'build_result',
   'pr_merged',
+  // A merged commons PR (ADR-0013) — a publicly-verifiable merge OUTCOME, paid like
+  // pr_merged. Emitted by a chained commons merge-hook / `sq event` only on merge.
+  'commons_contribution',
   'lint_clean',
   'file_edit',
   'doc_updated',

@@ -95,6 +95,7 @@ const CURRENCY_GRANT: Partial<Record<GroveEvent['type'], number>> = {
   lint_clean: 3,
   review_confirmed: 4,
   pr_merged: 12,
+  commons_contribution: 12, // a merged commons PR pays like a merge (ADR-0013)
   doc_updated: 10,
   spec_written: 10,
   plan_written: 10,
@@ -233,6 +234,7 @@ const BASE_XP: Partial<Record<GroveEvent['type'], number>> = {
   lint_clean: 15,
   review_confirmed: 20,
   pr_merged: 30,
+  commons_contribution: 30, // a merged commons PR pays like a merge (ADR-0013)
   // Pillar B — weighted higher than code:
   doc_updated: 40,
   spec_written: 40,
@@ -250,6 +252,7 @@ const XP_FLAVOUR: Partial<Record<GroveEvent['type'], string>> = {
   lint_clean: 'lint clean',
   review_confirmed: 'review done',
   pr_merged: 'PR merged',
+  commons_contribution: 'commons merged',
   doc_updated: 'docs updated',
   spec_written: 'spec written',
   plan_written: 'plan set',
@@ -1525,6 +1528,21 @@ export function reduce(
       next = grantCurrency(next, 'pr_merged', magnitude, rewards, seedScale)
       next = grantPull(next, rng, rewards) // guaranteed pull (a big milestone)
       next = grantGear(next, rng, rewards) // one gear drop per merge
+      serendipityEligible = true
+      break
+    }
+
+    // A merged commons PR (ADR-0013) is a real merge outcome → SAME cosmetic payout
+    // shape as pr_merged + one warm celebratory line. The user opened the PR under
+    // their own identity; Grove never ran their code (GitHub Actions did) and never
+    // emits this except on a verified merge. A closed PR (success:false) hit the
+    // early-return above → nothing granted, no rng drawn. Cosmetic only, zero power.
+    case 'commons_contribution': {
+      next = grantXp(next, 'commons_contribution', magnitude, rewards, scale, critChance, rng)
+      next = grantCurrency(next, 'commons_contribution', magnitude, rewards, seedScale)
+      next = grantPull(next, rng, rewards)
+      next = grantGear(next, rng, rewards)
+      rewards.push({ kind: 'buff', buff: 'commons', ...msg('reward.commons') })
       serendipityEligible = true
       break
     }

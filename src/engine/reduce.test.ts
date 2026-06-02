@@ -1234,3 +1234,31 @@ describe('reduce — first-light beat (first green build)', () => {
     }
   })
 })
+
+// ---------------------------------------------------------------------------
+// Commons contribution (ADR-0013) — a merged commons PR is a real merge outcome,
+// so it pays the SAME cosmetic shape as pr_merged (xp + seeds + pull + gear + a
+// celebratory line). A closed/un-merged PR (success:false) grants nothing.
+// ---------------------------------------------------------------------------
+
+describe('reduce — commons_contribution (a merged commons PR)', () => {
+  it('a merged commons contribution pays the pr_merged shape + a commons line', () => {
+    const { rewards } = reduce(initialState(), ev({ type: 'commons_contribution', success: true }), mulberry32(1))
+    expect(rewards.some((r) => r.kind === 'xp')).toBe(true)
+    expect(rewards.some((r) => r.kind === 'card')).toBe(true) // guaranteed pull, like a merge
+    expect(rewards.some((r) => r.kind === 'gear')).toBe(true) // one gear drop, like a merge
+    const commons = rewards.find((r) => r.kind === 'buff' && r.buff === 'commons')
+    expect(commons).toBeDefined()
+    expect(commons!.msgKey).toBe('reward.commons')
+  })
+
+  it('firewall: a closed/un-merged commons PR (success:false) grants nothing + draws no rng', () => {
+    const s0 = initialState()
+    const a = reduce(s0, ev({ type: 'commons_contribution', success: false }), mulberry32(7))
+    const b = reduce(s0, ev({ type: 'commons_contribution', success: false }), mulberry32(7))
+    expect(a.rewards).toEqual([])
+    expect(a.state.player).toEqual(s0.player)
+    expect(a.state.cards).toEqual(s0.cards)
+    expect(a.state).toEqual(b.state) // deterministic — no rng consumed on the failure path
+  })
+})

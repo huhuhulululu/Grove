@@ -83,6 +83,7 @@ import { handleWrap, handleShare, handleNtfy } from './commands/share'
 import { handleLoadout } from './commands/loadout'
 import { handleAchievements } from './commands/achievements'
 import { handleTry } from './commands/try'
+import { handleCommons } from './commands/commons'
 import { handleExport, handleImport } from './commands/portability'
 
 // Re-export the public surface the tests / other layers import from './sq', so
@@ -173,7 +174,7 @@ const SUBCOMMANDS = [
   'protect', 'craft', 'foil', 'convert', 'prestige', 'dashboard', 'tui', 'serve',
   'statusline-ingest', 'statusline', 'init', 'uninstall', 'commit-hook', 'merge-hook',
   'suggest-commit', 'checkpoint', 'checkpoints', 'wrap', 'share', 'ntfy', 'loadout',
-  'achievements', 'promise', 'try', 'demo', 'export', 'import', 'help',
+  'achievements', 'promise', 'try', 'demo', 'export', 'import', 'commons', 'help',
 ] as const
 
 /** Classic Levenshtein edit distance (pure). */
@@ -424,6 +425,11 @@ Subcommands:
       Taste the loot loop in a throwaway scratch dir · runs a few canned outcomes
       through the engine. Your real state + repo are NEVER touched (ADR-0005).
 
+  commons [list | draft <N> | open <N>] [--repo OWNER/REPO]
+      Opt-in: list claimable commons tasks (GitHub issues labelled commons),
+      help your AI draft a patch you review, then YOU open the PR (ADR-0013).
+      Grove never writes code, never runs it, never opens the PR · read-only.
+
   export [file] [--home DIR]
       Write your current Grove state as a portable, versioned JSON envelope to a
       file (atomic) or stdout. Read-only · cosmetic stats only.
@@ -540,6 +546,8 @@ export function buildUsageText(locale: Locale): string {
     '',
     t(locale, 'cli.help.cmd.try'),
     '',
+    t(locale, 'cli.help.cmd.commons'),
+    '',
     t(locale, 'cli.help.cmd.export'),
     '',
     t(locale, 'cli.help.cmd.import'),
@@ -560,7 +568,7 @@ export function buildUsageText(locale: Locale): string {
  * a directive to use `runAsync` if one is reached there directly (it never is in
  * the normal entry path · the script guard calls `runAsync`).
  */
-const ASYNC_SUBCOMMANDS = new Set(['tui', 'serve'])
+const ASYNC_SUBCOMMANDS = new Set(['tui', 'serve', 'commons'])
 
 /**
  * Async entry point. Handles the two async subcommands (`tui`, `serve`) and
@@ -580,6 +588,9 @@ export async function runAsync(argv: string[]): Promise<number> {
     const dir = resolveDir(flags)
     if (subcommand === 'tui') return handleTui(flags, dir)
     if (subcommand === 'serve') return handleServe(flags, dir)
+    if (subcommand === 'commons') {
+      return handleCommons(positional.slice(1), flags, dir, isZen(flags), resolveLocale())
+    }
   }
 
   // Every other subcommand is synchronous.

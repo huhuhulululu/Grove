@@ -76,6 +76,7 @@ import {
   handleStatuslineUninstall,
   handleSuggestCommit,
   handleCheckpoint,
+  handleCheckpoints,
 } from './commands/hooks'
 import { handleWrap, handleShare, handleNtfy } from './commands/share'
 import { handleLoadout } from './commands/loadout'
@@ -168,7 +169,7 @@ const SUBCOMMANDS = [
   'event', 'status', 'recap', 'scan', 'quests', 'pull', 'enhance', 'repair',
   'protect', 'craft', 'foil', 'convert', 'prestige', 'dashboard', 'tui', 'serve',
   'statusline-ingest', 'statusline', 'init', 'uninstall', 'commit-hook',
-  'suggest-commit', 'checkpoint', 'wrap', 'share', 'ntfy', 'loadout',
+  'suggest-commit', 'checkpoint', 'checkpoints', 'wrap', 'share', 'ntfy', 'loadout',
   'achievements', 'promise', 'help',
 ] as const
 
@@ -374,6 +375,11 @@ Subcommands:
       never modifies tree/index), record to grove state, ingest a checkpoint
       event for the rest-buff reward. Prints how to restore with git stash apply.
 
+  checkpoints [--limit N] [--home DIR]
+      Read-only: list the last N safety-net snapshots (default 10) from sq checkpoint.
+      Shows branch, message, change shape, and a copyable git stash apply command.
+      Never runs git or mutates state (ADR-0005).
+
   share [--badge] [--home DIR]
       Print a terse, copy-pasteable share card (level + collection %). Opt-in &
       privacy-minimal · only cosmetic stats, NEVER code/cwd/cost (ADR-0011).
@@ -495,6 +501,8 @@ export function buildUsageText(locale: Locale): string {
     t(locale, 'cli.help.cmd.suggest_commit'),
     '',
     t(locale, 'cli.help.cmd.checkpoint'),
+    '',
+    t(locale, 'cli.help.cmd.checkpoints'),
     '',
     t(locale, 'cli.help.cmd.share'),
     '',
@@ -663,6 +671,9 @@ export function run(argv: string[]): number {
 
     case 'checkpoint':
       return handleCheckpoint(flags, dir, zen, locale)
+
+    case 'checkpoints':
+      return handleCheckpoints(flags, dir, locale)
 
     case 'share':
       return handleShare(flags, dir, locale)

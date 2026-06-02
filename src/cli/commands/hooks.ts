@@ -468,3 +468,82 @@ export function handleCheckpoint(flags: Record<string, string>, dir: string, zen
 
   return 0
 }
+
+/** One persisted checkpoint record (mirrors the writer in handleCheckpoint). */
+interface CheckpointRecord {
+  ts: string
+  ref: string
+  branch: string
+  message: string
+  diffStat: { fileCount: number; insertions: number; deletions: number } | null
+}
+
+/** Terse localized "N{m,h,d} ago" from an ISO timestamp (CLI display only). */
+function relTime(iso: string, locale: Locale): string {
+  const then = Date.parse(iso)
+  if (Number.isNaN(then)) return ''
+  const mins = Math.max(0, Math.floor((Date.now() - then) / 60000))
+  if (mins < 1) return t(locale, 'cli.time.just_now')
+  if (mins < 60) return t(locale, 'cli.time.min_ago', { n: mins })
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return t(locale, 'cli.time.hr_ago', { n: hrs })
+  return t(locale, 'cli.time.day_ago', { n: Math.floor(hrs / 24) })
+}
+
+/**
+ * `sq checkpoints` · READ-ONLY list of the safety-net snapshots `sq checkpoint`
+ * writes (checkpoints.jsonl). Prints branch, message, change shape, and a copyable
+ * `git stash apply <durable SHA>` per entry. Runs ZERO git commands, mutates no
+ * state, and has NO --apply flag (the user runs the printed command) — firewall-clean.
+ * The durable stash-create SHA (not a positional stash@{n}, which shifts/expires) is
+ * what makes days-later recall actually work.
+ */
+export function handleCheckpoints(
+  flags: Record<string, string>,
+  dir: string,
+  locale: Locale = 'en',
+): number {
+  const rawLimit = Number(flags['limit'])
+  const limit = Number.isInteger(rawLimit) && rawLimit > 0 ? rawLimit : 10
+
+  let raw = ''
+  try {
+    raw = fs.readFileSync(path.join(dir, 'checkpoints.jsonl'), 'utf8')
+  } catch {
+    /* missing file → treated as empty */
+  }
+  const entries = raw
+    .split('\n')
+    .filter((l) => l.trim() !== '')
+    .map((l): CheckpointRecord | null => {
+      try {
+        return JSON.parse(l) as CheckpointRecord
+      } catch {
+        return null
+      }
+    })
+    .filter((e): e is CheckpointRecord => e !== null)
+
+  if (entries.length === 0) {
+    console.log(t(locale, 'cli.checkpoints.empty'))
+    return 0
+  }
+
+  const recent = entries.slice(-limit).reverse()
+  console.log(t(locale, 'cli.checkpoints.header', { count: recent.length }))
+  for (const e of recent) {
+    const shape = e.diffStat
+      ? `${e.diffStat.fileCount}f +${e.diffStat.insertions}/-${e.diffStat.deletions}`
+      : t(locale, 'cli.checkpoints.clean')
+    console.log(
+      t(locale, 'cli.checkpoints.entry', {
+        ago: relTime(e.ts, locale),
+        branch: e.branch,
+        message: e.message,
+        shape,
+      }),
+    )
+    if (e.ref !== '') console.log(t(locale, 'cli.checkpoints.recall', { ref: e.ref }))
+  }
+  return 0
+}

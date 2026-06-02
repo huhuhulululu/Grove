@@ -381,6 +381,15 @@ export const en: Catalog = {
   'cli.promise.chain_safe': 'Chains git hooks, statusline, and settings; never clobbers them.',
   'cli.promise.cosmetic': 'Rewards are cosmetic only; they confer zero power over real work.',
   'cli.promise.calm': 'Calm by default · no shame, no nag, no streaks to lose.',
+  'cli.checkpoints.header': '  📍 Checkpoints · last {count}',
+  'cli.checkpoints.entry': '  {ago} · {branch} · {message} · {shape}',
+  'cli.checkpoints.recall': '    recall: git stash apply {ref}',
+  'cli.checkpoints.clean': 'clean',
+  'cli.checkpoints.empty': '  📍 No checkpoints yet · run `sq checkpoint` to snapshot working state.',
+  'cli.time.just_now': 'just now',
+  'cli.time.min_ago': '{n}m ago',
+  'cli.time.hr_ago': '{n}h ago',
+  'cli.time.day_ago': '{n}d ago',
 
   // crit / low-energy contextual offers (shared.ts)
   'cli.offer.crit': '  💥 CRIT · free draft: sq suggest-commit',
@@ -431,6 +440,7 @@ export const en: Catalog = {
   'cli.help.cmd.commit_hook': '  commit-hook [--repo DIR] [--home DIR]\n      Called automatically by the installed post-commit hook on every commit.\n      Scans the repo for Pillar-B signals and ingests events.',
   'cli.help.cmd.suggest_commit': '  suggest-commit [--repo DIR]\n      Read-only: print a suggested commit message from staged diff. No AI ·\n      type inferred from file paths (test/docs/chore/feat). Copy the output.\n      If nothing is staged, prints a hint to run git add first.',
   'cli.help.cmd.checkpoint': '  checkpoint [-m MSG] [--repo DIR] [--home DIR]\n      📍 Safety-net: snapshot working state via git stash create (read-only ·\n      never modifies tree/index), record to grove state, ingest a checkpoint\n      event for the rest-buff reward. Prints how to restore with git stash apply.',
+  'cli.help.cmd.checkpoints': '  checkpoints [--limit N] [--home DIR]\n      Read-only: list the last N safety-net snapshots (default 10) from sq checkpoint.\n      Shows branch, message, change shape, and a copyable git stash apply command.\n      Never runs git or mutates state (ADR-0005).',
   'cli.help.cmd.share': '  share [--badge] [--home DIR]\n      Print a terse, copy-pasteable share card (level + collection %). Opt-in &\n      privacy-minimal · only cosmetic stats, NEVER code/cwd/cost (ADR-0011).\n      --badge  Print a markdown shields.io badge for your README instead.',
   'cli.help.cmd.ntfy': '  ntfy <topic> | off [--home DIR]\n      Opt-in mobile push (ntfy.sh). Default OFF · no push unless you set a topic.\n      <topic>  Set the topic; install the ntfy.sh app and subscribe to it.\n      off      Disable push. Big moments only (level-ups, legendaries, chests);\n      the message carries cosmetic events only · NEVER code/cwd/cost (ADR-0011).',
   'cli.help.cmd.help': '  help\n      Show this help message.',

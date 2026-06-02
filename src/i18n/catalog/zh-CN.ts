@@ -66,6 +66,7 @@ export const zhCN: Catalog = {
   'reward.foiled_capstone': '✦✦ {set} 套牌全部闪箔 · 解锁封顶奖励(装饰性)',
 
   'reward.achievement': '🏆 {name} · {desc}',
+  'reward.mastered': '🌳 渐入佳境 · 已达精通(装饰性)',
 
   'reward.prestige_spend': '-{cost} 🌰 · 威望 {rank}',
   'reward.prestige_earned': '✦ 获得威望 {rank}(永久装饰)',
@@ -403,6 +404,7 @@ export const zhCN: Catalog = {
 
   // ui.achievements.* — 成就面板
   'ui.achievements.title': '成就',
+  'ui.achievements.mastered': '  🌳 渐入佳境。这片林子是你的了;继续玩,或安心歇息。',
   'ui.achievements.none': '  (暂无)',
   'ui.achievements.unlocked_row': '  🏆 {name} · {desc}',
   'ui.achievements.locked_header': '  未解锁:',

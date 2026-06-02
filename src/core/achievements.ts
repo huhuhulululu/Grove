@@ -42,12 +42,12 @@ export interface AchievementDef {
  */
 const PRESTIGE_RANK_RE = /^prestige:mark(:\d+)?$/
 
-function prestigeRankOf(s: GameState): number {
+export function prestigeRankOf(s: GameState): number {
   return s.buffs.filter((b) => PRESTIGE_RANK_RE.test(b.id)).length
 }
 
 /** Whether at least one fully-foiled set exists (every owned card of a set is foiled). */
-function hasFullyFoiledSet(s: GameState): boolean {
+export function hasFullyFoiledSet(s: GameState): boolean {
   const foiled = new Set(s.foiled ?? [])
   if (foiled.size === 0) return false
   // Group owned distinct card ids by set; a set is fully foiled when it has >=1 card
@@ -185,7 +185,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
  * core module has no engine dependency. If the catalog grows, this list is the one
  * place to extend the completionist recognition.
  */
-const ALL_SET_IDS: readonly string[] = [
+export const ALL_SET_IDS: readonly string[] = [
   'forest',
   'tools',
   'creatures',

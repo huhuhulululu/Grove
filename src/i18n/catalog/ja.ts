@@ -66,6 +66,7 @@ export const ja: Catalog = {
   'reward.foiled_capstone': '✦✦ {set} セット全フォイル · キャップストーン解放(装飾)',
 
   'reward.achievement': '🏆 {name} · {desc}',
+  'reward.mastered': '🌳 板についた · 熟達に到達(装飾)',
 
   'reward.prestige_spend': '-{cost} 🌰 · プレステージ {rank}',
   'reward.prestige_earned': '✦ プレステージ {rank} 獲得(永続装飾)',
@@ -403,6 +404,7 @@ export const ja: Catalog = {
 
   // ui.achievements.* — アチーブメントパネル
   'ui.achievements.title': 'アチーブメント',
+  'ui.achievements.mastered': '  🌳 板についた。この森はあなたのもの;続けるも、休むも自由。',
   'ui.achievements.none': '  (まだなし)',
   'ui.achievements.unlocked_row': '  🏆 {name} · {desc}',
   'ui.achievements.locked_header': '  未解除:',

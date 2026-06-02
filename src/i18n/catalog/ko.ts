@@ -66,6 +66,7 @@ export const ko: Catalog = {
   'reward.foiled_capstone': '✦✦ {set} 세트 전체 포일 · 캡스톤 해금(장식)',
 
   'reward.achievement': '🏆 {name} · {desc}',
+  'reward.mastered': '🌳 리듬을 탔다 · 숙련 도달(장식)',
 
   'reward.prestige_spend': '-{cost} 🌰 · 프레스티지 {rank}',
   'reward.prestige_earned': '✦ 프레스티지 {rank} 획득(영구 장식)',
@@ -403,6 +404,7 @@ export const ko: Catalog = {
 
   // ui.achievements.* — 업적 패널
   'ui.achievements.title': '업적',
+  'ui.achievements.mastered': '  🌳 리듬을 탔다. 이 숲은 당신의 것; 계속하든, 쉬든 편하게.',
   'ui.achievements.none': '  (아직 없음)',
   'ui.achievements.unlocked_row': '  🏆 {name} · {desc}',
   'ui.achievements.locked_header': '  잠김:',

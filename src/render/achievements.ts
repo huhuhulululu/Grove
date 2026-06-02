@@ -45,6 +45,12 @@ export function renderAchievementsPanel(
   const lines: string[] = []
   lines.push(t(locale, 'ui.achievements.title'))
 
+  // The "you've got the groove" mastery arrival — shown ONLY once reached (unlocked-
+  // only, never a nag); the zen path already returned above, so it stays terse there.
+  if (state.mastered === true) {
+    lines.push(t(locale, 'ui.achievements.mastered'))
+  }
+
   if (unlockedDefs.length === 0) {
     lines.push(t(locale, 'ui.achievements.none'))
   } else {

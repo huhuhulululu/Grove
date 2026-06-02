@@ -92,6 +92,7 @@ export const en: Catalog = {
 
   // achievement (reduce.grantAchievements): a retroactive, cosmetic recognition
   'reward.achievement': '🏆 {name} · {desc}',
+  'reward.mastered': "🌳 You've got the groove · mastery reached (cosmetic)",
 
   // prestige (reduce.buyPrestige): spend, earned, refusal
   'reward.prestige_spend': '-{cost} 🌰 · prestige {rank}',
@@ -469,6 +470,7 @@ export const en: Catalog = {
   // ui.achievements.* — achievements panel (src/render/achievements.ts)
   // -------------------------------------------------------------------------
   'ui.achievements.title': 'ACHIEVEMENTS',
+  'ui.achievements.mastered': "  🌳 You've got the groove. The grove is yours; play on, or rest easy.",
   'ui.achievements.none': '  (none yet)',
   'ui.achievements.unlocked_row': '  🏆 {name} · {desc}',
   'ui.achievements.locked_header': '  locked:',

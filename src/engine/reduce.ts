@@ -33,6 +33,7 @@ import { makeGear, activeGearBonus } from './gear'
 import { computeLoadoutEffect } from './loadout'
 import { checkAchievements } from './achievements'
 import { ACHIEVEMENTS } from '../core/achievements'
+import { isMastered } from '../core/mastery'
 import { cardFromDef, unlockedSets, ALL_CARD_DEFS, setUnlockLevel, SET_UNLOCK_LEVEL, cardIdsInSet } from '../core/cards'
 import {
   applyQuests,
@@ -285,6 +286,7 @@ function cloneState(state: GameState): GameState {
     // ?? [] guards against legacy saves that passed the fast-path schema parse with
     // achievements: undefined (the schema marks it optional; the interface does not).
     achievements: [...(state.achievements ?? [])],
+    mastered: state.mastered ?? false,
     protectedGear: [...state.protectedGear],
     // R8 optional renewable/spark fields — preserve them through a clone so a
     // no-op refusal never silently drops a foiled list or spark progress.
@@ -322,6 +324,19 @@ function grantAchievements(state: GameState, rewards: Reward[]): GameState {
     })
   }
   return { ...state, achievements: [...(state.achievements ?? []), ...unlocked] }
+}
+
+/**
+ * Recognize the one-shot "you've got the groove" MASTERY arrival the FIRST time the
+ * derived isMastered(state) holds (ADR-0005 cosmetic-only). Idempotent: once
+ * state.mastered is true it never fires again; if not yet mastered, no-op. Returns a
+ * NEW state. PURE. Mastery whose FINAL piece lands via an economy spend (prestige /
+ * foil) is recognized on the next event through reduce() — idempotent catch-up.
+ */
+function grantMastery(state: GameState, rewards: Reward[]): GameState {
+  if (state.mastered === true || !isMastered(state)) return state
+  rewards.push({ kind: 'buff', buff: 'mastered', ...msg('reward.mastered') })
+  return { ...state, mastered: true }
 }
 
 function xpAmount(type: GroveEvent['type'], magnitude: number): number {
@@ -1410,6 +1425,7 @@ export function reduce(
     // crossed a threshold that was never recorded — recognize it (idempotent).
     const rewards: Reward[] = []
     next = grantAchievements(next, rewards)
+    next = grantMastery(next, rewards)
     return { state: next, rewards }
   }
 
@@ -1524,6 +1540,7 @@ export function reduce(
   // Recognize any achievements just crossed (ADR-0015) — AFTER all reductions, so a
   // level-up / set-completion / foil from THIS event is reflected. Idempotent.
   next = grantAchievements(next, rewards)
+  next = grantMastery(next, rewards)
 
   return { state: next, rewards }
 }

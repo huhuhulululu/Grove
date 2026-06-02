@@ -17,7 +17,9 @@ import {
 } from './reduce'
 import { SHARDS_PER_CRAFT } from './collection'
 import { HARD_PITY, SOFT_PITY } from './gacha'
-import { ALL_CARD_DEFS, cardIdsInSet } from '../core/cards'
+import { ALL_CARD_DEFS, cardIdsInSet, cardFromDef } from '../core/cards'
+import { ALL_SET_IDS } from '../core/achievements'
+import { MASTERY_LEVEL } from '../core/mastery'
 import { AURA_SEED_BONUS, DUP_COMP_SEEDS } from './quests'
 import type { Gear } from '../core/rewards'
 import { equip } from './loadout'
@@ -1054,5 +1056,57 @@ describe('reduce — loadout wiring (ADR-0014 Track A)', () => {
     // The boost must be modest (≤20% of the gear-only grant) — not doubled.
     const boost = xp2 - xp1
     expect(boost).toBeLessThanOrEqual(xp1 * 0.2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Mastery wiring — the "you've got the groove" arrival is recognized once,
+// idempotently, on the next event after all four conjuncts are crossed. The
+// marker is cosmetic only (a {kind:'buff'} reward) and self-heals on any path.
+// ---------------------------------------------------------------------------
+
+describe('reduce — mastery wiring (grant once, idempotent, both paths)', () => {
+  // A state already satisfying every mastery conjunct, but not yet recognized
+  // (mastered:false) — the next reduce() should cross it.
+  function masteredButUnmarked(): GameState {
+    const setId = ALL_SET_IDS[0]! // 'forest'
+    const cardIds = cardIdsInSet(setId)
+    const ownedOfSet = ALL_CARD_DEFS.filter((d) => cardIds.includes(d.id)).map(cardFromDef)
+    return {
+      ...initialState(),
+      player: { xp: 0, level: MASTERY_LEVEL, currency: 0, shards: 0 },
+      completedSets: [...ALL_SET_IDS],
+      cards: ownedOfSet,
+      foiled: [...cardIds],
+      buffs: [{ id: 'prestige:mark', label: 'Prestige 1', kind: 'rest' }],
+      mastered: false,
+    }
+  }
+
+  it('recognizes mastery on the next event and pushes exactly one mastery reward', () => {
+    const s = masteredButUnmarked()
+    expect(s.mastered).toBe(false)
+    const { state, rewards } = reduce(s, ev({ type: 'commit' }), mulberry32(1))
+    expect(state.mastered).toBe(true)
+    const masteryRewards = rewards.filter((r) => r.kind === 'buff' && r.buff === 'mastered')
+    expect(masteryRewards.length).toBe(1)
+  })
+
+  it('is idempotent — a second pass grants no new mastery reward', () => {
+    const once = reduce(masteredButUnmarked(), ev({ type: 'commit' }), mulberry32(1)).state
+    expect(once.mastered).toBe(true)
+    const { rewards } = reduce(once, ev({ type: 'commit' }), mulberry32(2))
+    expect(rewards.some((r) => r.kind === 'buff' && r.buff === 'mastered')).toBe(false)
+  })
+
+  it('also recognizes mastery on the failed-event recovery path', () => {
+    const { state } = reduce(masteredButUnmarked(), ev({ type: 'test_result', success: false }), mulberry32(1))
+    expect(state.mastered).toBe(true)
+  })
+
+  it('does not fabricate mastery for a fresh state', () => {
+    const { state, rewards } = reduce(initialState(), ev({ type: 'commit' }), mulberry32(1))
+    expect(state.mastered).toBe(false)
+    expect(rewards.some((r) => r.kind === 'buff' && r.buff === 'mastered')).toBe(false)
   })
 })

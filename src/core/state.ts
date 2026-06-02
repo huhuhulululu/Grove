@@ -156,6 +156,15 @@ export interface GameState {
    */
   achievements: string[]
   /**
+   * Mastery arrival ("you've got the groove" · ADR-0005 cosmetic-only). A one-shot,
+   * idempotent marker set the first time isMastered(state) holds — a DERIVED outcome
+   * (every set complete · level >= 10 · prestige >= 1 · a fully-foiled set), read by
+   * NO xp/seed/crit selector, conferring ZERO power. It is an ARRIVAL that ends the
+   * treadmill, never a carrot. MUST be in GameStateSchema (optional) + migrate()
+   * (default false) + cloneState() (spread) or it is silently dropped on load.
+   */
+  mastered: boolean
+  /**
    * Token-milestone floor (保底, ADR-0010). A "work meter" that accrues from REAL
    * cumulative cost (cost.total_cost_usd) so heavy work always pays out a fair,
    * COSMETIC-only chest — never xp/power (that would reward burning tokens). It
@@ -211,6 +220,7 @@ export function initialState(): GameState {
     work: { workMeter: 0, lastCostUsd: 0, windowKey: 0, milestonesInWindow: 0 },
     loadout: { slots: [] },
     achievements: [],
+    mastered: false,
     protectedGear: [],
     foiled: [],
     spark: 0,

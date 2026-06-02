@@ -13,10 +13,15 @@ import * as path from 'node:path'
 import { loadState, saveState, withStateLock, rotateBackups } from '../../store/store'
 import { ingestEvent } from '../../app/ingest'
 import { scanRepo } from '../../detect/pillarb'
-import { installPostCommit, uninstallPostCommit } from '../../adapters/githook'
+import {
+  installPostCommit,
+  uninstallPostCommit,
+  installPostMerge,
+  uninstallPostMerge,
+} from '../../adapters/githook'
 import { parseStatuslinePayload } from '../../adapters/statusline'
 import { installStatusline, uninstallStatusline } from '../../adapters/statusline-install'
-import { stagedDiffStat, createStashSnapshot, currentBranch } from '../../adapters/git-utils'
+import { stagedDiffStat, createStashSnapshot, currentBranch, isMergeCommit } from '../../adapters/git-utils'
 import { t } from '../../i18n/t'
 import type { Locale } from '../../i18n/types'
 import {
@@ -64,6 +69,9 @@ function grantStarterOnce(dir: string): boolean {
 export function handleInit(flags: Record<string, string>, dir: string, locale: Locale = 'en'): number {
   const repo = flags['repo'] ?? process.cwd()
   const res = installPostCommit(repo, groveInvocation())
+  // Also chain the post-merge hook so a REAL PR merge (a merge commit) auto-drops loot
+  // without a manual `sq event pr_merged`. Chain-safe + fail-open like post-commit.
+  installPostMerge(repo, groveInvocation())
 
   let message: string
   if (res.action === 'created') {
@@ -105,6 +113,8 @@ export function handleInit(flags: Record<string, string>, dir: string, locale: L
     console.log(`  Works with any AI-coding tool (Claude Code, Cursor, Aider, Codex…) · tool-agnostic.`)
   }
 
+  console.log(t(locale, 'cli.init.merge_hook'))
+
   // Clear next-step CTA (the first-aha): one concrete command to run next.
   console.log(`  Next: git commit like normal, then \`sq dashboard\` to see your loot.`)
 
@@ -128,6 +138,9 @@ export function handleInit(flags: Record<string, string>, dir: string, locale: L
 export function handleUninstall(flags: Record<string, string>): number {
   const repo = flags['repo'] ?? process.cwd()
   const res = uninstallPostCommit(repo)
+  // Remove BOTH grove hook blocks (post-commit + post-merge); each is surgical and
+  // preserves any other hook content.
+  uninstallPostMerge(repo)
 
   let message: string
   if (res.action === 'removed') {
@@ -178,6 +191,43 @@ export function handleCommitHook(flags: Record<string, string>, dir: string, zen
     // Never fail a commit · swallow all errors silently
   }
 
+  return 0
+}
+
+/**
+ * Runtime entry for the installed post-merge hook. Emits a pr_merged outcome ONLY for
+ * a real merge COMMIT (a 2nd parent) — the runtime guard hardens the shell HEAD^2 gate
+ * (defense-in-depth) so a fast-forward `git pull` / squash / rebase never over-rewards.
+ * Fail-open: a Grove failure NEVER breaks the user's merge. pr_merged is an EXISTING
+ * outcome (no new reward); this only auto-captures it.
+ */
+export function handleMergeHook(flags: Record<string, string>, dir: string, zen: boolean, locale: Locale = 'en'): number {
+  try {
+    const repo = flags['repo'] ?? process.cwd()
+    // Honest guard: not a real merge commit → nothing happened, emit nothing.
+    if (!isMergeCommit(repo)) return 0
+
+    const { rewards } = ingestEvent(dir, {
+      source: 'git-merge',
+      sessionId: 'merge',
+      type: 'pr_merged',
+      magnitude: 1,
+      success: true,
+      ts: new Date().toISOString(),
+      meta: {},
+    })
+    maybePush(rewards)
+
+    if (zen) {
+      calmConfirm(t(locale, 'cli.merge_recorded'), locale)
+      return 0
+    }
+    console.log('  🌳 grove')
+    printRewards(rewards, locale)
+    printContextualOffers(rewards, dir, locale)
+  } catch {
+    // Never fail a merge · swallow all errors silently
+  }
   return 0
 }
 

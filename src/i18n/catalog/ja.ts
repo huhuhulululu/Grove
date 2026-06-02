@@ -275,6 +275,8 @@ export const ja: Catalog = {
   // cli.* — calm confirmations + hints
   'cli.broke_hint': '出荷して 🌰 を稼ごう · コミット、テスト緑、マージ、ドキュメント。',
   'cli.commit_recorded': 'コミットを記録 · {n} シグナル',
+  'cli.merge_recorded': 'マージを記録 · PR ドロップ',
+  'cli.init.merge_hook': '  🌳 Grove の post-merge フックを設置 · 本物の PR マージを自動検出(早送りプルは対象外)。',
 
   'cli.confirm': '  ✓ {message}',
   'cli.confirm.event_recorded': '{type} を記録',
@@ -381,6 +383,7 @@ export const ja: Catalog = {
   'cli.help.cmd.init': '  init [--repo DIR]\n      リポジトリに Grove の post-commit git フックをインストール(チェーン; 上書きなし)。\n      --repo 省略時は process.cwd() をデフォルト。\n      Grove の失敗はコミットを絶対ブロックしない · フックはフェイルオープン設計。',
   'cli.help.cmd.uninstall': '  uninstall [--repo DIR]\n      post-commit フックから Grove の貢献を削除。他のフックはそのまま。\n      --repo 省略時は process.cwd() をデフォルト。',
   'cli.help.cmd.commit_hook': '  commit-hook [--repo DIR] [--home DIR]\n      コミットのたびにインストール済み post-commit フックによって自動的に呼ばれる。\n      リポジトリの Pillar-B シグナルをスキャンしてイベントを取り込む。',
+  'cli.help.cmd.merge_hook': '  merge-hook [--repo DIR] [--home DIR]\n      設置済みの post-merge フックが自動的に呼び出す。本物のマージコミット時のみ\n      pr_merged の結果を発行(早送りプルは過剰報酬にならない)。',
   'cli.help.cmd.suggest_commit': '  suggest-commit [--repo DIR]\n      読み取り専用: ステージされた差分から推奨コミットメッセージを表示。AI なし ·\n      タイプはファイルパスから推論(test/docs/chore/feat)。出力をコピーして使用。\n      ステージなし時は git add を先に実行するヒントを表示。',
   'cli.help.cmd.checkpoint': '  checkpoint [-m MSG] [--repo DIR] [--home DIR]\n      📍 セーフティネット: git stash create で作業状態をスナップショット(読み取り専用 ·\n      ツリー/インデックスは絶対変更しない)、grove 状態に記録、チェックポイント\n      イベントを取り込み休息バフ報酬を得る。git stash apply での復元方法を表示。',
   'cli.help.cmd.checkpoints': '  checkpoints [--limit N] [--home DIR]\n      読み取り専用:最新 N 個のセーフティネットスナップショットを表示(デフォルト 10)。\n      ブランチ・メッセージ・変更規模、コピー可能な git stash apply コマンドを表示。\n      git を実行せず状態も変更しない (ADR-0005)。',

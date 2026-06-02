@@ -71,6 +71,7 @@ import {
   handleInit,
   handleUninstall,
   handleCommitHook,
+  handleMergeHook,
   handleStatuslineIngest,
   handleStatuslineInstall,
   handleStatuslineUninstall,
@@ -169,7 +170,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 const SUBCOMMANDS = [
   'event', 'status', 'recap', 'scan', 'quests', 'pull', 'enhance', 'repair',
   'protect', 'craft', 'foil', 'convert', 'prestige', 'dashboard', 'tui', 'serve',
-  'statusline-ingest', 'statusline', 'init', 'uninstall', 'commit-hook',
+  'statusline-ingest', 'statusline', 'init', 'uninstall', 'commit-hook', 'merge-hook',
   'suggest-commit', 'checkpoint', 'checkpoints', 'wrap', 'share', 'ntfy', 'loadout',
   'achievements', 'promise', 'try', 'demo', 'help',
 ] as const
@@ -366,6 +367,10 @@ Subcommands:
       Called automatically by the installed post-commit hook on every commit.
       Scans the repo for Pillar-B signals and ingests events.
 
+  merge-hook [--repo DIR] [--home DIR]
+      Called automatically by the installed post-merge hook. Emits a pr_merged
+      outcome ONLY on a real merge commit (a fast-forward pull never over-rewards).
+
   suggest-commit [--repo DIR]
       Read-only: print a suggested commit message from staged diff. No AI ·
       type inferred from file paths (test/docs/chore/feat). Copy the output.
@@ -502,6 +507,8 @@ export function buildUsageText(locale: Locale): string {
     t(locale, 'cli.help.cmd.uninstall'),
     '',
     t(locale, 'cli.help.cmd.commit_hook'),
+    '',
+    t(locale, 'cli.help.cmd.merge_hook'),
     '',
     t(locale, 'cli.help.cmd.suggest_commit'),
     '',
@@ -672,6 +679,9 @@ export function run(argv: string[]): number {
 
     case 'commit-hook':
       return handleCommitHook(flags, dir, zen, locale)
+
+    case 'merge-hook':
+      return handleMergeHook(flags, dir, zen, locale)
 
     case 'suggest-commit':
       return handleSuggestCommit(flags, locale)

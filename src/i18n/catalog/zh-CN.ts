@@ -275,6 +275,8 @@ export const zhCN: Catalog = {
   // cli.* — calm confirmations + hints
   'cli.broke_hint': '多交付来赚 🌰 · 提交、测试转绿、合并 PR、写文档。',
   'cli.commit_recorded': '已记录提交 · {n} 个信号',
+  'cli.merge_recorded': '已记录合并 · PR 掉落',
+  'cli.init.merge_hook': '  🌳 Grove post-merge 钩子已装 · 自动识别真实的 PR 合并(非快进拉取)。',
 
   'cli.confirm': '  ✓ {message}',
   'cli.confirm.event_recorded': '{type} 已记录',
@@ -381,6 +383,7 @@ export const zhCN: Catalog = {
   'cli.help.cmd.init': '  init [--repo 目录]\n      在仓库中安装 Grove 的 post-commit git 钩子(链式;绝不覆盖)。\n      省略 --repo 时默认 process.cwd()。\n      Grove 失败绝不阻塞提交 · 钩子是失效开放设计。',
   'cli.help.cmd.uninstall': '  uninstall [--repo 目录]\n      从 post-commit 钩子中移除 Grove 的贡献。其他钩子保持完整。\n      省略 --repo 时默认 process.cwd()。',
   'cli.help.cmd.commit_hook': '  commit-hook [--repo 目录] [--home 目录]\n      在每次提交时由已安装的 post-commit 钩子自动调用。\n      扫描仓库的 Pillar-B 信号并摄入事件。',
+  'cli.help.cmd.merge_hook': '  merge-hook [--repo 目录] [--home 目录]\n      由已安装的 post-merge 钩子自动调用。仅在真实的合并提交时\n      产生 pr_merged 结局(快进拉取绝不过度奖励)。',
   'cli.help.cmd.suggest_commit': '  suggest-commit [--repo 目录]\n      只读:从暂存差异打印建议的提交消息。无 AI ·\n      类型从文件路径推断(test/docs/chore/feat)。复制输出即可。\n      无暂存内容时打印提示先运行 git add。',
   'cli.help.cmd.checkpoint': '  checkpoint [-m 消息] [--repo 目录] [--home 目录]\n      📍 安全网:通过 git stash create 快照工作状态(只读 ·\n      绝不修改树/索引),记录到 grove 状态,摄入检查点\n      事件以获得休息增益奖励。打印如何用 git stash apply 恢复。',
   'cli.help.cmd.checkpoints': '  checkpoints [--limit N] [--home 目录]\n      只读:列出最近 N 个安全网快照(默认 10)。\n      显示分支、消息、改动规模,以及可复制的 git stash apply 命令。\n      绝不运行 git 或修改状态 (ADR-0005)。',

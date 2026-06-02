@@ -88,6 +88,22 @@ export function buildHookBlock(invocation: string): string {
 }
 
 /**
+ * Build the post-MERGE block. HEURISTIC (load-bearing): git runs post-merge after the
+ * merge step of BOTH `git merge` AND `git pull`, so we must NOT fire on a routine
+ * fast-forward pull. We gate on `git rev-parse --verify -q HEAD^2` — which succeeds
+ * ONLY when HEAD is a real merge COMMIT (has a 2nd parent), and fails for a single-
+ * parent fast-forward/squash/rebase. So a `git pull --ff` never emits pr_merged. Same
+ * `|| true` fail-open + runtime-resolved repo (no machine path leaked) as the commit block.
+ */
+export function buildMergeHookBlock(invocation: string): string {
+  return [
+    GROVE_BEGIN,
+    `if git rev-parse --verify -q HEAD^2 >/dev/null 2>&1; then ${invocation} merge-hook --repo "$(git rev-parse --show-toplevel)" 2>/dev/null || true; fi`,
+    GROVE_END,
+  ].join('\n')
+}
+
+/**
  * True when the resolved hooks dir is a TRACKED part of the working tree (e.g.
  * husky/lefthook point `core.hooksPath` at `.husky`), as opposed to the untracked
  * `.git/hooks`. A hook installed into a tracked dir can be `git add`ed, committed,
@@ -103,14 +119,19 @@ export function hooksDirInWorktree(repoDir: string, hooksDir: string): boolean {
 // installPostCommit
 // ---------------------------------------------------------------------------
 
-export function installPostCommit(
+/**
+ * Generic chain-safe installer for a named hook with a prebuilt sentinel block.
+ * Shared by installPostCommit + installPostMerge — same create/chain/idempotent
+ * semantics (ADR-0004), parameterized only by the hook file name + the block.
+ */
+function installHookFile(
   repoDir: string,
-  invocation: string,
+  hookName: string,
+  block: string,
 ): { action: 'created' | 'chained' | 'already'; hookPath: string; inWorktree: boolean } {
   const hooksDir = resolveHooksDir(repoDir)
   fs.mkdirSync(hooksDir, { recursive: true })
-  const hookPath = path.join(hooksDir, 'post-commit')
-  const block = buildHookBlock(invocation)
+  const hookPath = path.join(hooksDir, hookName)
   // A tracked hooks dir (husky/lefthook `.husky`) means the hook file can be
   // committed + shared; `.git/hooks` (the default) is never tracked. The caller
   // warns in the former case. The hook itself carries no machine path either way.
@@ -135,15 +156,31 @@ export function installPostCommit(
   return { action: 'chained', hookPath, inWorktree }
 }
 
+export function installPostCommit(
+  repoDir: string,
+  invocation: string,
+): { action: 'created' | 'chained' | 'already'; hookPath: string; inWorktree: boolean } {
+  return installHookFile(repoDir, 'post-commit', buildHookBlock(invocation))
+}
+
+/** Chain-safe install of the post-MERGE hook (auto-emits pr_merged on a real merge). */
+export function installPostMerge(
+  repoDir: string,
+  invocation: string,
+): { action: 'created' | 'chained' | 'already'; hookPath: string; inWorktree: boolean } {
+  return installHookFile(repoDir, 'post-merge', buildMergeHookBlock(invocation))
+}
+
 // ---------------------------------------------------------------------------
 // uninstallPostCommit
 // ---------------------------------------------------------------------------
 
-export function uninstallPostCommit(
+function uninstallHookFile(
   repoDir: string,
+  hookName: string,
 ): { action: 'removed' | 'unchained' | 'absent'; hookPath: string } {
   const hooksDir = resolveHooksDir(repoDir)
-  const hookPath = path.join(hooksDir, 'post-commit')
+  const hookPath = path.join(hooksDir, hookName)
 
   if (!fs.existsSync(hookPath)) {
     return { action: 'absent', hookPath }
@@ -165,6 +202,19 @@ export function uninstallPostCommit(
   // Otherwise another hook coexists — write back the remainder, preserving it.
   fs.writeFileSync(hookPath, stripped, { mode: 0o755 })
   return { action: 'unchained', hookPath }
+}
+
+export function uninstallPostCommit(
+  repoDir: string,
+): { action: 'removed' | 'unchained' | 'absent'; hookPath: string } {
+  return uninstallHookFile(repoDir, 'post-commit')
+}
+
+/** Remove ONLY Grove's block from the post-merge hook (preserving any other hook). */
+export function uninstallPostMerge(
+  repoDir: string,
+): { action: 'removed' | 'unchained' | 'absent'; hookPath: string } {
+  return uninstallHookFile(repoDir, 'post-merge')
 }
 
 // ---------------------------------------------------------------------------

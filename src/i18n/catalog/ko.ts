@@ -275,6 +275,8 @@ export const ko: Catalog = {
   // cli.* — calm confirmations + hints
   'cli.broke_hint': '🌰 을 더 벌려면 작업을 출시하세요 · 커밋, 테스트 녹색, 병합, 문서。',
   'cli.commit_recorded': '커밋 기록됨 · {n}개 신호',
+  'cli.merge_recorded': '병합 기록됨 · PR 드롭',
+  'cli.init.merge_hook': '  🌳 Grove post-merge 훅 설치됨 · 실제 PR 병합을 자동 감지(빨리 감기 풀 제외).',
 
   'cli.confirm': '  ✓ {message}',
   'cli.confirm.event_recorded': '{type} 기록됨',
@@ -381,6 +383,7 @@ export const ko: Catalog = {
   'cli.help.cmd.init': '  init [--repo DIR]\n      리포지토리에 Grove의 post-commit git 훅을 설치합니다(체인; 덮어쓰기 없음).\n      --repo 생략시 process.cwd() 기본값.\n      Grove 실패는 커밋을 절대 차단하지 않습니다 · 훅은 페일 오픈 설계입니다。',
   'cli.help.cmd.uninstall': '  uninstall [--repo DIR]\n      post-commit 훅에서 Grove의 기여를 제거합니다. 다른 훅은 그대로 유지.\n      --repo 생략시 process.cwd() 기본값。',
   'cli.help.cmd.commit_hook': '  commit-hook [--repo DIR] [--home DIR]\n      커밋마다 설치된 post-commit 훅에 의해 자동으로 호출됩니다.\n      리포지토리의 Pillar-B 신호를 스캔하고 이벤트를 수집합니다。',
+  'cli.help.cmd.merge_hook': '  merge-hook [--repo DIR] [--home DIR]\n      설치된 post-merge 훅이 자동 호출. 실제 병합 커밋에서만\n      pr_merged 결과를 발행(빨리 감기 풀은 과도 보상 없음).',
   'cli.help.cmd.suggest_commit': '  suggest-commit [--repo DIR]\n      읽기 전용: 스테이징된 diff에서 추천 커밋 메시지를 출력합니다. AI 없음 ·\n      타입은 파일 경로에서 추론(test/docs/chore/feat). 출력을 복사해서 사용。\n      스테이징된 것이 없으면 먼저 git add를 실행하라는 힌트를 출력합니다。',
   'cli.help.cmd.checkpoint': '  checkpoint [-m MSG] [--repo DIR] [--home DIR]\n      📍 안전망: git stash create로 작업 상태를 스냅샷(읽기 전용 ·\n      트리/인덱스를 절대 수정하지 않음), grove 상태에 기록, 체크포인트\n      이벤트를 수집해 휴식 버프 보상을 받습니다. git stash apply로 복원하는 방법을 출력합니다。',
   'cli.help.cmd.checkpoints': '  checkpoints [--limit N] [--home DIR]\n      읽기 전용: 최근 N개의 안전망 스냅샷을 표시(기본 10).\n      브랜치, 메시지, 변경 규모, 복사 가능한 git stash apply 명령을 표시.\n      git을 실행하거나 상태를 수정하지 않음 (ADR-0005).',

@@ -53,6 +53,17 @@ function git(repoDir: string, args: string[]): string | null {
   }
 }
 
+/**
+ * True iff HEAD is a real merge COMMIT — i.e. it has a 2nd parent (a branch was
+ * integrated). A fast-forward `git pull` / `--ff-only` / squash / rebase advances to
+ * a SINGLE-parent commit, for which `HEAD^2` does not resolve → false. This is the
+ * honest "a PR was merged" signal; it never over-rewards a routine pull. Read-only.
+ */
+export function isMergeCommit(repoDir: string): boolean {
+  const sha = git(repoDir, ['rev-parse', '--verify', '-q', 'HEAD^2'])
+  return sha !== null && sha !== ''
+}
+
 // ---------------------------------------------------------------------------
 // stagedDiffStat
 // ---------------------------------------------------------------------------

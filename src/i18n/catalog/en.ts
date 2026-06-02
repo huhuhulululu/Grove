@@ -325,6 +325,8 @@ export const en: Catalog = {
   // -------------------------------------------------------------------------
   'cli.broke_hint': 'earn more 🌰 by shipping · commits, green tests, merges, docs.',
   'cli.commit_recorded': 'commit recorded · {n} signal(s)',
+  'cli.merge_recorded': 'merge recorded · PR drop',
+  'cli.init.merge_hook': '  🌳 Grove post-merge hook installed · auto-detects a real PR merge (not a fast-forward pull).',
 
   // calm-mode confirmations (calmConfirm — the quiet `✓` line)
   'cli.confirm': '  ✓ {message}',
@@ -445,6 +447,7 @@ export const en: Catalog = {
   'cli.help.cmd.init': '  init [--repo DIR]\n      Install Grove\'s post-commit git hook in a repo (chains; never clobbers).\n      Defaults to process.cwd() if --repo is omitted.\n      Grove failures NEVER block commits · the hook is fail-open by design.',
   'cli.help.cmd.uninstall': '  uninstall [--repo DIR]\n      Remove Grove\'s contribution from the post-commit hook. Other hooks intact.\n      Defaults to process.cwd() if --repo is omitted.',
   'cli.help.cmd.commit_hook': '  commit-hook [--repo DIR] [--home DIR]\n      Called automatically by the installed post-commit hook on every commit.\n      Scans the repo for Pillar-B signals and ingests events.',
+  'cli.help.cmd.merge_hook': '  merge-hook [--repo DIR] [--home DIR]\n      Called automatically by the installed post-merge hook. Emits a pr_merged\n      outcome ONLY on a real merge commit (a fast-forward pull never over-rewards).',
   'cli.help.cmd.suggest_commit': '  suggest-commit [--repo DIR]\n      Read-only: print a suggested commit message from staged diff. No AI ·\n      type inferred from file paths (test/docs/chore/feat). Copy the output.\n      If nothing is staged, prints a hint to run git add first.',
   'cli.help.cmd.checkpoint': '  checkpoint [-m MSG] [--repo DIR] [--home DIR]\n      📍 Safety-net: snapshot working state via git stash create (read-only ·\n      never modifies tree/index), record to grove state, ingest a checkpoint\n      event for the rest-buff reward. Prints how to restore with git stash apply.',
   'cli.help.cmd.checkpoints': '  checkpoints [--limit N] [--home DIR]\n      Read-only: list the last N safety-net snapshots (default 10) from sq checkpoint.\n      Shows branch, message, change shape, and a copyable git stash apply command.\n      Never runs git or mutates state (ADR-0005).',

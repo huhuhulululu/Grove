@@ -11,6 +11,9 @@ import {
   hooksDirInWorktree,
   installPostCommit,
   uninstallPostCommit,
+  buildMergeHookBlock,
+  installPostMerge,
+  uninstallPostMerge,
 } from './githook'
 
 // ---------------------------------------------------------------------------
@@ -290,5 +293,87 @@ describe('uninstallPostCommit', () => {
     expect(res.action).toBe('absent')
     // Untouched
     expect(fs.readFileSync(hookPath, 'utf-8')).toContain('echo CUSTOM')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// post-merge hook (auto-pr_merged) — guarded block + chain-safety (ADR-0004)
+// ---------------------------------------------------------------------------
+
+describe('buildMergeHookBlock — guarded on a real merge commit', () => {
+  it('gates the invocation on HEAD^2, stays fail-open, leaks no machine path', () => {
+    const block = buildMergeHookBlock(FAKE_INVOCATION)
+    expect(block).toContain(GROVE_BEGIN)
+    expect(block).toContain(GROVE_END)
+    expect(block).toContain('git rev-parse --verify -q HEAD^2')
+    expect(block).toContain('merge-hook --repo "$(git rev-parse --show-toplevel)"')
+    expect(block).toContain('|| true') // fail-open: never breaks a merge
+    expect(block).not.toMatch(/\/(Users|home)\//) // runtime-resolved repo, no path leak
+  })
+})
+
+describe('installPostMerge / uninstallPostMerge — chain-safe', () => {
+  it('creates an executable post-merge hook carrying the guarded block', () => {
+    const dir = mkTmp()
+    try {
+      gitInit(dir)
+      expect(installPostMerge(dir, FAKE_INVOCATION).action).toBe('created')
+      const hookPath = path.join(dir, '.git', 'hooks', 'post-merge')
+      expect(fs.existsSync(hookPath)).toBe(true)
+      expect(isExecutable(hookPath)).toBe(true)
+      const content = fs.readFileSync(hookPath, 'utf-8')
+      expect(content).toContain('HEAD^2')
+      expect(content).toContain('merge-hook')
+    } finally {
+      rmRf(dir)
+    }
+  })
+
+  it('chains onto a pre-existing post-merge hook, preserving it verbatim', () => {
+    const dir = mkTmp()
+    try {
+      gitInit(dir)
+      const hookPath = path.join(dir, '.git', 'hooks', 'post-merge')
+      fs.mkdirSync(path.dirname(hookPath), { recursive: true })
+      fs.writeFileSync(hookPath, '#!/bin/sh\necho CUSTOM\n', { mode: 0o755 })
+      expect(installPostMerge(dir, FAKE_INVOCATION).action).toBe('chained')
+      const content = fs.readFileSync(hookPath, 'utf-8')
+      expect(content).toContain('echo CUSTOM')
+      expect(content).toContain(GROVE_BEGIN)
+    } finally {
+      rmRf(dir)
+    }
+  })
+
+  it('is idempotent (a second install never duplicates the block)', () => {
+    const dir = mkTmp()
+    try {
+      gitInit(dir)
+      installPostMerge(dir, FAKE_INVOCATION)
+      expect(installPostMerge(dir, FAKE_INVOCATION).action).toBe('already')
+      const content = fs.readFileSync(path.join(dir, '.git', 'hooks', 'post-merge'), 'utf-8')
+      expect(countOf(content, GROVE_BEGIN)).toBe(1)
+    } finally {
+      rmRf(dir)
+    }
+  })
+
+  it('uninstall removes a grove-only hook but unchains a custom one', () => {
+    const dir = mkTmp()
+    try {
+      gitInit(dir)
+      const hookPath = path.join(dir, '.git', 'hooks', 'post-merge')
+      installPostMerge(dir, FAKE_INVOCATION)
+      expect(uninstallPostMerge(dir).action).toBe('removed')
+      expect(fs.existsSync(hookPath)).toBe(false)
+
+      fs.mkdirSync(path.dirname(hookPath), { recursive: true })
+      fs.writeFileSync(hookPath, '#!/bin/sh\necho CUSTOM\n', { mode: 0o755 })
+      installPostMerge(dir, FAKE_INVOCATION)
+      expect(uninstallPostMerge(dir).action).toBe('unchained')
+      expect(fs.readFileSync(hookPath, 'utf-8')).toContain('echo CUSTOM')
+    } finally {
+      rmRf(dir)
+    }
   })
 })

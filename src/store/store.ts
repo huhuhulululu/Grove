@@ -255,7 +255,23 @@ function migrate(raw: Record<string, unknown>): GameState {
   const defaults = initialState()
   const player = (raw['player'] ?? {}) as Record<string, unknown>
 
+  // Forward-compat (R2 root fix): carry any UNKNOWN/future top-level key through
+  // instead of dropping it — a state written by a NEWER Grove that an OLDER Grove
+  // loads+saves must not silently lose fields (the class behind the foiled/spark
+  // drop). The named fields below OVERRIDE every KNOWN key with a validated value,
+  // so a malformed known field is still sanitized, never carried raw.
+  const KNOWN_KEYS = new Set([
+    'version', 'player', 'cards', 'gear', 'pity', 'completedSets', 'buffs',
+    'eventCount', 'quests', 'energy', 'work', 'loadout', 'achievements',
+    'protectedGear', 'foiled', 'spark', 'sparkTarget',
+  ])
+  const carried: Record<string, unknown> = {}
+  for (const k of Object.keys(raw)) {
+    if (!KNOWN_KEYS.has(k)) carried[k] = raw[k]
+  }
+
   return {
+    ...carried,
     version: typeof raw['version'] === 'number' ? (raw['version'] as number) : defaults.version,
     player: {
       xp: typeof player['xp'] === 'number' ? (player['xp'] as number) : defaults.player.xp,
@@ -311,7 +327,7 @@ function migrate(raw: Record<string, unknown>): GameState {
         ? (raw['spark'] as number)
         : (defaults.spark ?? 0),
     ...(typeof raw['sparkTarget'] === 'string' ? { sparkTarget: raw['sparkTarget'] } : {}),
-  }
+  } as GameState
 }
 
 /**

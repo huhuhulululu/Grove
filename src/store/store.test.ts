@@ -304,6 +304,28 @@ describe('loadState migration', () => {
     ])
     expect(Number.isFinite(activeGearBonus(result).currencyPct)).toBe(true)
   })
+
+  // Forward-compat (R2 root fix): a state a NEWER Grove wrote may carry top-level
+  // fields THIS version doesn't name. migrate() must carry them through, not drop
+  // them — the general form of the foiled/spark data-loss class.
+  it('migrate carries an unknown FUTURE top-level field through (forward-compat)', () => {
+    const dir = makeTmpDir()
+    const raw = {
+      version: 1,
+      player: { xp: 5, level: 2, currency: 0 },
+      cards: [],
+      gear: [],
+      pity: { sinceLegendary: 0 },
+      completedSets: [],
+      // NO protectedGear → fails the FAST schema → routes through migrate()
+      futureField: { hello: 'world' }, // a field a newer Grove wrote
+    }
+    fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify(raw), 'utf8')
+    const result = loadState(dir)
+    expect((result as unknown as Record<string, unknown>)['futureField']).toEqual({ hello: 'world' })
+    // and the known fields are still sanitized/present
+    expect(result.player.xp).toBe(5)
+  })
 })
 
 // ---------------------------------------------------------------------------

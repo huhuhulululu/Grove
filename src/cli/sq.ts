@@ -81,6 +81,7 @@ import {
 import { handleWrap, handleShare, handleNtfy } from './commands/share'
 import { handleLoadout } from './commands/loadout'
 import { handleAchievements } from './commands/achievements'
+import { handleTry } from './commands/try'
 
 // Re-export the public surface the tests / other layers import from './sq', so
 // the God-file split is transparent to every existing import site.
@@ -170,7 +171,7 @@ const SUBCOMMANDS = [
   'protect', 'craft', 'foil', 'convert', 'prestige', 'dashboard', 'tui', 'serve',
   'statusline-ingest', 'statusline', 'init', 'uninstall', 'commit-hook',
   'suggest-commit', 'checkpoint', 'checkpoints', 'wrap', 'share', 'ntfy', 'loadout',
-  'achievements', 'promise', 'help',
+  'achievements', 'promise', 'try', 'demo', 'help',
 ] as const
 
 /** Classic Levenshtein edit distance (pure). */
@@ -411,6 +412,10 @@ Subcommands:
       never auto-runs tests, chains hooks/statusline/settings, rewards cosmetic-only,
       calm by default. Read-only (ADR-0005).
 
+  try (alias: demo)
+      Taste the loot loop in a throwaway scratch dir · runs a few canned outcomes
+      through the engine. Your real state + repo are NEVER touched (ADR-0005).
+
   help
       Show this help message.
 `.trim()
@@ -513,6 +518,8 @@ export function buildUsageText(locale: Locale): string {
     t(locale, 'cli.help.cmd.achievements'),
     '',
     t(locale, 'cli.help.cmd.promise'),
+    '',
+    t(locale, 'cli.help.cmd.try'),
     '',
     t(locale, 'cli.help.cmd.help'),
   ]
@@ -689,6 +696,10 @@ export function run(argv: string[]): number {
 
     case 'promise':
       return handlePromise(locale)
+
+    case 'try':
+    case 'demo':
+      return handleTry(zen, locale)
 
     case 'help':
     case undefined:

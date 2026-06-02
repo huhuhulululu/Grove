@@ -34,6 +34,7 @@ export const zhCN: Catalog = {
   'reward.milestone_chest': '🎁 里程碑宝箱 · +{seeds} 🌰(已记录工作)',
   'reward.doc_streak': '🔥 文档连击 ×{streak} · +{seeds} 🌰',
   'reward.shards_to_seeds': '+{seeds} 🌰 · {convert} 碎片 → 种子',
+  'reward.shards_to_seeds_bulk': '+{seeds} 🌰 · {convert} 碎片 → 种子 · 批量费率',
   'reward.no_shards_convert': '没有碎片可转换 · 当前 {have}',
 
   'reward.pull_spend': '-{cost} 🌰 · 抽取',
@@ -382,7 +383,7 @@ export const zhCN: Catalog = {
   'cli.help.cmd.pull': '  pull [--premium] [--spark <cardId>] [--seed N] [--home 目录]\n      花费 {pullCost} 🌰 种子进行一次抽取(核心决策 · 你选择何时)。\n      --premium  花费 {premiumCost} 🌰 进行高级抽取(更好的概率;递增消耗)。\n      --spark    (配合 --premium) 选择一张缺失卡牌建立保底 ·\n                 足够多次高级未中后下一次高级抽取保证是它。\n      通过交付成果(提交、绿色测试、合并、文档)赚取种子。\n      余额不足时平静拒绝。仅装饰性 (ADR-0005)。',
   'cli.help.cmd.craft': '  craft [cardId] [--home 目录]\n      花费 {shardsCraft} 碎片合成一张选定的缺失卡牌(重复尾部消耗 · 每次\n      重复抽取存入按稀有度缩放的碎片)。无 id 时合成第一张\n      未解锁套牌中的缺失卡牌。碎片不足或无可合成时平静拒绝。仅装饰性 (ADR-0005)。',
   'cli.help.cmd.foil': '  foil [cardId] [--home 目录]\n      花费 {foilMin} 至 {foilMax} 碎片(按卡牌稀有度缩放)为拥有的卡牌\n      装饰性地添加闪箔(可续的光泽 · 完整收藏仍有目标)。\n      无 id 时为第一张未闪箔的拥有卡牌上闪箔。\n      碎片不足或无可闪箔时平静拒绝。仅装饰性,不授予任何能力 (ADR-0005)。',
-  'cli.help.cmd.convert': '  convert [n] [--home 目录]\n      将存储的碎片以 {shardToSeed} 🌰 每碎片兑换回种子(死碎片\n      减压阀:收藏可合成完整后,多余碎片仍有出路)。\n      无数量时转换所有存储碎片;有 [n] 时精确 min(n, 存储)。\n      零碎片时平静拒绝。仅装饰性 (ADR-0005)。',
+  'cli.help.cmd.convert': '  convert [n] [--home 目录]\n      前 {convertFullTier} 个碎片以 {shardToSeed} 🌰 每碎片兑换回种子,超出部分按半价\n      (使合成始终更划算)。收藏可合成完整后,多余碎片仍有出路。\n      无数量时转换所有存储碎片;有 [n] 时精确 min(n, 存储)。\n      零碎片时平静拒绝。仅装饰性 (ADR-0005)。',
   'cli.help.cmd.prestige': '  prestige [--home 目录]\n      花费 {prestigeCost} 🌰 种子购买下一个终局威望等级 · 永久\n      装饰性光环,费用递增(后期种子消耗:完整收藏仍有目标)。\n      破产时平静拒绝。仅装饰性,不授予任何能力 (ADR-0005)。',
   'cli.help.cmd.enhance': '  enhance <引用> [--seed N] [--home 目录]\n      花费种子尝试强化一件装饰性装备(风险与收益)。\n      费用随装备等级缩放(+0 时 {enhanceBase},每级 +{enhancePer}),追求高 +N 是递增消耗。\n      <引用> 可以是装备 id、1-based 索引或 \'first\'。\n      如果装备已保护(sq protect),原本会破损的会降为降级。\n      余额不足时平静拒绝。仅装饰性 · 真实代码绝不受影响 (ADR-0005)。',
   'cli.help.cmd.repair': '  repair <引用> [--home 目录]\n      花费种子修复损坏的装饰性装备(保留等级)。费用随\n      装备等级缩放(+0 时 {repairBase},每级 +{repairPer}) · 破损的 +12 比 +1 贵得多。\n      <引用> 可以是装备 id、1-based 索引或 \'first\'。\n      余额不足时平静拒绝。仅装饰性 (ADR-0005)。',

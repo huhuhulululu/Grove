@@ -24,7 +24,7 @@ import {
   PULL_COST,
   PREMIUM_PULL_COST,
 } from '../../engine/reduce'
-import { convertShards, SHARD_TO_SEED } from '../../engine/collection'
+import { convertShards, shardConversionSeeds } from '../../engine/collection'
 import { renderEnhanceOdds, renderEnhanceResult, renderEnhanceFrames, renderPullFrames } from '../../render/enhance'
 import { pickSalientReward, salientRarity } from '../../tui/juice'
 import { mulberry32, hashStringToSeed } from '../../core/rng'
@@ -519,7 +519,7 @@ export function handleConvert(positional: string[], dir: string, zen: boolean, l
     // Calm: the engine ran & persisted; one quiet line either way.
     calmConfirm(
       result.converted > 0
-        ? `${result.converted} shards → ${result.converted * SHARD_TO_SEED} 🌰`
+        ? `${result.converted} shards → ${shardConversionSeeds(result.converted)} 🌰`
         : 'convert skipped · no shards',
       locale,
     )

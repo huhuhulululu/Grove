@@ -34,6 +34,7 @@ export const ko: Catalog = {
   'reward.milestone_chest': '🎁 마일스톤 보물상자 · +{seeds} 🌰(작업 기록됨)',
   'reward.doc_streak': '🔥 문서 연속 ×{streak} · +{seeds} 🌰',
   'reward.shards_to_seeds': '+{seeds} 🌰 · {convert} 조각 → 씨앗',
+  'reward.shards_to_seeds_bulk': '+{seeds} 🌰 · {convert} 조각 → 씨앗 · 대량 환율',
   'reward.no_shards_convert': '변환할 조각 없음 · 보유 {have}',
 
   'reward.pull_spend': '-{cost} 🌰 · 뽑기',
@@ -382,7 +383,7 @@ export const ko: Catalog = {
   'cli.help.cmd.pull': '  pull [--premium] [--spark <cardId>] [--seed N] [--home DIR]\n      {pullCost} 🌰 씨앗을 소비해 한 번 가챠 뽑기(핵심 결정 · 타이밍은 당신이 선택).\n      --premium  {premiumCost} 🌰 로 프리미엄 뽑기(더 좋은 확률; 단계적 소모).\n      --spark    (--premium 과 함께) 없는 카드를 선택해 확정 보증을 쌓음 ·\n                 프리미엄 실패가 충분히 쌓이면 다음 프리미엄 뽑기가 확정됩니다.\n      성과를 출시해 씨앗을 벌어요(커밋, 테스트 녹색, 병합, 문서).\n      여유가 없으면 차분히 거부합니다. 장식 전용 (ADR-0005)。',
   'cli.help.cmd.craft': '  craft [cardId] [--home DIR]\n      {shardsCraft} 조각을 소비해 없는 카드 한 장을 제작합니다(중복 꼬리 소모 · 각\n      중복 뽑기는 희귀도 비례 조각을 적립). id 미지정시 잠금 해제된 세트의 첫 번째\n      없는 카드를 제작합니다. 조각 부족 또는 남은 것이 없을 때 차분히 거부합니다. 장식 전용 (ADR-0005)。',
   'cli.help.cmd.foil': '  foil [cardId] [--home DIR]\n      {foilMin} 에서 {foilMax} 조각(카드 희귀도에 따라)을 소비해 보유 카드에\n      장식적으로 포일을 적용합니다(갱신 가능한 광택 · 완성된 컬렉션도 목표가 있음).\n      id 미지정시 포일되지 않은 첫 번째 보유 카드에 포일을 적용합니다.\n      조각 부족 또는 남은 것이 없을 때 차분히 거부합니다. 장식 전용, 능력 부여 없음 (ADR-0005)。',
-  'cli.help.cmd.convert': '  convert [n] [--home DIR]\n      적립된 조각을 {shardToSeed} 🌰 씩(조각당) 씨앗으로 교환합니다(데드 조각\n      압력 해소 밸브: 컬렉션 제작 완료 후에도 잉여 조각에 출구가 있음).\n      수량 미지정시 모든 적립 조각을 변환; [n] 지정시 정확히 min(n, 적립량).\n      조각이 없을 때 차분히 거부합니다. 장식 전용 (ADR-0005)。',
+  'cli.help.cmd.convert': '  convert [n] [--home DIR]\n      처음 {convertFullTier} 조각은 {shardToSeed} 🌰 씩(조각당) 교환하고, 이후는 절반 환율\n      (제작이 더 이득). 컬렉션 제작 완료 후에도 잉여 조각에 출구가 있음.\n      수량 미지정시 모든 적립 조각을 변환; [n] 지정시 정확히 min(n, 적립량).\n      조각이 없을 때 차분히 거부합니다. 장식 전용 (ADR-0005).',
   'cli.help.cmd.prestige': '  prestige [--home DIR]\n      {prestigeCost} 🌰 씨앗을 소비해 다음 엔드게임 프레스티지 등급을 구매 · 영구\n      장식적 플레어, 단계적으로 증가하는 반복 비용(후반부 씨앗 소모: 완성된 컬렉션도 목표가 있음).\n      파산시 차분히 거부합니다. 장식 전용, 능력 부여 없음 (ADR-0005)。',
   'cli.help.cmd.enhance': '  enhance <ref> [--seed N] [--home DIR]\n      씨앗을 소비해 장식적 장비 강화를 시도합니다(위험과 보상).\n      비용은 장비 레벨에 따라 증가(+0 시 {enhanceBase}, 레벨당 +{enhancePer}), 높은 +N을 추구할수록 깊은 소모。\n      <ref>는 장비 id, 1-based 인덱스, 또는 \'first\'。\n      장비가 보호 중(sq protect)이면 파손될 강화가 강등으로 완화됩니다.\n      여유가 없으면 차분히 거부합니다. 장식 전용 · 실제 코드에는 절대 영향 없음 (ADR-0005)。',
   'cli.help.cmd.repair': '  repair <ref> [--home DIR]\n      씨앗을 소비해 장식적 장비의 파손을 수리합니다(레벨 유지). 비용은\n      장비 레벨에 따라 증가(+0 시 {repairBase}, 레벨당 +{repairPer}) · 파손된 +12는 +1보다 훨씬 비쌉니다.\n      <ref>는 장비 id, 1-based 인덱스, 또는 \'first\'。\n      여유가 없으면 차분히 거부합니다. 장식 전용 (ADR-0005)。',

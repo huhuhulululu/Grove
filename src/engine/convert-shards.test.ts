@@ -20,7 +20,7 @@
 import { describe, it, expect } from 'vitest'
 import { initialState } from '../core/state'
 import type { GameState } from '../core/state'
-import { convertShards, SHARD_TO_SEED } from './collection'
+import { convertShards, SHARD_TO_SEED, CONVERT_FULL_TIER, shardConversionSeeds } from './collection'
 
 /** A state with `shards` banked and `currency` seeds on hand. */
 function withShards(shards: number, currency = 0): GameState {
@@ -111,5 +111,67 @@ describe('convertShards — turns surplus shards into seeds at the published rat
     const { rewards } = convertShards(withShards(24, 0))
     const msg = rewards.map((r) => r.message).join(' ')
     expect(msg).not.toMatch(/fail|lazy|shame|stupid|worthless|wasted/i)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// DIMINISHING bulk conversion (P3 tail): the first CONVERT_FULL_TIER shards
+// convert at full rate; the remainder at a halved (floored, min-1) rate — so
+// hoarding-then-dumping is strictly less efficient than spending along the way.
+// ---------------------------------------------------------------------------
+
+describe('shardConversionSeeds — full-then-halved curve', () => {
+  const HALF = Math.max(1, Math.floor(SHARD_TO_SEED / 2))
+
+  it('exports a positive integer CONVERT_FULL_TIER (published — ADR-0002)', () => {
+    expect(Number.isInteger(CONVERT_FULL_TIER)).toBe(true)
+    expect(CONVERT_FULL_TIER).toBeGreaterThan(0)
+  })
+
+  it('is exactly full-rate up to and including the tier boundary', () => {
+    expect(shardConversionSeeds(1)).toBe(1 * SHARD_TO_SEED)
+    expect(shardConversionSeeds(CONVERT_FULL_TIER)).toBe(CONVERT_FULL_TIER * SHARD_TO_SEED)
+  })
+
+  it('diminishes beyond the tier — the tail converts at the halved rate', () => {
+    const over = CONVERT_FULL_TIER + 10
+    expect(shardConversionSeeds(over)).toBe(CONVERT_FULL_TIER * SHARD_TO_SEED + 10 * HALF)
+  })
+
+  it('makes hoard-then-dump strictly less efficient per shard than spending along the way', () => {
+    const small = shardConversionSeeds(CONVERT_FULL_TIER) / CONVERT_FULL_TIER
+    const huge = shardConversionSeeds(2 * CONVERT_FULL_TIER) / (2 * CONVERT_FULL_TIER)
+    expect(huge).toBeLessThan(small)
+  })
+})
+
+describe('convertShards — diminishing path wires the curve', () => {
+  it('a small convert (<= tier) is unchanged: exactly n * SHARD_TO_SEED', () => {
+    const { state } = convertShards(withShards(10, 0))
+    expect(state.player.currency).toBe(10 * SHARD_TO_SEED)
+  })
+
+  it('a bulk convert (> tier) credits the diminished total + debits all converted shards', () => {
+    const banked = CONVERT_FULL_TIER + 40
+    const { state, rewards } = convertShards(withShards(banked, 0))
+    expect(state.player.shards).toBe(0)
+    expect(state.player.currency).toBe(shardConversionSeeds(banked))
+    const credit = rewards.find((r) => r.kind === 'currency' && (r.amount ?? 0) > 0)
+    expect(credit!.amount).toBe(shardConversionSeeds(banked))
+  })
+
+  it('a bulk convert touches ONLY currency + shards (firewall: no cards/gear/xp/level)', () => {
+    const s0 = withShards(CONVERT_FULL_TIER + 30, 0)
+    const { state } = convertShards(s0)
+    expect(state.cards).toEqual(s0.cards)
+    expect(state.gear).toEqual(s0.gear)
+    expect(state.player.xp).toBe(s0.player.xp)
+    expect(state.player.level).toBe(s0.player.level)
+  })
+
+  it('the bulk credit line carries no shaming tone (ADR-0009)', () => {
+    const { rewards } = convertShards(withShards(CONVERT_FULL_TIER + 25, 0))
+    const m = rewards.map((r) => r.message).join(' ')
+    expect(m).not.toMatch(/fail|lazy|shame|stupid|worthless|wasted/i)
   })
 })

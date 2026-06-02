@@ -34,6 +34,7 @@ export const ja: Catalog = {
   'reward.milestone_chest': '🎁 マイルストーン宝箱 · +{seeds} 🌰(作業記録済み)',
   'reward.doc_streak': '🔥 ドキュメント連続 ×{streak} · +{seeds} 🌰',
   'reward.shards_to_seeds': '+{seeds} 🌰 · {convert} シャード → シード',
+  'reward.shards_to_seeds_bulk': '+{seeds} 🌰 · {convert} シャード → シード · 一括レート',
   'reward.no_shards_convert': '変換できるシャードなし · 所持 {have}',
 
   'reward.pull_spend': '-{cost} 🌰 · 抽選',
@@ -382,7 +383,7 @@ export const ja: Catalog = {
   'cli.help.cmd.pull': '  pull [--premium] [--spark <cardId>] [--seed N] [--home DIR]\n      {pullCost} 🌰 シードを消費して1回ガチャ抽選(コア決断 · タイミングはあなたが選ぶ)。\n      --premium  {premiumCost} 🌰 でプレミアム抽選(より良い確率; 段階的シンク)。\n      --spark    (--premium と共に) 欠けているカードを選んで確定保証を積む ·\n                 プレミアムの外れが十分になると次のプレミアム抽選でそれが確定。\n      成果を出荷してシードを稼ぐ(コミット、テスト緑、マージ、ドキュメント)。\n      余裕がないときは穏やかに拒否。装飾のみ (ADR-0005)。',
   'cli.help.cmd.craft': '  craft [cardId] [--home DIR]\n      {shardsCraft} シャードを消費して欠けているカードを1枚クラフト(重複末尾シンク · 各\n      重複抽選はレアリティ比例のシャードを貯める)。id 未指定時は解放済みセットの最初の\n      欠けているカードをクラフト。シャード不足または残りなし時は穏やかに拒否。装飾のみ (ADR-0005)。',
   'cli.help.cmd.foil': '  foil [cardId] [--home DIR]\n      {foilMin} ～ {foilMax} シャード(カードのレアリティに比例)を消費して\n      所持カードを装飾的にフォイル(更新可能な仕上げ · コレクション完成後も目標がある)。\n      id 未指定時は最初のフォイル未済み所持カードをフォイル。\n      シャード不足または残りなし時は穏やかに拒否。装飾のみ、能力付与ゼロ (ADR-0005)。',
-  'cli.help.cmd.convert': '  convert [n] [--home DIR]\n      貯めたシャードを {shardToSeed} 🌰 1シャードあたりシードに交換(デッドシャード\n      リリーフバルブ: コレクションのクラフト完了後も余剰シャードに使い道がある)。\n      数量未指定時は全貯蔵シャードを変換; [n] 指定時は min(n, 貯蔵) 枚。\n      シャードゼロ時は穏やかに拒否。装飾のみ (ADR-0005)。',
+  'cli.help.cmd.convert': '  convert [n] [--home DIR]\n      最初の {convertFullTier} シャードは {shardToSeed} 🌰 1シャードあたりで交換,超過分は半レート\n      (クラフトの方がお得)。コレクションのクラフト完了後も余剰シャードに使い道がある。\n      数量未指定時は全貯蔵シャードを変換; [n] 指定時は min(n, 貯蔵) 枚。\n      シャードゼロ時は穏やかに拒否。装飾のみ (ADR-0005)。',
   'cli.help.cmd.prestige': '  prestige [--home DIR]\n      {prestigeCost} 🌰 シードを消費して次のエンドゲームプレステージランクを購入 · 永続\n      装飾的フレア、段階的に増加する繰り返しコスト(後期シードシンク: 完成したコレクションも目標がある)。\n      資金不足時は穏やかに拒否。装飾のみ、能力付与ゼロ (ADR-0005)。',
   'cli.help.cmd.enhance': '  enhance <ref> [--seed N] [--home DIR]\n      シードを消費して装飾的ギアの強化を試みる(リスクと報酬)。\n      コストはギアのレベルに比例(+0 時 {enhanceBase}、レベル毎 +{enhancePer})、高 +N を狙うほど深いシンク。\n      <ref> はギア id、1-base インデックス、または \'first\'。\n      ギアが保護済み(sq protect)の場合、破損になるはずが降格に軽減。\n      余裕がないときは穏やかに拒否。装飾のみ · 実コードには絶対影響なし (ADR-0005)。',
   'cli.help.cmd.repair': '  repair <ref> [--home DIR]\n      シードを消費して装飾的ギアの破損を修復(レベルは保持)。コストは\n      ギアのレベルに比例(+0 時 {repairBase}、レベル毎 +{repairPer}) · 破損した +12 は +1 よりずっと高い。\n      <ref> はギア id、1-base インデックス、または \'first\'。\n      余裕がないときは穏やかに拒否。装飾のみ (ADR-0005)。',

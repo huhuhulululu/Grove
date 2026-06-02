@@ -38,7 +38,7 @@ import {
   PRESTIGE_COST,
   FOIL_COST_BY_RARITY,
 } from '../engine/reduce'
-import { SHARDS_PER_CRAFT, SHARD_TO_SEED } from '../engine/collection'
+import { SHARDS_PER_CRAFT, SHARD_TO_SEED, CONVERT_FULL_TIER } from '../engine/collection'
 
 import { isZen, groveInvocation, detectAiClis, maybePush } from './commands/shared'
 import { resolveLocale } from '../i18n/locale'
@@ -295,10 +295,11 @@ Subcommands:
       is left to foil. Cosmetic only, confers ZERO power (ADR-0005).
 
   convert [n] [--home DIR]
-      Trade banked shards back into 🌰 seeds at ${SHARD_TO_SEED} 🌰 per shard (the dead-shard
-      relief valve: once your collection is craftable-complete, surplus shards
-      still have a horizon). With no count, converts ALL banked shards; with [n],
-      exactly min(n, banked). Refuses calmly at zero shards. Cosmetic only (ADR-0005).
+      Trade banked shards back into 🌰 seeds at ${SHARD_TO_SEED} 🌰 per shard for the first ${CONVERT_FULL_TIER} shards,
+      then half-rate beyond (so crafting stays the better deal). Once craftable-
+      complete, surplus shards still have a horizon. With no count, converts ALL
+      banked shards; with [n], exactly min(n, banked). Refuses calmly at zero shards.
+      Cosmetic only (ADR-0005).
 
   prestige [--home DIR]
       Spend ${PRESTIGE_COST} 🌰 seeds to buy the next ENDGAME prestige rank · a permanent
@@ -454,6 +455,7 @@ export function buildUsageText(locale: Locale): string {
     premiumCost: PREMIUM_PULL_COST,
     shardsCraft: SHARDS_PER_CRAFT,
     shardToSeed: SHARD_TO_SEED,
+    convertFullTier: CONVERT_FULL_TIER,
     prestigeCost: PRESTIGE_COST,
     foilMin: FOIL_COST_BY_RARITY.common,
     foilMax: FOIL_COST_BY_RARITY.shiny,

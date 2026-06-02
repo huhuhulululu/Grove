@@ -49,6 +49,29 @@ export function shardsForDuplicate(rarity: Rarity): number {
 export const SHARD_TO_SEED = 2
 
 /**
+ * Bulk-conversion full-rate tier (P3 diminishing tail). The first CONVERT_FULL_TIER
+ * shards of a single convert trade at full SHARD_TO_SEED; the remainder trades at a
+ * halved (floored, min-1) rate. Set to SHARDS_PER_CRAFT so "one craft's worth"
+ * converts at full value and dumping a hoard is strictly less efficient than
+ * spending shards along the way — crafting/foiling stay the better deal, conversion
+ * is the relief valve, not the optimal path. Published (ADR-0002).
+ */
+export const CONVERT_FULL_TIER = SHARDS_PER_CRAFT
+
+/**
+ * Seeds a single `convert` of `shards` yields under the full-then-halved curve (P3):
+ * full rate for the first CONVERT_FULL_TIER shards, halved (floored, min-1) beyond.
+ * PURE — reads only its number arg + module constants. Within one tier it equals
+ * `shards * SHARD_TO_SEED` exactly (no behavior change for small converts).
+ */
+export function shardConversionSeeds(shards: number): number {
+  const full = Math.min(shards, CONVERT_FULL_TIER)
+  const tail = Math.max(0, shards - CONVERT_FULL_TIER)
+  const halfRate = Math.max(1, Math.floor(SHARD_TO_SEED / 2))
+  return full * SHARD_TO_SEED + tail * halfRate
+}
+
+/**
  * Convert banked shards into seeds at SHARD_TO_SEED (the dead-shard-tail relief
  * valve, P3). A craftable-complete player's shards are otherwise unspendable; this
  * trades them back into the cosmetic seed economy so the dup tail always advances.
@@ -81,12 +104,14 @@ export function convertShards(
     return { state: { ...state, player: { ...state.player } }, rewards }
   }
 
-  const seeds = convert * SHARD_TO_SEED
-  rewards.push({
-    kind: 'currency',
-    amount: seeds,
-    ...msg('reward.shards_to_seeds', { seeds, convert }),
-  })
+  const seeds = shardConversionSeeds(convert)
+  // A bulk convert (past the full-rate tier) gets the diminishing-rate line; a small
+  // convert keeps the original line byte-for-byte (its contract parity is preserved).
+  const seedMsg =
+    convert > CONVERT_FULL_TIER
+      ? msg('reward.shards_to_seeds_bulk', { seeds, convert })
+      : msg('reward.shards_to_seeds', { seeds, convert })
+  rewards.push({ kind: 'currency', amount: seeds, ...seedMsg })
   return {
     state: {
       ...state,

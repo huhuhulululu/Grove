@@ -246,11 +246,13 @@ describe('tuiModel — loadout view-model', () => {
     const m = tuiModel(state)
     // At least check that the active list is an array (may or may not fire depending on synergy config).
     expect(Array.isArray(m.loadout.active)).toBe(true)
-    // All active entries must have id, name, effect.
+    // All active entries must have id, name, and the raw effect bundle (the VM now
+    // carries the SynergyEffect object so the renderer localizes it — i18n-6).
     for (const s of m.loadout.active) {
       expect(typeof s.id).toBe('string')
       expect(typeof s.name).toBe('string')
-      expect(typeof s.effect).toBe('string')
+      expect(typeof s.effect).toBe('object')
+      expect(s.effect).not.toBeNull()
     }
   })
 })

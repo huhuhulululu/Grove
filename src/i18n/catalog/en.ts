@@ -245,6 +245,7 @@ export const en: Catalog = {
   'ui.enhance.downgrade': 'ENHANCE +{before}→+{after}\n↓ +{after}',
   'ui.enhance.break': 'ENHANCE +{before}→+{after}\n✗ SHATTERED (code safe)',
   'ui.enhance.stay': '– broken',
+  'ui.enhance.effect_capped': '  ⚑ effect maxed at +{cap} · higher levels are flair only',
 
   // status block (render/format.formatStatus + formatQuests/formatRecap)
   'ui.status.title': '  GROVE STATUS',

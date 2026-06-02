@@ -67,12 +67,33 @@ describe('renderEnhanceOdds', () => {
     expect(output).toMatch(/break/i)
   })
 
-  it('shows correct odds for level 0-3 band (100% success)', () => {
-    const gear = makeGear({ level: 2 })
+  it('shows correct odds for the free band (level <=1: 100% success)', () => {
+    const gear = makeGear({ level: 1 })
     const output = renderEnhanceOdds(gear)
     expect(output).toContain('100%')
     // downgrade and break are 0%
     expect(output).toContain('0%')
+  })
+
+  it('P3: level 2 now shows the 90/10 risk band, not 100% (free band compressed)', () => {
+    const gear = makeGear({ level: 2 })
+    const output = renderEnhanceOdds(gear)
+    expect(output).toContain('90%')
+    expect(output).toContain('10%')
+    expect(output).not.toContain('100%')
+  })
+
+  it('P3: surfaces the effect cap for a maxed gear (Commit Hammer caps at +20)', () => {
+    const gear = makeGear({ name: 'Commit Hammer', level: 20 })
+    const output = renderEnhanceOdds(gear)
+    expect(output.toLowerCase()).toMatch(/maxed|flair/) // the effect-cap note
+    expect(output).toContain('20')
+  })
+
+  it('P3: NO cap note below the effect cap', () => {
+    const gear = makeGear({ name: 'Commit Hammer', level: 5 })
+    const output = renderEnhanceOdds(gear)
+    expect(output.toLowerCase()).not.toMatch(/maxed|flair/)
   })
 
   it('shows correct odds for the ≥13 band (30/40/30)', () => {

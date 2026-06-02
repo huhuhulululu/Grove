@@ -37,15 +37,15 @@ function collectResults(gear: Gear, seeds: number[]): EnhanceResult[] {
 // ---------------------------------------------------------------------------
 
 describe('enhanceTable', () => {
-  it('level <=3 band: success=1, downgrade=0, break=0', () => {
-    for (const lvl of [0, 1, 2, 3]) {
+  it('level <=1 band: success=1, downgrade=0, break=0 (P3: free band compressed to 2)', () => {
+    for (const lvl of [0, 1]) {
       const t = enhanceTable(lvl)
       expect(t).toEqual({ success: 1, downgrade: 0, break: 0 })
     }
   })
 
-  it('level 4-6 band: sums to 1', () => {
-    for (const lvl of [4, 5, 6]) {
+  it('level 2-6 band: sums to 1 (P3: risk — a downgrade chance — now starts at +2)', () => {
+    for (const lvl of [2, 3, 4, 5, 6]) {
       const t = enhanceTable(lvl)
       expect(t.success + t.downgrade + t.break).toBeCloseTo(1, 10)
       expect(t).toEqual({ success: 0.9, downgrade: 0.1, break: 0 })
@@ -81,7 +81,7 @@ describe('enhanceTable', () => {
 // enhance — level <=3 ALWAYS succeeds
 // ---------------------------------------------------------------------------
 
-describe('enhance: level <=3 always succeeds', () => {
+describe('enhance: free band (level <=1) always succeeds', () => {
   it('level 0 succeeds across 200 seeds', () => {
     const gear = makeTestGear(0)
     const seeds = Array.from({ length: 200 }, (_, i) => i)
@@ -89,18 +89,27 @@ describe('enhance: level <=3 always succeeds', () => {
     expect(results.every(r => r === 'success')).toBe(true)
   })
 
-  it('level 3 succeeds across 200 seeds', () => {
-    const gear = makeTestGear(3)
+  it('level 1 succeeds across 200 seeds', () => {
+    const gear = makeTestGear(1)
     const seeds = Array.from({ length: 200 }, (_, i) => i)
     const results = collectResults(gear, seeds)
     expect(results.every(r => r === 'success')).toBe(true)
   })
 
-  it('level <=3 success increments level by 1', () => {
-    const gear = makeTestGear(2)
+  it('free-band success increments level by 1', () => {
+    const gear = makeTestGear(1)
     const { gear: out, result } = enhance(gear, mulberry32(42))
     expect(result).toBe('success')
-    expect(out.level).toBe(3)
+    expect(out.level).toBe(2)
+  })
+
+  it('P3: level 2 is no longer risk-free — a downgrade is reachable', () => {
+    const gear = makeTestGear(2)
+    const seeds = Array.from({ length: 200 }, (_, i) => i)
+    const results = collectResults(gear, seeds)
+    // 90/10 band: most succeed, but at least one downgrade must appear (was 100% before).
+    expect(results.some(r => r === 'downgrade')).toBe(true)
+    expect(results.every(r => r !== 'break')).toBe(true) // still no break risk at +2
   })
 })
 

@@ -140,7 +140,9 @@ export const SYNERGIES: SynergyDef[] = [
   {
     id: 'naturalist',
     name: 'Naturalist',
-    requires: [{ kind: 'card', tag: 'forest', min: 3 }],
+    // P4: 2 forest cards (was 3). A 3-member requirement consumed all SLOT_CAP=3
+    // slots, so it could never combine with a second synergy; 2 leaves a free slot.
+    requires: [{ kind: 'card', tag: 'forest', min: 2 }],
     effect: { xpMult: 1.02, seedMult: 1.02 },
   },
   {
@@ -152,12 +154,13 @@ export const SYNERGIES: SynergyDef[] = [
     effect: { seedMult: 1.03, critBonus: 0.01 },
   },
   {
-    // Mid-game infra build: 3 deploy cards gates it at the level-4 deploy set
-    // unlock, giving a real goal beat after the set lands. Pure card path — no
-    // external buff dependency (deploy-draft never existed as a quest id).
+    // Mid-game infra build, gated by the level-4 deploy set unlock. Pure card path
+    // — no external buff dependency (deploy-draft never existed as a quest id).
+    // P4: 2 deploy cards (was 3) so it leaves a free slot to combine with another
+    // synergy; a 3-member requirement consumed all SLOT_CAP=3 slots.
     id: 'deployer',
     name: 'Deployer',
-    requires: [{ kind: 'card', tag: 'deploy', min: 3 }],
+    requires: [{ kind: 'card', tag: 'deploy', min: 2 }],
     effect: { xpMult: 1.03, critBonus: 0.02 },
   },
   {

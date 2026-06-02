@@ -201,6 +201,7 @@ export const ja: Catalog = {
   'ui.enhance.downgrade': '強化 +{before}→+{after}\n↓ +{after}',
   'ui.enhance.break': '強化 +{before}→+{after}\n✗ 砕けた(コードは無事)',
   'ui.enhance.stay': '– 破損',
+  'ui.enhance.effect_capped': '  ⚑ 効果は上限（+{cap}）· これ以上は見た目だけ',
 
   'ui.status.title': '  GROVE ステータス',
   'ui.status.level': '  レベル ............. {level}',

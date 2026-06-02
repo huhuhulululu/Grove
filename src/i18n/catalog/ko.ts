@@ -201,6 +201,7 @@ export const ko: Catalog = {
   'ui.enhance.downgrade': '강화 +{before}→+{after}\n↓ +{after}',
   'ui.enhance.break': '강화 +{before}→+{after}\n✗ 파괴됨(코드 안전)',
   'ui.enhance.stay': '– 파손',
+  'ui.enhance.effect_capped': '  ⚑ 효과 최대치（+{cap}）· 이후는 외형만',
 
   'ui.status.title': '  GROVE 상태',
   'ui.status.level': '  레벨 .............. {level}',

@@ -201,6 +201,7 @@ export const zhCN: Catalog = {
   'ui.enhance.downgrade': '强化 +{before}→+{after}\n↓ +{after}',
   'ui.enhance.break': '强化 +{before}→+{after}\n✗ 碎裂(代码无恙)',
   'ui.enhance.stay': '– 已损',
+  'ui.enhance.effect_capped': '  ⚑ 效果已满级（+{cap}）· 再强化只是外观',
 
   'ui.status.title': '  GROVE 状态',
   'ui.status.level': '  等级 .............. {level}',

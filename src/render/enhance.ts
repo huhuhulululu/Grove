@@ -11,7 +11,7 @@
 import type { Gear, Rarity } from '../core/rewards'
 import { rarityRank } from '../core/rewards'
 import type { EnhanceResult } from '../engine/gear'
-import { enhanceTable } from '../engine/gear'
+import { enhanceTable, gearEffectCapLevel } from '../engine/gear'
 import type { Locale } from '../i18n/types'
 import { t } from '../i18n/t'
 
@@ -43,6 +43,14 @@ export function renderEnhanceOdds(gear: Gear, locale: Locale = 'en'): string {
     downgrade: downgradePct,
     break: breakPct,
   })
+
+  // Game-design P3: surface the effect cap. Once the gear is at/over the level
+  // where its cosmetic effect maxes, the NEXT enhance gains no effect — it is pure
+  // break-risk for flair. Warn so the player isn't taxed for a dead-zone attempt.
+  const capLevel = gearEffectCapLevel(gear.name)
+  if (capLevel !== null && gear.level >= capLevel) {
+    return `${transition}\n${odds}\n${t(locale, 'ui.enhance.effect_capped', { cap: capLevel })}`
+  }
 
   return `${transition}\n${odds}`
 }

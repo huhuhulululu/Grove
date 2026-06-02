@@ -13,7 +13,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { initialState } from '../core/state'
-import type { GameState } from '../core/state'
+import type { GameState, Buff } from '../core/state'
 import type { GroveEvent } from '../core/events'
 import { mulberry32 } from '../core/rng'
 import {
@@ -24,6 +24,7 @@ import {
   WORK_MILESTONE,
   COST_TO_WORK,
   MILESTONE_CAP_PER_WINDOW,
+  MAX_XP_SCALE,
 } from './reduce'
 
 // ---------------------------------------------------------------------------
@@ -460,5 +461,46 @@ describe('economy — immutability of new state fields', () => {
     const snapshot = JSON.parse(JSON.stringify(s0))
     pull(s0, mulberry32(1))
     expect(s0).toEqual(snapshot)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// XP scale cap (P5) — the buff product is clamped to MAX_XP_SCALE
+// ---------------------------------------------------------------------------
+
+describe('XP scale cap (P5)', () => {
+  // Permanent (no expiresAtCount) buffs so they survive the per-event expiry pass.
+  const buff = (kind: Buff['kind'], factor: number): Buff => ({
+    id: `${kind}:${factor}`,
+    label: String(kind),
+    kind,
+    factor,
+  })
+  const withBuffs = (buffs: Buff[]): GameState => ({ ...initialState(), buffs })
+
+  // Total XP granted by one `commit` event under the given buffs (same rng seed →
+  // identical crit roll + stream, so the only variable is `scale`).
+  const seed = 2
+  const xpFor = (s: GameState): number =>
+    reduce(s, ev({ type: 'commit', magnitude: 1 }), mulberry32(seed)).rewards
+      .filter((r) => r.kind === 'xp')
+      .reduce((acc, r) => acc + ((r as { amount: number }).amount), 0)
+
+  it('exports a published MAX_XP_SCALE ceiling', () => {
+    expect(MAX_XP_SCALE).toBe(3)
+  })
+
+  it('clamps a raw product above the cap to exactly MAX_XP_SCALE', () => {
+    // raw scale = 2 × (1 + 0.5) × (1 + 0.5) = 4.5 → clamps to 3.
+    const over = withBuffs([buff('multiplier', 2), buff('freshness', 0.5), buff('streak', 0.5)])
+    // raw scale = 3 exactly (single ×3 multiplier) → NOT clamped.
+    const exactlyCap = withBuffs([buff('multiplier', 3)])
+    // raw scale = 2 → below the cap.
+    const below = withBuffs([buff('multiplier', 2)])
+
+    // A 4.5× product yields the SAME XP as an exactly-3× state — proving the clamp.
+    expect(xpFor(over)).toBe(xpFor(exactlyCap))
+    // …but buffs still matter below the cap (3× > 2×).
+    expect(xpFor(over)).toBeGreaterThan(xpFor(below))
   })
 })

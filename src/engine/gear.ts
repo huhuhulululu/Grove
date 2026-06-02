@@ -62,14 +62,18 @@ export type EnhanceResult = 'success' | 'downgrade' | 'break' | 'stay'
  *
  * | Level  | success | downgrade | break |
  * |--------|---------|-----------|-------|
- * | 0–3    | 1.00    | 0.00      | 0.00  |
- * | 4–6    | 0.90    | 0.10      | 0.00  |
+ * | 0–1    | 1.00    | 0.00      | 0.00  |
+ * | 2–6    | 0.90    | 0.10      | 0.00  |
  * | 7–9    | 0.70    | 0.25      | 0.05  |
  * | 10–12  | 0.50    | 0.35      | 0.15  |
  * | ≥13    | 0.30    | 0.40      | 0.30  |
+ *
+ * The risk-free band is the first TWO levels only (game-design P3): the old 0–3
+ * band was four no-decision "free" clicks; risk (a downgrade chance) now arrives
+ * at +2 so an enhance is a real choice sooner.
  */
 export function enhanceTable(level: number): { success: number; downgrade: number; break: number } {
-  if (level <= 3)  return { success: 1,    downgrade: 0,    break: 0    }
+  if (level <= 1)  return { success: 1,    downgrade: 0,    break: 0    }
   if (level <= 6)  return { success: 0.9,  downgrade: 0.1,  break: 0    }
   if (level <= 9)  return { success: 0.7,  downgrade: 0.25, break: 0.05 }
   if (level <= 12) return { success: 0.5,  downgrade: 0.35, break: 0.15 }
@@ -186,6 +190,18 @@ export function activeGearBonus(state: GameState): GearBonus {
   }
 
   return bonus
+}
+
+/**
+ * The gear level at which this gear's cosmetic effect reaches its CAP — beyond it,
+ * further enhancing adds NO effect (higher levels are flair only). null when the
+ * gear has no mapped effect. Game-design P3: lets the UI surface the dead zone so
+ * a player isn't taking pure break-risk for zero benefit. PURE; reads the table.
+ */
+export function gearEffectCapLevel(name: string): number | null {
+  const effect = GEAR_EFFECTS[name as GearName]
+  if (!effect) return null
+  return Math.ceil(effect.cap / effect.perLevel)
 }
 
 /**

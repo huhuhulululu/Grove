@@ -58,6 +58,17 @@ import {
 /** Probability that a positive-XP event crits. Published / inspectable (ADR-0002). */
 export const CRIT_CHANCE = 0.08
 
+/**
+ * Hard ceiling on the combined XP buff `scale` (game-design P5). `scale` is the
+ * PRODUCT of up to five independently-bounded factors (multiplier × freshness ×
+ * streak × gear xpPct × synergy xpMult); the product itself was uncapped, so a
+ * fully-stacked late-game state could multiply XP far beyond any single factor.
+ * The total is clamped to this value. Crit (×2–3) applies SEPARATELY on top —
+ * it is an event-level surprise, not a standing buff, so it is not folded in here.
+ * Published / inspectable (ADR-0002); cosmetic-only (ADR-0005).
+ */
+export const MAX_XP_SCALE = 3
+
 // ---------------------------------------------------------------------------
 // CURRENCY (seeds) — the R3 economy. Outcomes GRANT seeds; a pull SPENDS them.
 // This is what turns Grove from a reward-fountain into a game of DECISIONS:
@@ -1415,9 +1426,13 @@ export function reduce(
   // above, so there is no double-count. critBonus is a FRACTION (e.g. 0.04 = +4pp),
   // added directly to critChance (not divided by 100 — unlike gearBonus.critPct).
   const loadoutEffect = computeLoadoutEffect(next)
-  const scale =
+  // P5: the product of the five buff factors is clamped to MAX_XP_SCALE so a
+  // fully-stacked state can't multiply XP without bound (crit applies separately).
+  const scale = Math.min(
+    MAX_XP_SCALE,
     activeMultiplier(next) * (1 + activeFreshnessBonus(next)) *
-    activeStreakMultiplier(next) * (1 + gearBonus.xpPct / 100) * loadoutEffect.xpMult
+      activeStreakMultiplier(next) * (1 + gearBonus.xpPct / 100) * loadoutEffect.xpMult,
+  )
   const critChance = CRIT_CHANCE + gearBonus.critPct / 100 + loadoutEffect.critBonus
   const seedScale = 1 + gearBonus.currencyPct / 100 + activeSeedBonus(next) + (loadoutEffect.seedMult - 1)
 

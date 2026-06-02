@@ -102,12 +102,11 @@ describe('computeLoadoutEffect — synergy activation', () => {
     expect(eff.critBonus).toBeGreaterThan(0)
   })
 
-  it('Deployer fires on 3 deploy cards (xp+crit, no deploy-draft buff required)', () => {
+  it('Deployer fires on 2 deploy cards (P4: was 3 — leaves a free slot to combo)', () => {
     // deploy-draft does not exist as a quest id; deployer uses a pure-card path.
     const s = withSlots([
       { kind: 'card', id: 'deploy.commit', tag: 'deploy' },
       { kind: 'card', id: 'deploy.pipeline', tag: 'deploy' },
-      { kind: 'card', id: 'deploy.container', tag: 'deploy' },
     ])
     const eff = computeLoadoutEffect(s)
     expect(eff.activeSynergies).toContain('deployer')
@@ -115,12 +114,19 @@ describe('computeLoadoutEffect — synergy activation', () => {
     expect(eff.critBonus).toBeGreaterThan(0)
   })
 
-  it('Deployer does NOT fire on only 2 deploy cards (needs 3)', () => {
-    const s = withSlots([
-      { kind: 'card', id: 'deploy.commit', tag: 'deploy' },
-      { kind: 'card', id: 'deploy.pipeline', tag: 'deploy' },
-    ])
+  it('Deployer does NOT fire on only 1 deploy card (needs 2)', () => {
+    const s = withSlots([{ kind: 'card', id: 'deploy.commit', tag: 'deploy' }])
     expect(computeLoadoutEffect(s).activeSynergies).not.toContain('deployer')
+  })
+
+  it('P4: a 2-member synergy now leaves a 3rd slot free to combine with another', () => {
+    // Naturalist (2 forest) + a Toolsmith member share the loadout — impossible when
+    // either needed 3 slots. Here 2 forest fire Naturalist with a slot to spare.
+    const s = withSlots([
+      { kind: 'card', id: 'forest.oak', tag: 'forest' },
+      { kind: 'card', id: 'forest.fern', tag: 'forest' },
+    ])
+    expect(computeLoadoutEffect(s).activeSynergies).toContain('naturalist')
   })
 })
 

@@ -241,6 +241,8 @@ export const ko: Catalog = {
   'ui.share.flex.collected': '📦 {pct}% 수집',
   'ui.share.flex.grinder': '⚡ Lv{level} 그라인더',
   'ui.share.flex.groove': '🌿 Lv{level} 리듬 타는 중',
+  'ui.share.sets': '🎖 세트 {ids}',
+  'ui.share.sets_more': '🎖 세트 {ids} +{more}',
 
   'ui.seeds': '{n} 씨앗',
   'ui.shards': '{n} 조각',
@@ -317,6 +319,12 @@ export const ko: Catalog = {
   'cli.checkpoint.saved': '  📍 체크포인트 저장됨 · {branch}',
   'cli.checkpoint.restore': '  복원: git stash apply {ref}',
   'cli.checkpoint.nothing': '  📍 체크포인트 · 스냅샷할 내용 없음 · {branch}',
+  'cli.promise.title': 'Grove의 약속 · 방화벽',
+  'cli.promise.no_modify': '코드, 커밋, 문서, git 기록을 절대 수정하지 않음.',
+  'cli.promise.no_autorun': '테스트를 자동 실행하지 않음. 이미 나온 결과만 읽음.',
+  'cli.promise.chain_safe': 'git 훅, 상태줄, 설정에 체인으로 연결하고 덮어쓰지 않음.',
+  'cli.promise.cosmetic': '보상은 장식 전용. 실제 작업에 대한 영향력은 전혀 없음.',
+  'cli.promise.calm': '기본은 차분함 · 수치 없음, 재촉 없음, 잃을 연속 기록 없음.',
 
   'cli.offer.crit': '  💥 치명타 · 무료 초안: sq suggest-commit',
   'cli.offer.low_energy': '  ⚡ 낮음 · 멈추기 좋은 시점: sq checkpoint',
@@ -364,6 +372,7 @@ export const ko: Catalog = {
   'cli.help.cmd.help': '  help\n      이 도움말 메시지를 표시합니다。',
   'cli.help.cmd.loadout': '  loadout [equip <ref> | unequip <N>] [--home DIR]\n      3슬롯 로드아웃을 보거나 편집합니다(장식적 빌드 · ADR-0014).\n      장착된 멤버 간 시너지로 XP/씨앗/치명타를 강화합니다.\n      빈 로드아웃은 1등급 중립 상태 · 장식 전용 (ADR-0005).',
   'cli.help.cmd.achievements': '  achievements [--all] [--home DIR]\n      잠금 해제된 업적을 표시합니다(누적 진행의 소급 인정).\n      기본값: 잠금 해제된 것만. --all은 잠긴 것도 표시. --zen은 개수만 출력.\n      장식 전용 · 만료 없음 (ADR-0015).',
+  'cli.help.cmd.promise': '  promise\n      Grove의 엄격한 윤리 보증을 출력: 코드/커밋/문서/git을 수정하지 않고,\n      테스트를 자동 실행하지 않으며, 훅/상태줄/설정에 체인 연결, 보상은 장식 전용,\n      기본은 차분함. 읽기 전용 (ADR-0005).',
 
   // ui.achievements.* — 업적 패널
   'ui.achievements.title': '업적',

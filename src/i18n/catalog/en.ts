@@ -287,6 +287,8 @@ export const en: Catalog = {
   'ui.share.flex.collected': '📦 {pct}% collected',
   'ui.share.flex.grinder': '⚡ Lv{level} grinder',
   'ui.share.flex.groove': '🌿 Lv{level} in the groove',
+  'ui.share.sets': '🎖 sets {ids}',
+  'ui.share.sets_more': '🎖 sets {ids} +{more} more',
 
   // tui / web wallet labels (seeded keys kept)
   'ui.seeds': '{n} seeds',
@@ -373,6 +375,12 @@ export const en: Catalog = {
   'cli.checkpoint.saved': '  📍 Checkpoint saved · {branch}',
   'cli.checkpoint.restore': '  Restore: git stash apply {ref}',
   'cli.checkpoint.nothing': '  📍 Checkpoint · nothing to snapshot · {branch}',
+  'cli.promise.title': "Grove's promise · the firewall",
+  'cli.promise.no_modify': 'Never modifies your code, commits, docs, or git history.',
+  'cli.promise.no_autorun': 'Never auto-runs your tests; it reads outcomes you already produce.',
+  'cli.promise.chain_safe': 'Chains git hooks, statusline, and settings; never clobbers them.',
+  'cli.promise.cosmetic': 'Rewards are cosmetic only; they confer zero power over real work.',
+  'cli.promise.calm': 'Calm by default · no shame, no nag, no streaks to lose.',
 
   // crit / low-energy contextual offers (shared.ts)
   'cli.offer.crit': '  💥 CRIT · free draft: sq suggest-commit',
@@ -428,6 +436,7 @@ export const en: Catalog = {
   'cli.help.cmd.help': '  help\n      Show this help message.',
   'cli.help.cmd.loadout': '  loadout [equip <ref> | unequip <N>] [--home DIR]\n      View or edit your 3-slot loadout (cosmetic build · ADR-0014).\n      Active synergies between equipped members boost XP / seeds / crit.\n      Empty loadout is first-class neutral · cosmetic only (ADR-0005).\n      equip <ref>   Equip a card/gear/buff. Format: kind/id[/tag]\n                    e.g.  sq loadout equip card/tools.hammer/tools\n                          sq loadout equip gear/gear.commit-hammer.42/Commit Hammer\n                          sq loadout equip buff/precast-spec\n      unequip <N>   Unequip slot N (1-based). e.g. sq loadout unequip 2',
   'cli.help.cmd.achievements': '  achievements [--all] [--home DIR]\n      Show unlocked achievements (retroactive recognitions of cumulative progress).\n      Default: unlocked only. --all also shows locked ones. --zen prints a count only.\n      Cosmetic only · never expires (ADR-0015).',
+  'cli.help.cmd.promise': "  promise\n      Print Grove's hard ethics guarantees: never modifies code/commits/docs/git,\n      never auto-runs tests, chains hooks/statusline/settings, rewards cosmetic-only,\n      calm by default. Read-only (ADR-0005).",
 
   // -------------------------------------------------------------------------
   // ui.achievements.* — achievements panel (src/render/achievements.ts)

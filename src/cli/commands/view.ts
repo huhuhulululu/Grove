@@ -278,3 +278,18 @@ export function resolveDir(flags: Record<string, string>): string {
   const home = flags['home']
   return home ? stateDir(home) : stateDir()
 }
+
+/**
+ * `sq promise` · print Grove's hard ethics guarantees (ADR-0005) as a terse,
+ * read-only block — the firewall made a first-class, runnable feature. No flags,
+ * no state, no I/O beyond stdout; prints even under --zen (the user asked for it).
+ */
+export function handlePromise(locale: Locale = 'en'): number {
+  console.log(t(locale, 'cli.promise.title'))
+  console.log(t(locale, 'cli.promise.no_modify'))
+  console.log(t(locale, 'cli.promise.no_autorun'))
+  console.log(t(locale, 'cli.promise.chain_safe'))
+  console.log(t(locale, 'cli.promise.cosmetic'))
+  console.log(t(locale, 'cli.promise.calm'))
+  return 0
+}

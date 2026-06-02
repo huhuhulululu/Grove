@@ -241,6 +241,8 @@ export const zhCN: Catalog = {
   'ui.share.flex.collected': '📦 已收集 {pct}%',
   'ui.share.flex.grinder': '⚡ Lv{level} 苦修者',
   'ui.share.flex.groove': '🌿 Lv{level} 渐入佳境',
+  'ui.share.sets': '🎖 套装 {ids}',
+  'ui.share.sets_more': '🎖 套装 {ids} +{more}',
 
   'ui.seeds': '{n} 种子',
   'ui.shards': '{n} 碎片',
@@ -317,6 +319,12 @@ export const zhCN: Catalog = {
   'cli.checkpoint.saved': '  📍 已保存检查点 · {branch}',
   'cli.checkpoint.restore': '  恢复: git stash apply {ref}',
   'cli.checkpoint.nothing': '  📍 检查点 · 无内容可快照 · {branch}',
+  'cli.promise.title': 'Grove 的承诺 · 防火墙',
+  'cli.promise.no_modify': '绝不修改你的代码、提交、文档或 git 历史。',
+  'cli.promise.no_autorun': '绝不自动跑你的测试；只读取你本就产生的结果。',
+  'cli.promise.chain_safe': '链接 git 钩子、状态栏与设置;绝不覆盖它们。',
+  'cli.promise.cosmetic': '奖励仅为装饰;对真实工作毫无影响力。',
+  'cli.promise.calm': '默认平静 · 不羞辱、不催促、没有会断的连胜。',
 
   'cli.offer.crit': '  💥 暴击 · 免费草稿: sq suggest-commit',
   'cli.offer.low_energy': '  ⚡ 偏低 · 适合收尾: sq checkpoint',
@@ -364,6 +372,7 @@ export const zhCN: Catalog = {
   'cli.help.cmd.help': '  help\n      显示此帮助消息。',
   'cli.help.cmd.loadout': '  loadout [equip <引用> | unequip <N>] [--home 目录]\n      查看或编辑 3 槽位构筑(装饰性 · ADR-0014)。\n      装备成员之间的协同效应可提升 XP/种子/暴击。\n      空构筑是一等公民中性状态 · 仅装饰性 (ADR-0005)。\n      equip <引用>   装备卡牌/装备/增益。格式: kind/id[/tag]\n      unequip <N>    卸载第 N 个槽位(1-based)。',
   'cli.help.cmd.achievements': '  achievements [--all] [--home 目录]\n      显示已解锁成就(对累计进度的回顾性认可)。\n      默认:仅已解锁。--all 也显示未解锁的。--zen 仅打印数量。\n      仅装饰性 · 永不过期 (ADR-0015)。',
+  'cli.help.cmd.promise': '  promise\n      打印 Grove 的硬性伦理保证:绝不修改代码/提交/文档/git,\n      绝不自动跑测试,链接钩子/状态栏/设置,奖励仅装饰,\n      默认平静。只读 (ADR-0005)。',
 
   // ui.achievements.* — 成就面板
   'ui.achievements.title': '成就',

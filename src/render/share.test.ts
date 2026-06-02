@@ -282,3 +282,29 @@ describe('renderShareCard — zh-CN locale', () => {
     expect(card).toContain('7')
   })
 })
+
+describe('renderShareCard — completed-set roster (R3 share-roster)', () => {
+  it('omits the roster line entirely when no set is complete (neutral-empty)', () => {
+    const card = renderShareCard(stateAt({ level: 3, completedSets: [] }))
+    expect(card).not.toContain('🎖')
+    expect(card).not.toMatch(/sets/i)
+  })
+
+  it('lists completed sets under the cap with no "+more" tail', () => {
+    const card = renderShareCard(stateAt({ level: 5, completedSets: ['tools', 'relics'] }))
+    expect(card).toContain('tools')
+    expect(card).toContain('relics')
+    expect(card).not.toMatch(/\+\s*\d+\s*more/)
+    expect(card).not.toContain('[') // plain text, zero ANSI
+  })
+
+  it('caps the roster at ROSTER_CAP and shows a "+k more" tail', () => {
+    const card = renderShareCard(
+      stateAt({ level: 8, completedSets: ['tools', 'relics', 'rituals', 'glyphs', 'wards'] }),
+    )
+    expect(card).toContain('tools')
+    expect(card).toContain('rituals') // 3rd id shown
+    expect(card).not.toContain('glyphs') // 4th id capped out
+    expect(card).toContain('+2 more')
+  })
+})

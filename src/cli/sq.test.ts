@@ -2083,3 +2083,20 @@ describe('real-git e2e: generated post-commit hook runs the built bundle', () =>
     expect(stateFiles).toContain('events.jsonl')
   }, 30000)
 })
+
+describe('promise subcommand (sq promise)', () => {
+  it('prints the firewall guarantees and returns 0', () => {
+    const { code, output } = captureRun(['promise'])
+    expect(code).toBe(0)
+    const c = output.join('\n')
+    expect(c).toContain('Never modifies')
+    expect(c).toContain('Never auto-runs')
+    expect(c).toMatch(/cosmetic/i)
+    expect(c).toMatch(/[Cc]alm/)
+  })
+
+  it('is listed in the usage/help output', () => {
+    const { output } = captureRun(['help'])
+    expect(output.join('\n')).toMatch(/^\s*promise/m)
+  })
+})

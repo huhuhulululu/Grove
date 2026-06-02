@@ -241,6 +241,8 @@ export const ja: Catalog = {
   'ui.share.flex.collected': '📦 {pct}% 収集',
   'ui.share.flex.grinder': '⚡ Lv{level} グラインダー',
   'ui.share.flex.groove': '🌿 Lv{level} 調子上々',
+  'ui.share.sets': '🎖 セット {ids}',
+  'ui.share.sets_more': '🎖 セット {ids} +{more}',
 
   'ui.seeds': '{n} シード',
   'ui.shards': '{n} シャード',
@@ -317,6 +319,12 @@ export const ja: Catalog = {
   'cli.checkpoint.saved': '  📍 チェックポイント保存 · {branch}',
   'cli.checkpoint.restore': '  復元: git stash apply {ref}',
   'cli.checkpoint.nothing': '  📍 チェックポイント · スナップ対象なし · {branch}',
+  'cli.promise.title': 'Grove の約束 · ファイアウォール',
+  'cli.promise.no_modify': 'コード・コミット・ドキュメント・git 履歴を一切変更しない。',
+  'cli.promise.no_autorun': 'テストを自動実行しない。あなたが出した結果を読むだけ。',
+  'cli.promise.chain_safe': 'git フック・ステータスライン・設定にチェーンし、上書きしない。',
+  'cli.promise.cosmetic': '報酬は装飾のみ。実作業への影響力はゼロ。',
+  'cli.promise.calm': 'デフォルトで静か · 罰なし、催促なし、失う連続記録もなし。',
 
   'cli.offer.crit': '  💥 クリティカル · 無料ドラフト: sq suggest-commit',
   'cli.offer.low_energy': '  ⚡ 低め · 区切りに最適: sq checkpoint',
@@ -364,6 +372,7 @@ export const ja: Catalog = {
   'cli.help.cmd.help': '  help\n      このヘルプメッセージを表示。',
   'cli.help.cmd.loadout': '  loadout [equip <ref> | unequip <N>] [--home DIR]\n      3スロットのロードアウトを表示または編集(装飾的ビルド · ADR-0014)。\n      装備メンバー間のシナジーで XP/シード/クリットを強化。\n      空のロードアウトは一等公民の中立状態 · 装飾のみ (ADR-0005)。',
   'cli.help.cmd.achievements': '  achievements [--all] [--home DIR]\n      解除済みアチーブメントを表示(累積進捗の事後認定)。\n      デフォルト: 解除済みのみ。--all で未解除も表示。--zen は件数のみ。\n      装飾のみ · 有効期限なし (ADR-0015)。',
+  'cli.help.cmd.promise': '  promise\n      Grove の厳格な倫理保証を表示:コード/コミット/ドキュメント/git を変更せず、\n      テストを自動実行せず、フック/ステータスライン/設定にチェーンし、報酬は装飾のみ、\n      デフォルトで静か。読み取り専用 (ADR-0005)。',
 
   // ui.achievements.* — アチーブメントパネル
   'ui.achievements.title': 'アチーブメント',

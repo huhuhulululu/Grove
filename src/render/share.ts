@@ -20,6 +20,26 @@ import { t } from '../i18n/t'
 
 const TOTAL_CARDS = ALL_CARD_DEFS.length
 
+/** Max completed-set ids shown on the share card before a "+k more" tail. */
+const ROSTER_CAP = 3
+
+/**
+ * A compact completed-set roster line (identity flex, never a rank). Returns null
+ * when nothing is complete (neutral-empty — no "0 sets" shaming). Caps to ROSTER_CAP
+ * ids with a "+k more" tail. Plain text only (no ANSI), derived from the existing
+ * cosmetic state.completedSets. Pure.
+ */
+function rosterLine(state: GameState, locale: Locale): string | null {
+  const sets = state.completedSets ?? []
+  if (sets.length === 0) return null
+  const shown = sets.slice(0, ROSTER_CAP)
+  const ids = shown.join(' · ')
+  const more = sets.length - shown.length
+  return more > 0
+    ? t(locale, 'ui.share.sets_more', { ids, more })
+    : t(locale, 'ui.share.sets', { ids })
+}
+
 /** Unique card ids owned (deduped — only distinct ids count for collection %). */
 function uniqueOwnedCount(state: GameState): number {
   return new Set(state.cards.map((c) => c.id)).size
@@ -89,6 +109,9 @@ export function renderShareCard(state: GameState, opts: ShareCardOptions = {}): 
   if (rank > 0) {
     lines.push(t(locale, 'ui.share.prestige', { rank }))
   }
+
+  const roster = rosterLine(state, locale)
+  if (roster !== null) lines.push(roster)
 
   lines.push(flexLine(state, opts.recentRarity, locale))
 

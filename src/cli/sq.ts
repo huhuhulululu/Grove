@@ -65,6 +65,7 @@ import {
   handleTui,
   handleServe,
   resolveDir,
+  handlePromise,
 } from './commands/view'
 import {
   handleInit,
@@ -168,7 +169,7 @@ const SUBCOMMANDS = [
   'protect', 'craft', 'foil', 'convert', 'prestige', 'dashboard', 'tui', 'serve',
   'statusline-ingest', 'statusline', 'init', 'uninstall', 'commit-hook',
   'suggest-commit', 'checkpoint', 'wrap', 'share', 'ntfy', 'loadout',
-  'achievements', 'help',
+  'achievements', 'promise', 'help',
 ] as const
 
 /** Classic Levenshtein edit distance (pure). */
@@ -399,6 +400,11 @@ Subcommands:
       Default: unlocked only. --all also shows locked ones. --zen prints a count only.
       Cosmetic only · never expires (ADR-0015).
 
+  promise
+      Print Grove's hard ethics guarantees: never modifies code/commits/docs/git,
+      never auto-runs tests, chains hooks/statusline/settings, rewards cosmetic-only,
+      calm by default. Read-only (ADR-0005).
+
   help
       Show this help message.
 `.trim()
@@ -497,6 +503,8 @@ export function buildUsageText(locale: Locale): string {
     t(locale, 'cli.help.cmd.loadout'),
     '',
     t(locale, 'cli.help.cmd.achievements'),
+    '',
+    t(locale, 'cli.help.cmd.promise'),
     '',
     t(locale, 'cli.help.cmd.help'),
   ]
@@ -667,6 +675,9 @@ export function run(argv: string[]): number {
 
     case 'achievements':
       return handleAchievements(flags, dir, zen, locale)
+
+    case 'promise':
+      return handlePromise(locale)
 
     case 'help':
     case undefined:

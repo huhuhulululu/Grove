@@ -94,6 +94,7 @@ export const en: Catalog = {
   'reward.achievement': '🏆 {name} · {desc}',
   'reward.mastered': "🌳 You've got the groove · mastery reached (cosmetic)",
   'reward.comeback': '🌿 comeback · tests green again',
+  'reward.first_light': '🌅 first light · build green for the first time',
 
   // prestige (reduce.buyPrestige): spend, earned, refusal
   'reward.prestige_spend': '-{cost} 🌰 · prestige {rank}',

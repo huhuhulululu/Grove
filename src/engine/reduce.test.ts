@@ -1188,3 +1188,49 @@ describe('reduce — comeback beat (red→green edge)', () => {
     expect(hasComeback(rewards)).toBe(true)
   })
 })
+
+// ---------------------------------------------------------------------------
+// First light — the FIRST successful build_result (a build that finally goes
+// green) earns ONE warm cosmetic line, once and forever. One-shot idempotent
+// boolean; build-specific; a failing build never sets it (firewall, no rng draw).
+// ---------------------------------------------------------------------------
+
+describe('reduce — first-light beat (first green build)', () => {
+  const hasFirstLight = (rewards: { kind: string; buff?: string }[]) =>
+    rewards.some((r) => r.kind === 'buff' && r.buff === 'first-light')
+
+  it('the first successful build_result fires exactly one first-light + sets the marker', () => {
+    const { state, rewards } = reduce(initialState(), ev({ type: 'build_result', success: true }), mulberry32(1))
+    expect(rewards.filter((r) => r.kind === 'buff' && r.buff === 'first-light').length).toBe(1)
+    expect(state.firstLightSeen).toBe(true)
+  })
+
+  it('a second successful build_result is silent (one-shot)', () => {
+    const s1 = reduce(initialState(), ev({ type: 'build_result', success: true }), mulberry32(1)).state
+    const { rewards } = reduce(s1, ev({ type: 'build_result', success: true }), mulberry32(2))
+    expect(hasFirstLight(rewards)).toBe(false)
+  })
+
+  it('a state already marked never re-fires', () => {
+    const { rewards } = reduce({ ...initialState(), firstLightSeen: true }, ev({ type: 'build_result', success: true }), mulberry32(1))
+    expect(hasFirstLight(rewards)).toBe(false)
+  })
+
+  it('firewall: a FAILING build_result fires nothing, leaves the marker false, punishes nothing', () => {
+    const s0 = initialState()
+    const { state, rewards } = reduce(s0, ev({ type: 'build_result', success: false }), mulberry32(1))
+    expect(state.firstLightSeen).toBe(false)
+    expect(hasFirstLight(rewards)).toBe(false)
+    expect(state.player).toEqual(s0.player)
+    expect(state.cards).toEqual(s0.cards)
+    expect(state.pity).toEqual(s0.pity)
+  })
+
+  it('is build-specific — lint_clean / test_result / commit never fire first-light', () => {
+    for (const type of ['lint_clean', 'test_result', 'commit'] as const) {
+      const { state, rewards } = reduce(initialState(), ev({ type, success: true }), mulberry32(1))
+      expect(hasFirstLight(rewards)).toBe(false)
+      expect(state.firstLightSeen).toBe(false)
+    }
+  })
+})

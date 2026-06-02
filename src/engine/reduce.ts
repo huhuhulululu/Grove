@@ -292,6 +292,9 @@ function cloneState(state: GameState): GameState {
     // that lack it (schema marks it optional; the interface does not). OMITTING this
     // would drop the bit on every reduce → a missed or duplicated comeback line.
     lastTestFailed: state.lastTestFailed ?? false,
+    // First-light marker (ADR-0005) — one-shot, never reverts. ?? false guards legacy
+    // fast-path saves that lack it; OMITTING this would drop it on every reduce.
+    firstLightSeen: state.firstLightSeen ?? false,
     protectedGear: [...state.protectedGear],
     // R8 optional renewable/spark fields — preserve them through a clone so a
     // no-op refusal never silently drops a foiled list or spark progress.
@@ -1493,12 +1496,26 @@ export function reduce(
       break
     }
 
-    // R3: a green build/lint grants SEEDS + a serendipity chance ONLY — the
-    // guaranteed auto-pull is GONE. Pulls are a deliberate choice (sq pull).
-    case 'build_result':
+    // A green build: seeds + serendipity chance (R3, no auto-pull), and recognize
+    // FIRST LIGHT — the first time a build goes green — with ONE warm cosmetic line,
+    // once and forever. The marker never reverts; a failing build (handled by the
+    // success===false early-return above) never reaches here, so it sets nothing and
+    // draws no rng. Cosmetic only — direct rewards.push, no standing buff, no power.
+    case 'build_result': {
+      next = grantXp(next, 'build_result', magnitude, rewards, scale, critChance, rng)
+      next = grantCurrency(next, 'build_result', magnitude, rewards, seedScale)
+      if (next.firstLightSeen !== true) {
+        next = { ...next, firstLightSeen: true }
+        rewards.push({ kind: 'buff', buff: 'first-light', ...msg('reward.first_light') })
+      }
+      serendipityEligible = true
+      break
+    }
+
+    // R3: a green lint grants SEEDS + a serendipity chance ONLY — no auto-pull.
     case 'lint_clean': {
-      next = grantXp(next, event.type, magnitude, rewards, scale, critChance, rng)
-      next = grantCurrency(next, event.type, magnitude, rewards, seedScale)
+      next = grantXp(next, 'lint_clean', magnitude, rewards, scale, critChance, rng)
+      next = grantCurrency(next, 'lint_clean', magnitude, rewards, seedScale)
       serendipityEligible = true
       break
     }

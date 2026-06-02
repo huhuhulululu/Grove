@@ -68,6 +68,7 @@ export const ko: Catalog = {
   'reward.achievement': '🏆 {name} · {desc}',
   'reward.mastered': '🌳 리듬을 탔다 · 숙련 도달(장식)',
   'reward.comeback': '🌿 재기 · 테스트 다시 통과',
+  'reward.first_light': '🌅 첫 빛 · 빌드 첫 통과',
 
   'reward.prestige_spend': '-{cost} 🌰 · 프레스티지 {rank}',
   'reward.prestige_earned': '✦ 프레스티지 {rank} 획득(영구 장식)',

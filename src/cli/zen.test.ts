@@ -58,6 +58,7 @@ const SPECTACLE_MARKERS = [
   '⚔️', // gear drop
   '🪙', // currency reward
   '🌿', // buff reward
+  '🌅', // first-light reward
   '🆙', // levelup
   '✦', // serendipity / celebratory mark
   '💥', // CRIT tag + crit offer
@@ -157,6 +158,16 @@ describe('--zen calm mode', () => {
       assertNoSpectacle(green.output) // SPECTACLE_MARKERS includes 🌿
       // The engine still ran: the comeback bit was cleared by the green.
       expect(loadState(stateDir(tmpHome)).lastTestFailed).toBe(false)
+    })
+
+    it('a first green build renders NO 🌅 first-light line under --zen, yet records the marker', () => {
+      const { code, output } = captureRun([
+        'event', 'build_result', '--success', 'true', '--zen', '--home', tmpHome,
+      ])
+      expect(code).toBe(0)
+      assertNoSpectacle(output) // SPECTACLE_MARKERS includes 🌅
+      // The engine still ran: first-light was recognized and persisted.
+      expect(loadState(stateDir(tmpHome)).firstLightSeen).toBe(true)
     })
   })
 

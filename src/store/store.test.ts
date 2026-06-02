@@ -186,6 +186,30 @@ describe('loadState migration', () => {
     expect(result.lastTestFailed).toBe(false)
   })
 
+  // -- First-light marker (firstLightSeen) round-trip ------------------------
+  it('a state with firstLightSeen:true round-trips intact', () => {
+    const dir = makeTmpDir()
+    const full: GameState = { ...initialState(), firstLightSeen: true }
+    fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify(full), 'utf8')
+    const result = loadState(dir)
+    expect(result.firstLightSeen).toBe(true)
+  })
+
+  it('a legacy state WITHOUT firstLightSeen migrates to false (no throw)', () => {
+    const dir = makeTmpDir()
+    const legacy = {
+      version: 1,
+      player: { xp: 5, level: 1, currency: 0 },
+      cards: [],
+      gear: [],
+      pity: { sinceLegendary: 0 },
+      completedSets: [],
+    }
+    fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify(legacy), 'utf8')
+    const result = loadState(dir)
+    expect(result.firstLightSeen).toBe(false)
+  })
+
   it('a saved state WITH a loadout round-trips intact (save → load)', () => {
     const dir = makeTmpDir()
     const withLoadout: GameState = {

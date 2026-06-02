@@ -189,6 +189,15 @@ export interface GameState {
    * (?? false) or it is silently dropped on load → a missed/duplicated comeback line.
    */
   lastTestFailed: boolean
+  /**
+   * First-light marker ("build green for the first time" · ADR-0005 cosmetic-only). A
+   * one-shot, idempotent boolean flipped true the FIRST time a successful build_result
+   * is reduced — a genuine OUTCOME edge (the build finally goes green), like the
+   * comeback edge. Read by NO xp/seed/crit selector → ZERO power; never reverts, no
+   * counter, no shame for never reaching it. MUST be in GameStateSchema (optional) +
+   * migrate() (default false) + cloneState() (?? false) or it is dropped on load.
+   */
+  firstLightSeen: boolean
 }
 
 /**
@@ -232,6 +241,7 @@ export function initialState(): GameState {
     achievements: [],
     mastered: false,
     lastTestFailed: false,
+    firstLightSeen: false,
     protectedGear: [],
     foiled: [],
     spark: 0,

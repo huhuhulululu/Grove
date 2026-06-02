@@ -229,6 +229,7 @@ export const ja: Catalog = {
   'ui.recap.sets': '  完成セット ......... {sets}',
   'ui.recap.highlights': '  ハイライト:',
   'ui.recap.no_highlights': '  (ハイライトなし)',
+  'ui.recap.week': '  📈 7日  {spark}',
 
   'ui.share.line1': 'Grove · Lv{level}',
   'ui.share.cards': '📦 {owned}/{total} カード ({pct}%)',

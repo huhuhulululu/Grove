@@ -229,6 +229,7 @@ export const ko: Catalog = {
   'ui.recap.sets': '  완성 세트 .......... {sets}',
   'ui.recap.highlights': '  하이라이트:',
   'ui.recap.no_highlights': '  (하이라이트 없음)',
+  'ui.recap.week': '  📈 7일  {spark}',
 
   'ui.share.line1': 'Grove · Lv{level}',
   'ui.share.cards': '📦 {owned}/{total} 카드 ({pct}%)',

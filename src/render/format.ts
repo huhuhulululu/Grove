@@ -12,6 +12,7 @@ import type { QuestDef } from '../core/quests'
 import { prestigeRank, PRESTIGE_BUFF_ID } from '../engine/reduce'
 import type { Locale } from '../i18n/types'
 import { t } from '../i18n/t'
+import { sparkline } from './sparkline'
 
 // ---------------------------------------------------------------------------
 // RecapData — view-model for the "what you shipped" recap block.
@@ -33,6 +34,9 @@ export interface RecapData {
   completedSets: string[]
   /** Short celebratory highlight strings, e.g. "PR merged!", "New legendary card" */
   highlights: string[]
+  /** Optional 7-day outcome counts (index 0 = 6 days ago … 6 = today) for a calm,
+   *  read-only sparkline. Present only when buildRecap got an injected clock. */
+  weekSparkValues?: number[]
 }
 
 // ---------------------------------------------------------------------------
@@ -221,6 +225,10 @@ export function formatQuests(quests: QuestDef[], state: GameState, locale: Local
 export function formatRecap(recap: RecapData, locale: Locale = 'en'): string {
   const { window, total, byType, level, cards, completedSets, highlights } = recap
 
+  // Read-only 7-day outcome sparkline (a calm reflection). Empty/quiet week → '' → the
+  // line is omitted entirely (no FOMO, no shaming flat row).
+  const spark = recap.weekSparkValues ? sparkline(recap.weekSparkValues) : ''
+
   const typeLines =
     Object.entries(byType).length > 0
       ? Object.entries(byType)
@@ -250,6 +258,7 @@ export function formatRecap(recap: RecapData, locale: Locale = 'en'): string {
     '',
     t(locale, 'ui.recap.highlights'),
     highlightLines,
+    ...(spark !== '' ? [t(locale, 'ui.recap.week', { spark })] : []),
     '─'.repeat(52),
   ].join('\n')
 }

@@ -229,6 +229,7 @@ export const zhCN: Catalog = {
   'ui.recap.sets': '  已集齐套牌 ......... {sets}',
   'ui.recap.highlights': '  亮点:',
   'ui.recap.no_highlights': '  (无亮点)',
+  'ui.recap.week': '  📈 7天  {spark}',
 
   'ui.share.line1': 'Grove · Lv{level}',
   'ui.share.cards': '📦 {owned}/{total} 卡牌 ({pct}%)',

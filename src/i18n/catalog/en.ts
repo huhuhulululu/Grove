@@ -274,6 +274,7 @@ export const en: Catalog = {
   'ui.recap.sets': '  Completed sets ..... {sets}',
   'ui.recap.highlights': '  Highlights:',
   'ui.recap.no_highlights': '  (no highlights)',
+  'ui.recap.week': '  📈 7d  {spark}',
 
   // share card (render/share.ts)
   'ui.share.line1': 'Grove · Lv{level}',

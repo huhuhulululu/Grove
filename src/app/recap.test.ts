@@ -265,3 +265,31 @@ describe('buildRecap — state fields', () => {
     expect(recap.total).toBe(0)
   })
 })
+
+// ---------------------------------------------------------------------------
+// weekSparkValues — read-only 7-day OUTCOME buckets (success-only, no activity)
+// ---------------------------------------------------------------------------
+
+describe('weekSparkValues — 7-day outcome buckets', () => {
+  const NOW = Date.parse('2026-06-08T12:00:00Z') // "today" = 2026-06-08 UTC
+
+  it('buckets successful outcomes by UTC day; excludes failures, non-outcomes, out-of-window', () => {
+    const events: GroveEvent[] = [
+      makeEvent('commit', '2026-06-08T09:00:00Z'), // today
+      makeEvent('test_result', '2026-06-08T10:00:00Z'), // today
+      makeEvent('pr_merged', '2026-06-06T10:00:00Z'), // 2 days ago
+      makeEvent('test_result', '2026-06-08T11:00:00Z', false), // failed → excluded
+      makeEvent('quota_update', '2026-06-08T11:30:00Z'), // ambient → excluded
+      makeEvent('file_edit', '2026-06-08T11:40:00Z'), // raw activity → excluded
+      makeEvent('commit', '2026-05-29T10:00:00Z'), // 10 days ago → out of window
+    ]
+    const recap = buildRecap(events, initialState(), { nowEpoch: NOW })
+    // index 0 = 6 days ago … 6 = today: 2 today, 1 two-days-ago
+    expect(recap.weekSparkValues).toEqual([0, 0, 0, 0, 1, 0, 2])
+  })
+
+  it('omits weekSparkValues when no clock is injected (clock-free callers stay byte-identical)', () => {
+    const recap = buildRecap(EVENTS_MIXED, initialState())
+    expect(recap.weekSparkValues).toBeUndefined()
+  })
+})

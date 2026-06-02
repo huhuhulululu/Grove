@@ -138,7 +138,12 @@ export function handleRecap(flags: Record<string, string>, dir: string, locale: 
   }
   // 'all' → sinceTs stays undefined
 
-  const recap = buildRecap(events, state, sinceTs !== undefined ? { sinceTs } : undefined)
+  // Inject the clock (mirrors handleDashboard) so buildRecap stays pure yet can derive
+  // the read-only 7-day outcome sparkline. This is the only impure-clock seam here.
+  const recap = buildRecap(events, state, {
+    ...(sinceTs !== undefined ? { sinceTs } : {}),
+    nowEpoch: Date.now(),
+  })
   console.log(formatRecap(recap, locale))
   return 0
 }

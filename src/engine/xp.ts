@@ -1,11 +1,21 @@
 import type { PlayerState } from '../core/state'
 
 /**
+ * Per-level XP ceiling (P1 pacing knob). Published/inspectable (ADR-0002); a
+ * cosmetic pacing constant only (ADR-0005) — read by NO crit/seed/scale selector,
+ * only by xpForLevel(). Lowered 2000→1200 so reaching L20 is ≈ 210 modeled days
+ * (a real but not punitive horizon) instead of ~300, leaving every sub-L9 beat
+ * untouched (the cap only bites once raw 50*level^1.5 exceeds it, at L9+).
+ * MIRROR: src/web/page.ts inlines this literal — keep them in lockstep.
+ */
+export const MAX_XP_PER_LEVEL = 1200
+
+/**
  * Returns the XP required to advance FROM `level` TO `level + 1`.
- * Formula: min(2000, round(50 * max(1, level)^1.5))
+ * Formula: min(MAX_XP_PER_LEVEL, round(50 * max(1, level)^1.5))
  */
 export function xpForLevel(level: number): number {
-  return Math.min(2000, Math.round(50 * Math.pow(Math.max(1, level), 1.5)))
+  return Math.min(MAX_XP_PER_LEVEL, Math.round(50 * Math.pow(Math.max(1, level), 1.5)))
 }
 
 /**

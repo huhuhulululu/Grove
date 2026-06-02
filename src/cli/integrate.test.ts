@@ -40,6 +40,7 @@ import {
   REPAIR_COST_BASE,
   REPAIR_COST_PER_LEVEL,
 } from '../engine/gear'
+import { MAX_XP_PER_LEVEL } from '../engine/xp'
 import type { GameState } from '../core/state'
 
 // ---- Helpers ----------------------------------------------------------------
@@ -311,5 +312,17 @@ describe('help text never drifts from the live engine cost constants (P2)', () =
       if (!Number.isNaN(n) && !liveCosts.has(n)) offenders.push(n)
     }
     expect(offenders, `cost number(s) in help not backed by a constant: ${offenders.join(', ')}`).toEqual([])
+  })
+})
+
+describe('web XP curve stays in lockstep with the engine (P1)', () => {
+  it('src/web/page.ts inlines the live MAX_XP_PER_LEVEL cap, never a stale literal', () => {
+    // The web dashboard re-implements xpForLevel as an inline JS string; if the cap
+    // drifts from the engine the XP bar de-syncs. Pin them together.
+    const src = fs.readFileSync(path.resolve(process.cwd(), 'src/web/page.ts'), 'utf8')
+    const inlineRe = /function xpForLevel\(level\)\{ return Math\.min\((\d+),/
+    const m = inlineRe.exec(src)
+    expect(m, 'inline xpForLevel not found in src/web/page.ts').not.toBeNull()
+    expect(Number(m![1])).toBe(MAX_XP_PER_LEVEL)
   })
 })

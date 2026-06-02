@@ -71,4 +71,10 @@ describe('unlock cadence — a content beat lands in the day-5..8 window (no dea
     expect(SET_UNLOCK_LEVEL['tools']).toBe(1)
     expect(SET_UNLOCK_LEVEL['creatures']).toBe(1)
   })
+
+  it('P1 pacing: reaching L20 is under ~230 modeled days (the 1200 cap softens the wall)', () => {
+    // Pins the P1 fix — bumping MAX_XP_PER_LEVEL back up would push this past the
+    // bound and fail here. ~210 days at the cap; was ~300 before.
+    expect(cumXpToReach(20) / XP_PER_DAY).toBeLessThan(230)
+  })
 })

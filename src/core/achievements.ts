@@ -136,8 +136,8 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
   {
     id: 'ach:cards-25',
     name: 'Deep Shelf',
-    desc: 'Own 25 distinct cards.',
-    when: (s) => distinctCardCount(s) >= 25,
+    desc: 'Own 20 distinct cards.',
+    when: (s) => distinctCardCount(s) >= 20,
   },
 
   // -- Gear ------------------------------------------------------------------

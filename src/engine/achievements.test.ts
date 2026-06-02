@@ -134,6 +134,20 @@ describe('checkAchievements (PURE)', () => {
     expect(checkAchievements(s)).toContain('ach:cards-10')
   })
 
+  it('owning 20 distinct cards unlocks ach:cards-25 (P2: threshold lowered 25→20)', () => {
+    const s: GameState = { ...initialState(), cards: ownCards(20) }
+    expect(checkAchievements(s)).toContain('ach:cards-25')
+  })
+
+  it('owning 19 distinct cards does NOT yet unlock ach:cards-25 (boundary)', () => {
+    const s: GameState = { ...initialState(), cards: ownCards(19) }
+    expect(checkAchievements(s)).not.toContain('ach:cards-25')
+  })
+
+  it('the ach:cards-25 desc copy stays in sync with its lowered threshold', () => {
+    expect(ACHIEVEMENTS.find((a) => a.id === 'ach:cards-25')!.desc).toBe('Own 20 distinct cards.')
+  })
+
   it('first foil unlocks first-foil', () => {
     const s: GameState = { ...initialState(), cards: ownCards(1), foiled: [ALL_CARD_DEFS[0]!.id] }
     expect(checkAchievements(s)).toContain('ach:first-foil')

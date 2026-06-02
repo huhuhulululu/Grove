@@ -404,7 +404,8 @@ function buildScript(locale: Locale): string {
     var TXT_SPARK_PREFIX = '${txtSparkPrefix}';
     var TXT_SPARK_SEP = '${txtSparkSep}';
     var TXT_SPARK_ARMED_SUFFIX = '${txtSparkArmedSuffix}';
-    function xpForLevel(level){ return Math.min(2000, Math.round(50 * Math.pow(Math.max(1, level), 1.5))); }
+    // Mirrors MAX_XP_PER_LEVEL (=1200) in src/engine/xp.ts — keep in lockstep or the web XP bar de-syncs.
+    function xpForLevel(level){ return Math.min(1200, Math.round(50 * Math.pow(Math.max(1, level), 1.5))); }
     function setText(name, value){
       var el = document.querySelector('[data-bind="' + name + '"]');
       if (el) el.textContent = value;

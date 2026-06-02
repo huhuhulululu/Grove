@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { xpForLevel, applyXp, levelUpSeedBonus, LEVELUP_SEED_BONUS } from './xp'
+import { xpForLevel, applyXp, levelUpSeedBonus, LEVELUP_SEED_BONUS, MAX_XP_PER_LEVEL } from './xp'
 import type { PlayerState } from '../core/state'
 
 describe('xpForLevel', () => {
@@ -15,9 +15,11 @@ describe('xpForLevel', () => {
     expect(xpForLevel(3)).toBe(260)
   })
 
-  it('high levels are capped at 2000', () => {
-    // level 100: 50 * 100^1.5 = 50000, capped to 2000
-    expect(xpForLevel(100)).toBe(2000)
+  it('high levels are capped at the published MAX_XP_PER_LEVEL (P1: lowered to 1200)', () => {
+    // level 100: 50 * 100^1.5 = 50000, capped to MAX_XP_PER_LEVEL
+    expect(xpForLevel(100)).toBe(1200)
+    expect(xpForLevel(100)).toBe(MAX_XP_PER_LEVEL)
+    expect(MAX_XP_PER_LEVEL).toBe(1200)
   })
 
   it('level 0 uses max(1, level) so same as level 1', () => {

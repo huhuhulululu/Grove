@@ -319,6 +319,8 @@ export const ko: Catalog = {
   'cli.checkpoint.saved': '  📍 체크포인트 저장됨 · {branch}',
   'cli.checkpoint.restore': '  복원: git stash apply {ref}',
   'cli.checkpoint.nothing': '  📍 체크포인트 · 스냅샷할 내용 없음 · {branch}',
+  'cli.init.wrap_hint_npm': '  팁: `sq wrap -- npm test` 통과한 테스트가 전리품이 됩니다.',
+  'cli.init.wrap_hint_generic': '  팁: `sq wrap -- <테스트 명령>` 통과한 테스트가 전리품이 됩니다.',
   'cli.promise.title': 'Grove의 약속 · 방화벽',
   'cli.promise.no_modify': '코드, 커밋, 문서, git 기록을 절대 수정하지 않음.',
   'cli.promise.no_autorun': '테스트를 자동 실행하지 않음. 이미 나온 결과만 읽음.',

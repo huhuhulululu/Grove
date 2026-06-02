@@ -151,6 +151,27 @@ describe('sq init — onboarding', () => {
     // Either it names a detected tool, or it gracefully says it works with any tool.
     expect(combined).toMatch(/claude|cursor|aider|codex|copilot|gemini|any (ai )?tool|tool-agnostic|works with/)
   })
+
+  // sq wrap is the ONLY real test/build signal source, but the hook only carries
+  // Pillar-B signals — so init must surface it (else users never discover wrap).
+  it('hints `sq wrap` with a ready-to-paste npm command when package.json has a test script', () => {
+    fs.writeFileSync(
+      path.join(tmpRepo, 'package.json'),
+      JSON.stringify({ name: 'x', scripts: { test: 'vitest run' } }),
+      'utf8',
+    )
+    const { output } = captureRunFull(['init', '--repo', tmpRepo, '--home', tmpHome])
+    const combined = output.join('\n')
+    expect(combined).toContain('sq wrap -- npm test')
+  })
+
+  it('hints `sq wrap` with a generic command when there is no package.json test script', () => {
+    // tmpRepo has no package.json by default → the generic hint.
+    const { output } = captureRunFull(['init', '--repo', tmpRepo, '--home', tmpHome])
+    const combined = output.join('\n')
+    expect(combined).toContain('sq wrap --')
+    expect(combined).not.toContain('npm test')
+  })
 })
 
 // ---------------------------------------------------------------------------

@@ -375,6 +375,8 @@ export const en: Catalog = {
   'cli.checkpoint.saved': '  📍 Checkpoint saved · {branch}',
   'cli.checkpoint.restore': '  Restore: git stash apply {ref}',
   'cli.checkpoint.nothing': '  📍 Checkpoint · nothing to snapshot · {branch}',
+  'cli.init.wrap_hint_npm': '  Tip: `sq wrap -- npm test` turns green tests into loot.',
+  'cli.init.wrap_hint_generic': '  Tip: `sq wrap -- <your test cmd>` turns green tests into loot.',
   'cli.promise.title': "Grove's promise · the firewall",
   'cli.promise.no_modify': 'Never modifies your code, commits, docs, or git history.',
   'cli.promise.no_autorun': 'Never auto-runs your tests; it reads outcomes you already produce.',

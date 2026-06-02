@@ -61,7 +61,7 @@ function grantStarterOnce(dir: string): boolean {
   })
 }
 
-export function handleInit(flags: Record<string, string>, dir: string): number {
+export function handleInit(flags: Record<string, string>, dir: string, locale: Locale = 'en'): number {
   const repo = flags['repo'] ?? process.cwd()
   const res = installPostCommit(repo, groveInvocation())
 
@@ -107,6 +107,21 @@ export function handleInit(flags: Record<string, string>, dir: string): number {
 
   // Clear next-step CTA (the first-aha): one concrete command to run next.
   console.log(`  Next: git commit like normal, then \`sq dashboard\` to see your loot.`)
+
+  // Surface `sq wrap` — the post-commit hook only carries Pillar-B signals, so wrap is
+  // the ONLY real test/build signal source, and nothing else tells the user it exists.
+  // Read-only probe of the repo's package.json offers a ready-to-paste command; printed
+  // once at setup, never a nag (ADR-0003: we surface the command, never auto-run it).
+  let hasTestScript = false
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(repo, 'package.json'), 'utf8')) as {
+      scripts?: Record<string, unknown>
+    }
+    hasTestScript = typeof pkg.scripts?.['test'] === 'string'
+  } catch {
+    /* no / unreadable package.json → fall back to the generic hint */
+  }
+  console.log(t(locale, hasTestScript ? 'cli.init.wrap_hint_npm' : 'cli.init.wrap_hint_generic'))
   return 0
 }
 

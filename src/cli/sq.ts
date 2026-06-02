@@ -658,7 +658,7 @@ export function run(argv: string[]): number {
     }
 
     case 'init':
-      return handleInit(flags, dir)
+      return handleInit(flags, dir, locale)
 
     case 'uninstall':
       return handleUninstall(flags)

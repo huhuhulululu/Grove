@@ -319,6 +319,8 @@ export const zhCN: Catalog = {
   'cli.checkpoint.saved': '  📍 已保存检查点 · {branch}',
   'cli.checkpoint.restore': '  恢复: git stash apply {ref}',
   'cli.checkpoint.nothing': '  📍 检查点 · 无内容可快照 · {branch}',
+  'cli.init.wrap_hint_npm': '  提示:`sq wrap -- npm test` 让通过的测试变成战利品。',
+  'cli.init.wrap_hint_generic': '  提示:`sq wrap -- <你的测试命令>` 让通过的测试变成战利品。',
   'cli.promise.title': 'Grove 的承诺 · 防火墙',
   'cli.promise.no_modify': '绝不修改你的代码、提交、文档或 git 历史。',
   'cli.promise.no_autorun': '绝不自动跑你的测试;只读取你本就产生的结果。',

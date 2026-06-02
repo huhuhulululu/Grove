@@ -319,6 +319,8 @@ export const ja: Catalog = {
   'cli.checkpoint.saved': '  📍 チェックポイント保存 · {branch}',
   'cli.checkpoint.restore': '  復元: git stash apply {ref}',
   'cli.checkpoint.nothing': '  📍 チェックポイント · スナップ対象なし · {branch}',
+  'cli.init.wrap_hint_npm': '  ヒント: `sq wrap -- npm test` で緑のテストが戦利品に。',
+  'cli.init.wrap_hint_generic': '  ヒント: `sq wrap -- <テストコマンド>` で緑のテストが戦利品に。',
   'cli.promise.title': 'Grove の約束 · ファイアウォール',
   'cli.promise.no_modify': 'コード・コミット・ドキュメント・git 履歴を一切変更しない。',
   'cli.promise.no_autorun': 'テストを自動実行しない。あなたが出した結果を読むだけ。',

@@ -64,14 +64,6 @@ export const QUESTS: QuestDef[] = [
   },
 ]
 
-export function questById(id: string): QuestDef | undefined {
-  return QUESTS.find((q) => q.id === id)
-}
-
-export function allQuestIds(): string[] {
-  return QUESTS.map((q) => q.id)
-}
-
 // ---------------------------------------------------------------------------
 // Renewable quests (R5) — a refreshing board, not a static one. A renewable
 // quest stays `active` and re-pays as it is repeated, instead of going `done`

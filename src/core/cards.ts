@@ -143,10 +143,13 @@ export function nextSetUnlock(level: number): { set: string; level: number } | n
  * Every rarity has at least one card in the level-1 pool.
  */
 export function cardDefsByRarity(rarity: Rarity, level?: number): CardDef[] {
-  const inScope =
-    level === undefined
-      ? ALL_CARD_DEFS
-      : ALL_CARD_DEFS.filter((c) => unlockedSets(level).includes(c.set))
+  let inScope = ALL_CARD_DEFS
+  if (level !== undefined) {
+    // Hoist the level-invariant set lookup out of the per-card predicate and use a
+    // Set for O(1) membership (was: unlockedSets(level) recomputed for every card).
+    const sets = new Set(unlockedSets(level))
+    inScope = ALL_CARD_DEFS.filter((c) => sets.has(c.set))
+  }
   return inScope.filter((c) => c.rarity === rarity)
 }
 

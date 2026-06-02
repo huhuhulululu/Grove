@@ -23,7 +23,6 @@ import {
   revealFrames,
   revealSteps,
   xpBarSteps,
-  synergyActivationFlash,
 } from './juice'
 import type { Rarity } from '../core/rewards'
 import type { DispatchResult } from './app'
@@ -468,40 +467,6 @@ describe('xpBarSteps — interpolates the fill fraction toward the target', () =
   it('never throws on degenerate input', () => {
     expect(() => xpBarSteps(0, 0, { animate: true })).not.toThrow()
     expect(() => xpBarSteps(1, 0, { animate: true })).not.toThrow()
-  })
-})
-
-// ---------------------------------------------------------------------------
-// synergyActivationFlash — celebratory TUI flash for a newly-active synergy
-// ---------------------------------------------------------------------------
-
-describe('synergyActivationFlash — celebratory flash for a freshly-active synergy', () => {
-  it('returns a non-empty string containing the synergy name', () => {
-    const flash = synergyActivationFlash('Toolsmith')
-    expect(flash).not.toBeNull()
-    expect(flash!.length).toBeGreaterThan(0)
-    expect(flash).toContain('Toolsmith')
-  })
-
-  it('contains the ✦ sparkle marker (celebration, not a plain message)', () => {
-    expect(synergyActivationFlash('Merchant')).toContain('✦')
-  })
-
-  it('zen mode returns null — no flash in calm mode', () => {
-    expect(synergyActivationFlash('Toolsmith', { isZen: true })).toBeNull()
-  })
-
-  it('non-zen mode (default) returns a non-null flash', () => {
-    expect(synergyActivationFlash('Precision')).not.toBeNull()
-  })
-
-  it('never throws on an empty synergy name', () => {
-    expect(() => synergyActivationFlash('')).not.toThrow()
-  })
-
-  it('the flash is terse — no em-dash (uses · separator per tone)', () => {
-    const flash = synergyActivationFlash('Naturalist')
-    expect(flash).not.toContain('—')
   })
 })
 

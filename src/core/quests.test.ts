@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
   QUESTS,
-  questById,
-  allQuestIds,
   RENEWABLE_QUEST_IDS,
   isRenewable,
   DOC_STREAK_TIERS,
@@ -28,13 +26,13 @@ describe('quest catalog depth', () => {
   })
 
   it('quest ids are unique', () => {
-    const ids = allQuestIds()
+    const ids = QUESTS.map((q) => q.id)
     expect(new Set(ids).size).toBe(ids.length)
   })
 
   it('keeps the original four quests (no regression)', () => {
     for (const id of ['grimoire', 'precast-spec', 'living-map', 'test-warden']) {
-      expect(questById(id)).toBeDefined()
+      expect(QUESTS.find((q) => q.id === id)).toBeDefined()
     }
   })
 
@@ -45,8 +43,8 @@ describe('quest catalog depth', () => {
     }
   })
 
-  it('questById returns undefined for an unknown id', () => {
-    expect(questById('nope')).toBeUndefined()
+  it('returns undefined for an unknown id', () => {
+    expect(QUESTS.find((q) => q.id === 'nope')).toBeUndefined()
   })
 })
 
@@ -61,7 +59,7 @@ describe('renewable quests', () => {
 
   it('every renewable id is a real quest', () => {
     for (const id of RENEWABLE_QUEST_IDS) {
-      expect(questById(id)).toBeDefined()
+      expect(QUESTS.find((q) => q.id === id)).toBeDefined()
     }
   })
 

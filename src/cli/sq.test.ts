@@ -230,6 +230,25 @@ describe('sq CLI', () => {
       const { code } = captureRun(['recap', '--since', 'session', '--home', tmpHome])
       expect(code).toBe(0)
     })
+
+    it('recap --since week returns 0 and labels the window "this week"', () => {
+      captureRun(['event', 'commit', '--home', tmpHome])
+      const { code, output } = captureRun(['recap', '--since', 'week', '--home', tmpHome])
+      expect(code).toBe(0)
+      const combined = output.join('\n')
+      expect(combined).toContain('RECAP')
+      expect(combined).toContain('this week') // the new localized window label (en)
+    })
+
+    it('recap --since week is read-only — never mutates persisted state (firewall)', () => {
+      captureRun(['event', 'commit', '--home', tmpHome])
+      const before = loadState(stateDir(tmpHome))
+      const { output } = captureRun(['recap', '--since', 'week', '--home', tmpHome])
+      const after = loadState(stateDir(tmpHome))
+      expect(after).toEqual(before) // a recap grants nothing, ingests nothing
+      const combined = output.join('\n')
+      expect(combined).not.toMatch(/✨|🃏|\+\d+ XP/) // no loot/reward line
+    })
   })
 
   // ---- pull subcommand (the core DECISION) ------------------------------------

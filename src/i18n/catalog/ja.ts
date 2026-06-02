@@ -232,6 +232,7 @@ export const ja: Catalog = {
   'ui.recap.highlights': '  ハイライト:',
   'ui.recap.no_highlights': '  (ハイライトなし)',
   'ui.recap.week': '  📈 7日  {spark}',
+  'ui.recap.window.week': '今週',
 
   'ui.share.line1': 'Grove · Lv{level}',
   'ui.share.cards': '📦 {owned}/{total} カード ({pct}%)',
@@ -370,7 +371,7 @@ export const ja: Catalog = {
   'cli.help.cmd.event': '  event <タイプ> [--magnitude N] [--success true|false] [--source S] [--session ID]\n      Grove イベントを取り込む。<タイプ> は以下のいずれか:\n          {eventTypes}',
   'cli.help.cmd.wrap': '  wrap [--as <タイプ>] [--home DIR] -- <コマンド...>\n      普段実行するコマンド(テスト/ビルド/lint)を実行し、出力を\n      透過的にストリーミングして、終了コードから実際の結果を取り込む(ADR-0003):\n      成功コマンドは報酬を付与; 失敗コマンドは何も付与しない(ファイアウォール)。\n      sq はラップされたコマンドの正確な終了コードで終了(透過パススルー)、\n      スクリプトや CI のどのコマンドの前にも挿入できる。\n      --as  イベントタイプを強制 (test_result | build_result | lint_clean)。\n            未指定時はコマンドから推論(test/build/lint)、デフォルト test_result。\n      例:   sq wrap -- npm test      sq wrap --as build_result -- make',
   'cli.help.cmd.status': '  status\n      現在の Grove ゲーム状態を表示。',
-  'cli.help.cmd.recap': '  recap [--since session|all]\n      イベントと進捗のリキャップを表示。\n      --since session  (デフォルト) · 最後の session_start 以降のイベント\n      --since all      · 全イベント',
+  'cli.help.cmd.recap': '  recap [--since session|week|all]\n      イベントと進捗のリキャップを表示。\n      --since session  (デフォルト) · 最後の session_start 以降のイベント\n      --since week     · 今週(UTC)開始以降のイベント\n      --since all      · 全イベント',
   'cli.help.cmd.scan': '  scan [パス] [--home DIR]\n      リポジトリディレクトリの Pillar-B シグナル(グリモア、テスト、ドキュメント、仕様)をスキャン。\n      パス未指定時は process.cwd() をデフォルト。検出イベントを取り込み\n      報酬を表示; 検出内容のサマリーを表示。',
   'cli.help.cmd.quests': '  quests [--home DIR]\n      Pillar-B クエストボードとステータスグリフおよびアクティブバフを表示。\n      ✓ 完了  ◆ アクティブ  · 未開始',
   'cli.help.cmd.pull': '  pull [--premium] [--spark <cardId>] [--seed N] [--home DIR]\n      {pullCost} 🌰 シードを消費して1回ガチャ抽選(コア決断 · タイミングはあなたが選ぶ)。\n      --premium  {premiumCost} 🌰 でプレミアム抽選(より良い確率; 段階的シンク)。\n      --spark    (--premium と共に) 欠けているカードを選んで確定保証を積む ·\n                 プレミアムの外れが十分になると次のプレミアム抽選でそれが確定。\n      成果を出荷してシードを稼ぐ(コミット、テスト緑、マージ、ドキュメント)。\n      余裕がないときは穏やかに拒否。装飾のみ (ADR-0005)。',

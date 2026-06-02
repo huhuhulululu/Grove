@@ -258,9 +258,10 @@ Subcommands:
   status
       Show current Grove game state.
 
-  recap [--since session|all]
+  recap [--since session|week|all]
       Show a recap of events and progress.
       --since session  (default) · events since the last session_start
+      --since week     · events since this week (UTC) began
       --since all      · all events
 
   scan [path] [--home DIR]

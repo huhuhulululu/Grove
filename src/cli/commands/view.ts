@@ -126,6 +126,12 @@ export function handleRecap(flags: Record<string, string>, dir: string, locale: 
   const sinceMode = flags['since'] ?? 'session'
 
   let sinceTs: string | undefined
+  let windowLabel: string | undefined
+
+  // Capture the clock ONCE so the week-boundary math and the sparkline nowEpoch can
+  // never disagree (this is the only impure-clock seam in the recap path — the CLI
+  // layer, not the pure engine).
+  const now = Date.now()
 
   if (sinceMode === 'session') {
     // Find the ts of the last session_start event
@@ -135,14 +141,23 @@ export function handleRecap(flags: Record<string, string>, dir: string, locale: 
       sinceTs = lastSessionStart.ts
     }
     // If no session_start found, sinceTs remains undefined → all events
+  } else if (sinceMode === 'week') {
+    // Events since UTC-midnight of the most recent Sunday — fixed to UTC Sunday-start
+    // to match the existing UTC-day sparkline buckets (no timezone/locale boundary).
+    const dayMs = 86_400_000
+    const dayStart = Math.floor(now / dayMs) * dayMs
+    const weekStart = dayStart - new Date(dayStart).getUTCDay() * dayMs
+    sinceTs = new Date(weekStart).toISOString()
+    windowLabel = t(locale, 'ui.recap.window.week')
   }
   // 'all' → sinceTs stays undefined
 
   // Inject the clock (mirrors handleDashboard) so buildRecap stays pure yet can derive
-  // the read-only 7-day outcome sparkline. This is the only impure-clock seam here.
+  // the read-only 7-day outcome sparkline.
   const recap = buildRecap(events, state, {
     ...(sinceTs !== undefined ? { sinceTs } : {}),
-    nowEpoch: Date.now(),
+    ...(windowLabel !== undefined ? { window: windowLabel } : {}),
+    nowEpoch: now,
   })
   console.log(formatRecap(recap, locale))
   return 0

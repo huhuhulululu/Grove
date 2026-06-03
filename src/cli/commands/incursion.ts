@@ -74,9 +74,10 @@ function nextFloorPrompt(run: RunState): string {
   }
   const floor = run.floors[run.current]!
   const odds = Math.round(clearChance(run.power, floor.difficulty) * 100)
+  const article = /^[aeiou]/i.test(floor.cardRarity) ? 'an' : 'a'
   const guards = `${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
   return [
-    `  Floor ${run.current + 1}/${run.floors.length} · difficulty ${floor.difficulty.toFixed(2)} · guards a ${guards}`,
+    `  Floor ${run.current + 1}/${run.floors.length} · difficulty ${floor.difficulty.toFixed(2)} · guards ${article} ${guards}`,
     `  → sq incursion dive  (clear ${odds}%)   or   sq incursion escape  (bank ${bagLine(run)})`,
   ].join('\n')
 }

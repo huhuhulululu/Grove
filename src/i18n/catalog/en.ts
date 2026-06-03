@@ -203,6 +203,7 @@ export const en: Catalog = {
   'ui.energy.weekly': 'Weekly',
   'ui.energy.resets_in': '  resets in {eta}',
   'ui.energy.stopping_point': '  good stopping point',
+  'ui.statusline.level': '🌲 L{level}',
   'ui.work.next_chest': '🎁 next chest ',
   'ui.eta.soon': 'soon',
 
@@ -460,6 +461,8 @@ export const en: Catalog = {
   'cli.help.cmd.tui': '  tui [--once] [--home DIR]\n      Launch the navigable, live-updating Grove dashboard (Ink TUI): arrow/tab to\n      move focus, p pull · P premium · e enhance · c craft · b prestige · q quit.\n      Every action runs the same engine and persists under the lock. Cosmetic only.\n      --once  Render ONE static frame and exit (for tests / CI / piped output).',
   'cli.help.cmd.serve': '  serve [--port N] [--host H] [--home DIR]\n      Start a local, READ-ONLY web dashboard over your Grove state and print its\n      URL; runs until Ctrl-C, live-updating an open page as state changes. Binds\n      to 127.0.0.1 by default; --host 0.0.0.0 exposes it on your LAN (opt-in, loud).\n      --port  TCP port (default: an ephemeral free port).',
   'cli.help.cmd.statusline_ingest': '  statusline-ingest [--home DIR]\n      Read the Claude Code statusline JSON from STDIN, parse it, and ingest a\n      quota_update event to keep the energy system current.\n      Prints NOTHING to stdout (designed to run inside the statusline pipe).\n      Always returns 0 · never disrupts the HUD.',
+  'cli.statusline.segment_offer': '  Want Grove on your statusline too? It is opt-in (Grove never edits this for you).\n  Set statusLine.command to: {chain}',
+  'cli.help.cmd.statusline_segment': '  statusline-segment [--home DIR]\n      Print ONE compact Grove line (level · xp · energy) for your statusline.\n      Read-only · composable: chain it after your own command. Calm by default.\n      --zen prints an even terser form. Never disrupts the HUD (always exits 0).',
   'cli.help.cmd.statusline_install': '  statusline install [--settings PATH]\n      Install Grove\'s chain-safe statusline wrapper.\n      Backs up the original statusLine.command and chains Grove onto it.\n      The original statusline is ALWAYS preserved (never clobbered).\n      --settings  Path to Claude Code\'s settings.json (default: ~/.claude/settings.json).',
   'cli.help.cmd.statusline_uninstall': '  statusline uninstall [--settings PATH]\n      Remove Grove\'s statusline wrapper, restoring the original command.\n      --settings  Path to Claude Code\'s settings.json (default: ~/.claude/settings.json).',
   'cli.help.cmd.init': '  init [--repo DIR]\n      Install Grove\'s post-commit git hook in a repo (chains; never clobbers).\n      Defaults to process.cwd() if --repo is omitted.\n      Grove failures NEVER block commits · the hook is fail-open by design.',

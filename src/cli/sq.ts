@@ -73,6 +73,7 @@ import {
   handleCommitHook,
   handleMergeHook,
   handleStatuslineIngest,
+  handleStatuslineSegment,
   handleStatuslineInstall,
   handleStatuslineUninstall,
   handleSuggestCommit,
@@ -173,7 +174,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 const SUBCOMMANDS = [
   'event', 'status', 'recap', 'scan', 'quests', 'pull', 'enhance', 'repair',
   'protect', 'craft', 'foil', 'convert', 'prestige', 'dashboard', 'tui', 'serve',
-  'statusline-ingest', 'statusline', 'init', 'uninstall', 'commit-hook', 'merge-hook',
+  'statusline-ingest', 'statusline-segment', 'statusline', 'init', 'uninstall', 'commit-hook', 'merge-hook',
   'suggest-commit', 'checkpoint', 'checkpoints', 'wrap', 'share', 'ntfy', 'loadout',
   'achievements', 'learn', 'promise', 'try', 'demo', 'export', 'import', 'commons', 'help',
 ] as const
@@ -349,6 +350,11 @@ Subcommands:
       Prints NOTHING to stdout (designed to run inside the statusline pipe).
       Always returns 0 · never disrupts the HUD.
 
+  statusline-segment [--home DIR]
+      Print ONE compact Grove line (level · xp · energy) for your statusline.
+      Read-only · composable: chain it after your own command. Calm by default.
+      --zen prints an even terser form. Never disrupts the HUD (always exits 0).
+
   statusline install [--settings PATH]
       Install Grove's chain-safe statusline wrapper.
       Backs up the original statusLine.command and chains Grove onto it.
@@ -522,6 +528,8 @@ export function buildUsageText(locale: Locale): string {
     '',
     t(locale, 'cli.help.cmd.statusline_ingest'),
     '',
+    t(locale, 'cli.help.cmd.statusline_segment'),
+    '',
     t(locale, 'cli.help.cmd.statusline_install'),
     '',
     t(locale, 'cli.help.cmd.statusline_uninstall'),
@@ -692,10 +700,13 @@ export function run(argv: string[]): number {
     case 'statusline-ingest':
       return handleStatuslineIngest(flags, dir)
 
+    case 'statusline-segment':
+      return handleStatuslineSegment(flags, dir, zen, locale)
+
     case 'statusline': {
       const statuslineCmd = rest[0]
       if (statuslineCmd === 'install') {
-        return handleStatuslineInstall(flags, dir)
+        return handleStatuslineInstall(flags, dir, locale)
       } else if (statuslineCmd === 'uninstall') {
         return handleStatuslineUninstall(flags)
       } else {

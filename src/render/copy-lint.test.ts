@@ -24,6 +24,7 @@ const FILES = [
   'src/core/quests.ts',
   'src/render/enhance.ts',
   'src/render/dashboard.ts',
+  'src/render/statusline-segment.ts',
   'src/render/format.ts',
   'src/app/recap.ts',
   'src/cli/sq.ts',
@@ -88,6 +89,7 @@ describe('copy-lint: no cloying deny-list phrases in user-facing copy (ADR-0009)
 const EM_DASH_FILES = [
   'src/render/enhance.ts',
   'src/render/dashboard.ts',
+  'src/render/statusline-segment.ts',
   'src/render/format.ts',
   'src/app/recap.ts',
   'src/cli/sq.ts',

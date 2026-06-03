@@ -21,6 +21,7 @@ import {
 } from '../../adapters/githook'
 import { parseStatuslinePayload } from '../../adapters/statusline'
 import { installStatusline, uninstallStatusline } from '../../adapters/statusline-install'
+import { renderStatuslineSegment } from '../../render/statusline-segment'
 import { stagedDiffStat, createStashSnapshot, currentBranch, isMergeCommit } from '../../adapters/git-utils'
 import { t } from '../../i18n/t'
 import type { Locale } from '../../i18n/types'
@@ -264,6 +265,26 @@ export function handleStatuslineIngest(flags: Record<string, string>, dir: strin
   return 0
 }
 
+/**
+ * `sq statusline-segment` — print ONE calm Grove line (level · xp · energy) for a
+ * statusline the user composes it into. READ-ONLY (loadState only, never ingests or
+ * saves), always returns 0 (never disrupts the HUD). Energy comes from persisted
+ * state (the ingest wrapper keeps it current); one-frame staleness is fine here.
+ */
+export function handleStatuslineSegment(
+  _flags: Record<string, string>,
+  dir: string,
+  zen: boolean,
+  locale: Locale = 'en',
+): number {
+  try {
+    console.log(renderStatuslineSegment(loadState(dir), locale, zen))
+  } catch {
+    // Never disrupt the HUD · swallow all errors silently.
+  }
+  return 0
+}
+
 // ---------------------------------------------------------------------------
 // statusline install/uninstall handlers
 // ---------------------------------------------------------------------------
@@ -272,7 +293,7 @@ function defaultSettingsPath(): string {
   return path.join(process.env['HOME'] ?? process.env['USERPROFILE'] ?? '/root', '.claude', 'settings.json')
 }
 
-export function handleStatuslineInstall(flags: Record<string, string>, _dir: string): number {
+export function handleStatuslineInstall(flags: Record<string, string>, _dir: string, locale: Locale = 'en'): number {
   const settingsPath = flags['settings'] ?? defaultSettingsPath()
   const wrapperPath = path.join(path.dirname(settingsPath), 'grove-statusline-wrapper.sh')
 
@@ -303,6 +324,14 @@ export function handleStatuslineInstall(flags: Record<string, string>, _dir: str
   }
 
   console.log(`  Your original statusline is fully preserved and chained · it still runs.`)
+
+  // One-time, opt-in offer to ALSO show the Grove glance (level/xp/energy). We PRINT
+  // the exact chain (ADR-0003: surface the command, never write it) and never nag.
+  if (result.action !== 'already-installed') {
+    const orig = result.original ? `${result.original} ; ` : ''
+    const chain = `"${orig}sq statusline-segment"`
+    console.log(t(locale, 'cli.statusline.segment_offer', { chain }))
+  }
   return 0
 }
 

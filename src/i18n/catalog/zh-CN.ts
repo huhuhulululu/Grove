@@ -164,6 +164,7 @@ export const zhCN: Catalog = {
   'ui.energy.weekly': '本周',
   'ui.energy.resets_in': '  {eta} 后重置',
   'ui.energy.stopping_point': '  适合收尾',
+  'ui.statusline.level': '🌲 L{level}',
   'ui.work.next_chest': '🎁 下个宝箱 ',
   'ui.eta.soon': '即将',
 
@@ -396,6 +397,8 @@ export const zhCN: Catalog = {
   'cli.help.cmd.tui': '  tui [--once] [--home 目录]\n      启动可导航的实时更新 Grove 仪表板(Ink TUI):方向键/tab 移动焦点,\n      p 抽取 · P 高级 · e 强化 · c 合成 · b 威望 · q 退出。\n      每个操作运行相同的引擎并在锁下持久化。仅装饰性。\n      --once  渲染一个静态帧并退出(适用于测试/CI/管道输出)。',
   'cli.help.cmd.serve': '  serve [--port N] [--host H] [--home 目录]\n      启动本地只读 Web 仪表板并打印其 URL;运行直到 Ctrl-C,\n      页面打开时实时更新状态变化。默认绑定到 127.0.0.1;\n      --host 0.0.0.0 在局域网上公开(可选,需明确开启)。\n      --port  TCP 端口(默认:临时空闲端口)。',
   'cli.help.cmd.statusline_ingest': '  statusline-ingest [--home 目录]\n      从 STDIN 读取 Claude Code 状态栏 JSON,解析并摄入\n      quota_update 事件以保持能量系统最新。\n      不向 stdout 打印任何内容(设计用于状态栏管道中运行)。\n      始终返回 0 · 绝不中断 HUD。',
+  'cli.statusline.segment_offer': '  也想在状态栏看到 Grove?完全自愿(Grove 绝不替你修改)。\n  将 statusLine.command 设为:{chain}',
+  'cli.help.cmd.statusline_segment': '  statusline-segment [--home 目录]\n      为状态栏打印一行紧凑的 Grove 信息(等级 · 经验 · 精力)。\n      只读 · 可组合:接在你自己的命令后面。默认平静。\n      --zen 打印更简短的形式。绝不打断 HUD(始终返回 0)。',
   'cli.help.cmd.statusline_install': '  statusline install [--settings 路径]\n      安装 Grove 的链式安全状态栏包装器。\n      备份原始 statusLine.command 并将 Grove 链接到其上。\n      原始状态栏始终保留(绝不覆盖)。\n      --settings  Claude Code settings.json 路径(默认: ~/.claude/settings.json)。',
   'cli.help.cmd.statusline_uninstall': '  statusline uninstall [--settings 路径]\n      移除 Grove 的状态栏包装器,恢复原始命令。\n      --settings  Claude Code settings.json 路径(默认: ~/.claude/settings.json)。',
   'cli.help.cmd.init': '  init [--repo 目录]\n      在仓库中安装 Grove 的 post-commit git 钩子(链式;绝不覆盖)。\n      省略 --repo 时默认 process.cwd()。\n      Grove 失败绝不阻塞提交 · 钩子是失效开放设计。',

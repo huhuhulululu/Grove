@@ -164,6 +164,7 @@ export const ja: Catalog = {
   'ui.energy.weekly': '週次',
   'ui.energy.resets_in': '  {eta} 後にリセット',
   'ui.energy.stopping_point': '  区切りに最適',
+  'ui.statusline.level': '🌲 L{level}',
   'ui.work.next_chest': '🎁 次の宝箱 ',
   'ui.eta.soon': 'まもなく',
 
@@ -396,6 +397,8 @@ export const ja: Catalog = {
   'cli.help.cmd.tui': '  tui [--once] [--home DIR]\n      ナビゲーション可能なライブ更新 Grove ダッシュボードを起動(Ink TUI): 矢印/tab でフォーカス移動、\n      p 抽選 · P プレミアム · e 強化 · c クラフト · b プレステージ · q 終了。\n      全アクションは同じエンジンを実行しロック下で永続化。装飾のみ。\n      --once  1つの静的フレームをレンダリングして終了(テスト/CI/パイプ出力用)。',
   'cli.help.cmd.serve': '  serve [--port N] [--host H] [--home DIR]\n      ローカルの読み取り専用 Web ダッシュボードを起動して URL を表示;\n      Ctrl-C まで実行、開いたページをリアルタイム更新。デフォルトは 127.0.0.1 にバインド;\n      --host 0.0.0.0 で LAN に公開(オプトイン、明示的)。\n      --port  TCP ポート(デフォルト: エフェメラル空きポート)。',
   'cli.help.cmd.statusline_ingest': '  statusline-ingest [--home DIR]\n      STDIN から Claude Code ステータスライン JSON を読み取り、パースして\n      quota_update イベントを取り込みエネルギーシステムを最新に保つ。\n      stdout に何も出力しない(ステータスラインパイプ内で実行するよう設計)。\n      常に 0 を返す · HUD を絶対中断しない。',
+  'cli.statusline.segment_offer': '  ステータスラインにも Grove を表示しますか?任意です(Grove が勝手に書き換えることはありません)。\n  statusLine.command を次に設定:{chain}',
+  'cli.help.cmd.statusline_segment': '  statusline-segment [--home DIR]\n      ステータスライン用に Grove を1行(レベル · 経験値 · エナジー)で表示。\n      読み取り専用 · 組み合わせ可能:自分のコマンドの後ろに連結。既定で穏やか。\n      --zen はより簡潔に表示。HUD を妨げません(常に 0 を返す)。',
   'cli.help.cmd.statusline_install': '  statusline install [--settings パス]\n      Grove のチェーンセーフステータスラインラッパーをインストール。\n      元の statusLine.command をバックアップして Grove をチェーン接続。\n      元のステータスラインは常に保持(上書きなし)。\n      --settings  Claude Code の settings.json パス(デフォルト: ~/.claude/settings.json)。',
   'cli.help.cmd.statusline_uninstall': '  statusline uninstall [--settings パス]\n      Grove のステータスラインラッパーを削除し元のコマンドを復元。\n      --settings  Claude Code の settings.json パス(デフォルト: ~/.claude/settings.json)。',
   'cli.help.cmd.init': '  init [--repo DIR]\n      リポジトリに Grove の post-commit git フックをインストール(チェーン; 上書きなし)。\n      --repo 省略時は process.cwd() をデフォルト。\n      Grove の失敗はコミットを絶対ブロックしない · フックはフェイルオープン設計。',

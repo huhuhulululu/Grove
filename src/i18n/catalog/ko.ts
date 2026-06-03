@@ -164,6 +164,7 @@ export const ko: Catalog = {
   'ui.energy.weekly': '주간',
   'ui.energy.resets_in': '  {eta} 후 초기화',
   'ui.energy.stopping_point': '  멈추기 좋은 시점',
+  'ui.statusline.level': '🌲 L{level}',
   'ui.work.next_chest': '🎁 다음 보물상자 ',
   'ui.eta.soon': '곧',
 
@@ -396,6 +397,8 @@ export const ko: Catalog = {
   'cli.help.cmd.tui': '  tui [--once] [--home DIR]\n      탐색 가능한 실시간 업데이트 Grove 대시보드를 실행합니다(Ink TUI): 방향키/tab으로 포커스 이동,\n      p 뽑기 · P 프리미엄 · e 강화 · c 제작 · b 프레스티지 · q 종료.\n      모든 액션은 동일한 엔진을 실행하고 잠금 하에 영속합니다. 장식 전용.\n      --once  정적 프레임 하나를 렌더링하고 종료합니다(테스트/CI/파이프 출력용)。',
   'cli.help.cmd.serve': '  serve [--port N] [--host H] [--home DIR]\n      로컬 읽기 전용 웹 대시보드를 시작하고 URL을 출력합니다;\n      Ctrl-C까지 실행, 열린 페이지를 상태 변화에 따라 실시간 업데이트. 기본값은 127.0.0.1에 바인딩;\n      --host 0.0.0.0 으로 LAN에 공개(선택 사항, 명시적).\n      --port  TCP 포트(기본값: 임시 빈 포트)。',
   'cli.help.cmd.statusline_ingest': '  statusline-ingest [--home DIR]\n      STDIN에서 Claude Code 상태줄 JSON을 읽어 파싱하고\n      quota_update 이벤트를 수집해 에너지 시스템을 최신으로 유지합니다.\n      stdout에 아무것도 출력하지 않습니다(상태줄 파이프 안에서 실행하도록 설계).\n      항상 0을 반환 · HUD를 절대 중단하지 않습니다。',
+  'cli.statusline.segment_offer': '  상태줄에도 Grove를 표시할까요? 선택 사항입니다(Grove가 임의로 수정하지 않습니다).\n  statusLine.command을 다음으로 설정: {chain}',
+  'cli.help.cmd.statusline_segment': '  statusline-segment [--home DIR]\n      상태줄용 Grove를 한 줄(레벨 · 경험치 · 에너지)로 출력합니다.\n      읽기 전용 · 조합 가능: 자신의 명령 뒤에 연결하세요. 기본은 차분함.\n      --zen은 더 간결하게 출력. HUD를 방해하지 않음(항상 0 반환).',
   'cli.help.cmd.statusline_install': '  statusline install [--settings 경로]\n      Grove의 체인 안전 상태줄 래퍼를 설치합니다.\n      원본 statusLine.command를 백업하고 Grove를 체인에 연결합니다.\n      원본 상태줄은 항상 보존됩니다(덮어쓰기 없음).\n      --settings  Claude Code의 settings.json 경로(기본값: ~/.claude/settings.json)。',
   'cli.help.cmd.statusline_uninstall': '  statusline uninstall [--settings 경로]\n      Grove의 상태줄 래퍼를 제거하고 원본 명령어를 복원합니다.\n      --settings  Claude Code의 settings.json 경로(기본값: ~/.claude/settings.json)。',
   'cli.help.cmd.init': '  init [--repo DIR]\n      리포지토리에 Grove의 post-commit git 훅을 설치합니다(체인; 덮어쓰기 없음).\n      --repo 생략시 process.cwd() 기본값.\n      Grove 실패는 커밋을 절대 차단하지 않습니다 · 훅은 페일 오픈 설계입니다。',

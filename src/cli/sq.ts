@@ -82,6 +82,7 @@ import {
 } from './commands/hooks'
 import { handleWrap, handleShare, handleNtfy } from './commands/share'
 import { handleLoadout } from './commands/loadout'
+import { handleIncursion } from './commands/incursion'
 import { handleAchievements } from './commands/achievements'
 import { handleLearn } from './commands/learn'
 import { handleTry } from './commands/try'
@@ -175,7 +176,7 @@ const SUBCOMMANDS = [
   'event', 'status', 'recap', 'scan', 'quests', 'pull', 'enhance', 'repair',
   'protect', 'craft', 'foil', 'convert', 'prestige', 'dashboard', 'tui', 'serve',
   'statusline-ingest', 'statusline-segment', 'statusline', 'init', 'uninstall', 'commit-hook', 'merge-hook',
-  'suggest-commit', 'checkpoint', 'checkpoints', 'wrap', 'share', 'ntfy', 'loadout',
+  'suggest-commit', 'checkpoint', 'checkpoints', 'wrap', 'share', 'ntfy', 'loadout', 'incursion',
   'achievements', 'learn', 'promise', 'try', 'demo', 'export', 'import', 'commons', 'help',
 ] as const
 
@@ -418,6 +419,15 @@ Subcommands:
                           sq loadout equip buff/precast-spec
       unequip <N>   Unequip slot N (1-based). e.g. sq loadout unequip 2
 
+  incursion [start [--seed S] | status | dive | escape] [--home DIR]
+      THE DUNGEON: a push-your-luck roguelike run. Pack your build, dive a seeded
+      gauntlet, bank fatter loot each floor · but only if you ESCAPE alive. Dive too
+      deep and DIE: the run-bag is forfeit. Your real collection is touched only on
+      escape; a dead run costs nothing real, and a new run is always free (ADR-0005).
+      start   Roll a 5-floor run, snapshotting your loadout + gear power.
+      dive    Attempt the next floor (clear = loot · fail = -HP · 0 HP = death).
+      escape  Walk out alive and bank the whole run-bag into your collection.
+
   achievements [--all] [--home DIR]
       Show unlocked achievements (retroactive recognitions of cumulative progress).
       Default: unlocked only. --all also shows locked ones. --zen prints a count only.
@@ -553,6 +563,8 @@ export function buildUsageText(locale: Locale): string {
     t(locale, 'cli.help.cmd.ntfy'),
     '',
     t(locale, 'cli.help.cmd.loadout'),
+    '',
+    t(locale, 'cli.help.cmd.incursion'),
     '',
     t(locale, 'cli.help.cmd.achievements'),
     '',
@@ -746,6 +758,9 @@ export function run(argv: string[]): number {
 
     case 'loadout':
       return handleLoadout(rest, flags, dir, zen, locale)
+
+    case 'incursion':
+      return handleIncursion(rest, flags, dir, zen, locale)
 
     case 'achievements':
       return handleAchievements(flags, dir, zen, locale)

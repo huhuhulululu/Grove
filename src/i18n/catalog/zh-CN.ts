@@ -433,6 +433,7 @@ export const zhCN: Catalog = {
   'cli.help.cmd.ntfy': '  ntfy <主题> | off [--home 目录]\n      可选移动推送(ntfy.sh)。默认关闭 · 不设置主题则不推送。\n      <主题>  设置主题;安装 ntfy.sh 应用并订阅它。\n      off     禁用推送。仅重要时刻(升级、传说、宝箱);\n      消息仅含装饰性事件 · 绝不含代码/cwd/费用 (ADR-0011)。',
   'cli.help.cmd.help': '  help\n      显示此帮助消息。',
   'cli.help.cmd.loadout': '  loadout [equip <引用> | unequip <N>] [--home 目录]\n      查看或编辑 3 槽位构筑(装饰性 · ADR-0014)。\n      装备成员之间的协同效应可提升 XP/种子/暴击。\n      空构筑是一等公民中性状态 · 仅装饰性 (ADR-0005)。\n      equip <引用>   装备卡牌/装备/增益。格式: kind/id[/tag]\n      unequip <N>    卸载第 N 个槽位(1-based)。',
+  'cli.help.cmd.incursion': '  incursion [start [--seed S] | status | dive | escape] [--home 目录]\n      地牢:一场推运气的 roguelike 探险。带上你的构筑,潜入随机生成的层层关卡,\n      每清一层战利品越攒越厚 · 但只有活着逃出才归你。潜得太深就会阵亡:整袋战利品作废。\n      只有逃脱时才会写入你的真实收藏;阵亡不损失任何真实东西,重开一局永远免费 (ADR-0005)。\n      start   生成一场 5 层探险,快照你的构筑 + 装备战力。\n      dive    挑战下一层(清关=战利品 · 失败=-HP · 0 HP=阵亡)。\n      escape  活着逃出,把整袋战利品并入你的收藏。',
   'cli.help.cmd.achievements': '  achievements [--all] [--home 目录]\n      显示已解锁成就(对累计进度的回顾性认可)。\n      默认:仅已解锁。--all 也显示未解锁的。--zen 仅打印数量。\n      仅装饰性 · 永不过期 (ADR-0015)。',
   'cli.help.cmd.promise': '  promise\n      打印 Grove 的硬性伦理保证:绝不修改代码/提交/文档/git,\n      绝不自动跑测试,链接钩子/状态栏/设置,奖励仅装饰,\n      默认平静。只读 (ADR-0005)。',
 

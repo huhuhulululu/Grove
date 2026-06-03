@@ -209,6 +209,9 @@ export function handleScan(positional: string[], dir: string, zen: boolean, loca
 export function handleQuests(dir: string, locale: Locale = 'en'): number {
   const state = loadState(dir)
   console.log(formatQuests(QUESTS, state, locale))
+  // One quiet, opt-in discovery line — points at `sq learn` for the WHY behind a
+  // practice. Never per-quest, never a "you haven't…"; a veteran can ignore it.
+  console.log(t(locale, 'cli.quests.learn_tip'))
   return 0
 }
 

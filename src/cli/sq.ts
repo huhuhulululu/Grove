@@ -82,6 +82,7 @@ import {
 import { handleWrap, handleShare, handleNtfy } from './commands/share'
 import { handleLoadout } from './commands/loadout'
 import { handleAchievements } from './commands/achievements'
+import { handleLearn } from './commands/learn'
 import { handleTry } from './commands/try'
 import { handleCommons } from './commands/commons'
 import { handleExport, handleImport } from './commands/portability'
@@ -174,7 +175,7 @@ const SUBCOMMANDS = [
   'protect', 'craft', 'foil', 'convert', 'prestige', 'dashboard', 'tui', 'serve',
   'statusline-ingest', 'statusline', 'init', 'uninstall', 'commit-hook', 'merge-hook',
   'suggest-commit', 'checkpoint', 'checkpoints', 'wrap', 'share', 'ntfy', 'loadout',
-  'achievements', 'promise', 'try', 'demo', 'export', 'import', 'commons', 'help',
+  'achievements', 'learn', 'promise', 'try', 'demo', 'export', 'import', 'commons', 'help',
 ] as const
 
 /** Classic Levenshtein edit distance (pure). */
@@ -416,6 +417,11 @@ Subcommands:
       Default: unlocked only. --all also shows locked ones. --zen prints a count only.
       Cosmetic only · never expires (ADR-0015).
 
+  learn [practice]
+      Print a terse one-line WHY a practice matters (opt-in · never auto-shown).
+      With no argument, lists every practice with its one-liner. Read-only ·
+      ingests nothing, rewards nothing (ADR-0005).
+
   promise
       Print Grove's hard ethics guarantees: never modifies code/commits/docs/git,
       never auto-runs tests, chains hooks/statusline/settings, rewards cosmetic-only,
@@ -541,6 +547,8 @@ export function buildUsageText(locale: Locale): string {
     t(locale, 'cli.help.cmd.loadout'),
     '',
     t(locale, 'cli.help.cmd.achievements'),
+    '',
+    t(locale, 'cli.help.cmd.learn'),
     '',
     t(locale, 'cli.help.cmd.promise'),
     '',
@@ -730,6 +738,9 @@ export function run(argv: string[]): number {
 
     case 'achievements':
       return handleAchievements(flags, dir, zen, locale)
+
+    case 'learn':
+      return handleLearn(rest, zen, locale)
 
     case 'promise':
       return handlePromise(locale)

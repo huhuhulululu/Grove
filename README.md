@@ -115,6 +115,7 @@ never a "you haven't…".
 | `sq suggest-commit` | Read-only: draft a commit message from your staged diff (never commits) |
 | `sq checkpoint` | Non-destructive `git stash create` snapshot + a rest buff |
 | `sq statusline install` / `uninstall` | Chain Grove onto your Claude Code statusline (energy meter) |
+| `sq statusline-segment` | A calm, composable one-line glance (level · xp · energy) you chain into your own bar |
 | `sq export [file]` · `sq import <file>` | Own your data: portable, versioned state (import backs up first, refuses a bad file) |
 | `sq share [--badge]` · `sq ntfy <topic>` | Opt-in, privacy-minimal: a share card / README badge · mobile push on big moments (default **off**) |
 | `sq status` · `sq recap [--since session\|week\|all]` | Plain-text state · a calm look-back |

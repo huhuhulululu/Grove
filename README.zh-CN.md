@@ -115,6 +115,7 @@ Grove **只奖励成果，从不奖励原始活动** · 没有代码行数、提
 | `sq suggest-commit` | 只读：从暂存差异起草提交信息（从不提交） |
 | `sq checkpoint` | 无损 `git stash create` 快照 + 休息增益 |
 | `sq statusline install` / `uninstall` | 将 Grove 接入 Claude Code 状态栏（精力计量） |
+| `sq statusline-segment` | 一行平静、可组合的 Grove 概览（等级 · 经验 · 精力），接进你自己的状态栏 |
 | `sq export [file]` · `sq import <file>` | 数据自主：可移植的带版本存档（导入先备份，拒绝损坏文件） |
 | `sq share [--badge]` · `sq ntfy <topic>` | 可选 · 隐私最小化：分享卡 / README 徽章 · 重要时刻移动推送（默认**关闭**） |
 | `sq status` · `sq recap [--since session\|week\|all]` | 纯文本状态 · 平静回顾 |

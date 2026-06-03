@@ -89,6 +89,7 @@ export const ja: Catalog = {
   'reward.quest.merge_unlocked': '「PR をマージ」解放',
   'reward.quest.plan_ahead_buff': '計画策定 · 着手準備OK',
   'reward.quest.plan_ahead_unlocked': 'アンロック：先に計画',
+  'reward.quest.adr_recorded': 'decisions.md を維持 · ADR を記録',
 
   'reward.buff.refreshed': 'リフレッシュ',
   'reward.buff.second_wind': 'セカンドウィンド',
@@ -125,6 +126,8 @@ export const ja: Catalog = {
   'quest.doc-streak.desc': '週ごとにドキュメントを新鮮に保つ · 段階的で更新できる連続。',
   'quest.plan-ahead.title': '先に計画',
   'quest.plan-ahead.desc': '着手前に計画を書く · 完了として記録。',
+  'quest.adr-kept.title': '決定を記録',
+  'quest.adr-kept.desc': 'docs/decisions.md を保つ · なぜこの設計かを残す。',
 
   // ui.* — render / web / tui chrome
   'ui.panel.energy': 'エナジー',
@@ -379,7 +382,7 @@ export const ja: Catalog = {
   'cli.help.cmd.wrap': '  wrap [--as <タイプ>] [--home DIR] -- <コマンド...>\n      普段実行するコマンド(テスト/ビルド/lint)を実行し、出力を\n      透過的にストリーミングして、終了コードから実際の結果を取り込む(ADR-0003):\n      成功コマンドは報酬を付与; 失敗コマンドは何も付与しない(ファイアウォール)。\n      sq はラップされたコマンドの正確な終了コードで終了(透過パススルー)、\n      スクリプトや CI のどのコマンドの前にも挿入できる。\n      --as  イベントタイプを強制 (test_result | build_result | lint_clean)。\n            未指定時はコマンドから推論(test/build/lint)、デフォルト test_result。\n      例:   sq wrap -- npm test      sq wrap --as build_result -- make',
   'cli.help.cmd.status': '  status\n      現在の Grove ゲーム状態を表示。',
   'cli.help.cmd.recap': '  recap [--since session|week|all]\n      イベントと進捗のリキャップを表示。\n      --since session  (デフォルト) · 最後の session_start 以降のイベント\n      --since week     · 今週(UTC)開始以降のイベント\n      --since all      · 全イベント',
-  'cli.help.cmd.scan': '  scan [パス] [--home DIR]\n      リポジトリディレクトリの Pillar-B シグナル(グリモア、テスト、ドキュメント、仕様)をスキャン。\n      パス未指定時は process.cwd() をデフォルト。検出イベントを取り込み\n      報酬を表示; 検出内容のサマリーを表示。',
+  'cli.help.cmd.scan': '  scan [パス] [--home DIR]\n      リポジトリディレクトリの Pillar-B シグナル(グリモア、テスト、ドキュメント、仕様、決定)をスキャン。\n      パス未指定時は process.cwd() をデフォルト。検出イベントを取り込み\n      報酬を表示; 検出内容のサマリーを表示。',
   'cli.help.cmd.quests': '  quests [--home DIR]\n      Pillar-B クエストボードとステータスグリフおよびアクティブバフを表示。\n      ✓ 完了  ◆ アクティブ  · 未開始',
   'cli.help.cmd.pull': '  pull [--premium] [--spark <cardId>] [--seed N] [--home DIR]\n      {pullCost} 🌰 シードを消費して1回ガチャ抽選(コア決断 · タイミングはあなたが選ぶ)。\n      --premium  {premiumCost} 🌰 でプレミアム抽選(より良い確率; 段階的シンク)。\n      --spark    (--premium と共に) 欠けているカードを選んで確定保証を積む ·\n                 プレミアムの外れが十分になると次のプレミアム抽選でそれが確定。\n      成果を出荷してシードを稼ぐ(コミット、テスト緑、マージ、ドキュメント)。\n      余裕がないときは穏やかに拒否。装飾のみ (ADR-0005)。',
   'cli.help.cmd.craft': '  craft [cardId] [--home DIR]\n      {shardsCraft} シャードを消費して欠けているカードを1枚クラフト(重複末尾シンク · 各\n      重複抽選はレアリティ比例のシャードを貯める)。id 未指定時は解放済みセットの最初の\n      欠けているカードをクラフト。シャード不足または残りなし時は穏やかに拒否。装飾のみ (ADR-0005)。',

@@ -148,6 +148,18 @@ describe('checkAchievements (PURE)', () => {
     expect(ACHIEVEMENTS.find((a) => a.id === 'ach:cards-25')!.desc).toBe('Own 20 distinct cards.')
   })
 
+  it('ach:adr unlocks once the adr-kept quest is completed (derivable from quests[])', () => {
+    const s: GameState = {
+      ...initialState(),
+      quests: [{ id: 'adr-kept', status: 'done', completions: 1 }],
+    }
+    expect(checkAchievements(s)).toContain('ach:adr')
+  })
+
+  it('ach:adr is absent on a fresh state (no decisions recorded yet)', () => {
+    expect(checkAchievements(initialState())).not.toContain('ach:adr')
+  })
+
   it('first foil unlocks first-foil', () => {
     const s: GameState = { ...initialState(), cards: ownCards(1), foiled: [ALL_CARD_DEFS[0]!.id] }
     expect(checkAchievements(s)).toContain('ach:first-foil')

@@ -15,7 +15,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import type { GroveEvent } from '../core/events'
-import { GRIMOIRE_FILES } from '../core/quests'
+import { GRIMOIRE_FILES, ADR_FILES, ADR_NONEMPTY_MIN_LINES } from '../core/quests'
 
 // ---------------------------------------------------------------------------
 // Public surface
@@ -37,6 +37,9 @@ export function scanRepo(
 
   // ---- Step 1: GRIMOIRE detection (filesystem, no git needed) ---------------
   detectGrimoire(repoDir, sessionId, ts, events)
+
+  // ---- Step 1b: ADR (decisions.md) detection (filesystem) -------------------
+  detectAdr(repoDir, sessionId, ts, events)
 
   // ---- Step 2: LAST-COMMIT DIFF (git; best-effort) --------------------------
   detectLastCommit(repoDir, sessionId, ts, events, notes)
@@ -74,6 +77,35 @@ function detectGrimoire(
     document: 'CLAUDE.md',
     present: false,
   }))
+}
+
+/**
+ * ADR detection — recognize the habit of recording architectural decisions. If a
+ * non-empty decisions file exists, emit ONE file_presence with meta.adr=true. An
+ * absent / empty file emits NOTHING (forgiving silence — unlike the grimoire there
+ * is no standing aura to drop, so no present:false sentinel is needed).
+ */
+function detectAdr(
+  repoDir: string,
+  sessionId: string,
+  ts: string,
+  events: GroveEvent[],
+): void {
+  for (const name of ADR_FILES) {
+    const fullPath = path.join(repoDir, name)
+    if (!fs.existsSync(fullPath)) continue
+    const content = fs.readFileSync(fullPath, 'utf-8')
+    const nonBlankLines = content.split('\n').filter((l) => l.trim().length > 0).length
+    if (nonBlankLines > ADR_NONEMPTY_MIN_LINES) {
+      events.push(buildEvent(sessionId, ts, 'file_presence', 1, true, {
+        document: name,
+        adr: true,
+        lines: nonBlankLines,
+        present: true,
+      }))
+    }
+    return // first ADR path wins (present-but-empty also stops the search, silently)
+  }
 }
 
 // ---------------------------------------------------------------------------

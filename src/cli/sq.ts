@@ -267,7 +267,7 @@ Subcommands:
       --since all      · all events
 
   scan [path] [--home DIR]
-      Scan a repo directory for Pillar-B signals (grimoire, tests, docs, specs).
+      Scan a repo directory for Pillar-B signals (grimoire, tests, docs, specs, decisions).
       Defaults to process.cwd() if no path given. Ingests detected events and
       prints rewards; prints a summary of what was detected.
 

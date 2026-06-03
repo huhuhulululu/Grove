@@ -222,6 +222,22 @@ export function applyQuests(
     // ---- Forge the Grimoire ------------------------------------------------
     case 'file_presence': {
       const document = event.meta.document
+
+      // ADR (decisions.md) habit — recognized FIRST so it returns before the grimoire
+      // gate (which would otherwise discard a non-grimoire document). Records the quest
+      // done ONCE; a later detection grants nothing (anti-overjustification). NO standing
+      // buff, no rng draw → purely a quests[] record + one cosmetic line. Absent/empty
+      // ADR emits no event, so this branch never fires for a missing file.
+      if (event.meta.adr === true) {
+        if (event.meta.present === false) return state
+        const aq = findQuest(state.quests, 'adr-kept')
+        if ((aq?.completions ?? 0) === 0) {
+          rewards.push({ kind: 'buff', buff: 'quest:adr-kept', ...msg('reward.quest.adr_recorded') })
+          return { ...state, quests: setQuest(state.quests, 'adr-kept', 'done', 1) }
+        }
+        return state
+      }
+
       if (typeof document !== 'string' || !(GRIMOIRE_FILES as readonly string[]).includes(document)) {
         return state // not a grimoire signal — ignore entirely
       }

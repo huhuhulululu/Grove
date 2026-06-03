@@ -524,6 +524,49 @@ describe('applyQuests — plan_written / plan-ahead', () => {
 })
 
 // ---------------------------------------------------------------------------
+// ADR-KEPT quest (file_presence meta.adr → recognized decision-record habit)
+// ---------------------------------------------------------------------------
+
+describe('applyQuests — file_presence / adr-kept', () => {
+  const adrEv = (over: Partial<GroveEvent['meta']> = {}) =>
+    ev({ type: 'file_presence', meta: { adr: true, present: true, document: 'docs/decisions.md', lines: 5, ...over } })
+
+  it('marks adr-kept done once on an adr file_presence + pushes one celebratory line', () => {
+    const next = applyQuests(initialState(), adrEv(), mulberry32(1), [])
+    expect(quest(next, 'adr-kept')).toEqual({ id: 'adr-kept', status: 'done', completions: 1 })
+  })
+
+  it('pushes the adr_recorded line the first time, nothing on repeat (anti-overjustification)', () => {
+    let state = initialState()
+    const r1: Reward[] = []
+    state = applyQuests(state, adrEv(), mulberry32(1), r1)
+    expect(r1.some((r) => r.kind === 'buff' && r.buff === 'quest:adr-kept')).toBe(true)
+    const r2: Reward[] = []
+    state = applyQuests(state, adrEv(), mulberry32(1), r2)
+    expect(r2.some((r) => r.kind === 'buff' && r.buff === 'quest:adr-kept')).toBe(false)
+    expect(quest(state, 'adr-kept')!.completions).toBe(1)
+  })
+
+  it('adds NO standing buff (cosmetic record only)', () => {
+    const s0 = initialState()
+    const next = applyQuests(s0, adrEv(), mulberry32(1), [])
+    expect(next.buffs.length).toBe(s0.buffs.length)
+  })
+
+  it('a grimoire file_presence (no adr flag) never touches adr-kept', () => {
+    const next = applyQuests(initialState(), ev({ type: 'file_presence', meta: { document: 'CLAUDE.md', present: true, lines: 10 } }), mulberry32(1), [])
+    expect(quest(next, 'adr-kept')).toBeUndefined()
+  })
+
+  it('an adr present:false signal is a silent no-op (no reward, no quest write)', () => {
+    const rewards: Reward[] = []
+    const next = applyQuests(initialState(), adrEv({ present: false }), mulberry32(1), rewards)
+    expect(rewards).toEqual([])
+    expect(quest(next, 'adr-kept')).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
 // CLEAN-BUILD quest (lint_clean → a small permanent seed aura)
 // ---------------------------------------------------------------------------
 

@@ -117,6 +117,7 @@ export const en: Catalog = {
   'reward.quest.merge_unlocked': 'Merge the PR unlocked',
   'reward.quest.plan_ahead_buff': 'plan set · ready to build',
   'reward.quest.plan_ahead_unlocked': 'Plan Ahead unlocked',
+  'reward.quest.adr_recorded': 'decisions.md kept · ADR recorded',
 
   // engine buff labels (the `label` carried on a Buff, surfaced by renderers)
   'reward.buff.refreshed': 'Refreshed',
@@ -156,6 +157,8 @@ export const en: Catalog = {
   'quest.doc-streak.desc': 'Keep docs fresh, week over week · a tiered, renewable streak.',
   'quest.plan-ahead.title': 'Plan Ahead',
   'quest.plan-ahead.desc': 'Write a plan before you build · marks the chore done.',
+  'quest.adr-kept.title': 'Decisions Recorded',
+  'quest.adr-kept.desc': 'Keep docs/decisions.md · record why the code is shaped this way.',
 
   // -------------------------------------------------------------------------
   // ui.* — render / web / tui chrome (dashboard.ts, format.ts, page.ts)
@@ -443,7 +446,7 @@ export const en: Catalog = {
   'cli.help.cmd.wrap': '  wrap [--as <type>] [--home DIR] -- <cmd...>\n      Run a command you run anyway (tests / build / lint), stream its output\n      transparently, and ingest a REAL outcome from its EXIT CODE (ADR-0003):\n      a green command grants the reward; a FAILING one grants NOTHING (firewall).\n      sq exits with the wrapped command\'s exact exit code (transparent passthrough),\n      so it drops in front of any command in a script or CI.\n      --as  Force the event type (test_result | build_result | lint_clean).\n            Otherwise inferred from the command (test/build/lint), default test_result.\n      e.g.  sq wrap -- npm test      sq wrap --as build_result -- make',
   'cli.help.cmd.status': '  status\n      Show current Grove game state.',
   'cli.help.cmd.recap': '  recap [--since session|week|all]\n      Show a recap of events and progress.\n      --since session  (default) · events since the last session_start\n      --since week     · events since this week (UTC) began\n      --since all      · all events',
-  'cli.help.cmd.scan': '  scan [path] [--home DIR]\n      Scan a repo directory for Pillar-B signals (grimoire, tests, docs, specs).\n      Defaults to process.cwd() if no path given. Ingests detected events and\n      prints rewards; prints a summary of what was detected.',
+  'cli.help.cmd.scan': '  scan [path] [--home DIR]\n      Scan a repo directory for Pillar-B signals (grimoire, tests, docs, specs, decisions).\n      Defaults to process.cwd() if no path given. Ingests detected events and\n      prints rewards; prints a summary of what was detected.',
   'cli.help.cmd.quests': '  quests [--home DIR]\n      Show the Pillar-B quest board with status glyphs and active buffs.\n      ✓ done  ◆ active  · not yet started',
   'cli.help.cmd.pull': '  pull [--premium] [--spark <cardId>] [--seed N] [--home DIR]\n      Spend {pullCost} 🌰 seeds for one gacha pull (the core decision · you choose WHEN).\n      --premium  Spend {premiumCost} 🌰 for a PREMIUM pull (better odds; the escalating sink).\n      --spark    (with --premium) Choose a missing card to build a GUARANTEE toward ·\n                 after enough premium misses the next premium pull is guaranteed to be it.\n      Earn seeds by shipping outcomes (commits, green tests, merges, docs).\n      Refuses calmly when you can\'t afford it. Cosmetic only (ADR-0005).',
   'cli.help.cmd.craft': '  craft [cardId] [--home DIR]\n      Spend {shardsCraft} shards to craft ONE chosen missing card (the dup-tail SINK · every\n      duplicate pull banks rarity-scaled shards). With no id, crafts the first\n      missing card in your unlocked sets. Refuses calmly when short on shards or\n      nothing is left to craft. Cosmetic only (ADR-0005).',

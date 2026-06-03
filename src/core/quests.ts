@@ -68,6 +68,12 @@ export const QUESTS: QuestDef[] = [
     description: 'Write a plan before you build · marks the chore done.',
     pillar: 'B',
   },
+  {
+    id: 'adr-kept',
+    title: 'Decisions Recorded',
+    description: 'Keep docs/decisions.md · record why the code is shaped this way.',
+    pillar: 'B',
+  },
 ]
 
 // ---------------------------------------------------------------------------
@@ -118,6 +124,19 @@ export const GRIMOIRE_FILES = [
   '.github/copilot-instructions.md',
   'GEMINI.md',
 ] as const
+
+/** Canonical ADR (architecture-decision record) file + a short fallback list. One
+ *  path only per habit (no tool-specific layouts — ADR-0001 anti-coupling). */
+export const ADR_FILES = [
+  'docs/decisions.md',
+  'docs/DECISIONS.md',
+  'ARCHITECTURE-DECISIONS.md',
+  'docs/architecture/decisions/README.md',
+] as const
+
+/** An ADR file must carry more than this many NON-BLANK lines to count (an empty
+ *  or single-line file is not yet a real decision record — forgiving, never shamed). */
+export const ADR_NONEMPTY_MIN_LINES = 1
 
 /** A lean grimoire is concise; bloated files add noise and earn no aura (but are never shamed). */
 export const GRIMOIRE_LEAN_MAX_LINES = 80

@@ -96,6 +96,47 @@ describe('scanRepo — GRIMOIRE detection', () => {
   })
 })
 
+describe('scanRepo — ADR (decisions.md) detection', () => {
+  let tmp: string
+  afterEach(() => {
+    if (tmp) fs.rmSync(tmp, { recursive: true, force: true })
+  })
+  const adrEvent = (events: ReturnType<typeof scanRepo>['events']) =>
+    events.find((e) => e.type === 'file_presence' && (e.meta as Record<string, unknown>)['adr'] === true)
+
+  it('emits a file_presence adr:true when a non-empty docs/decisions.md exists', () => {
+    tmp = mkTmp()
+    fs.mkdirSync(path.join(tmp, 'docs'))
+    fs.writeFileSync(path.join(tmp, 'docs/decisions.md'), '# Decisions\n\n## ADR-0001\nWe chose X because Y.\n')
+    const { events } = scanRepo(tmp, { sessionId: 'adr', ts: '2026-01-01T00:00:00Z' })
+    const e = adrEvent(events)
+    expect(e).toBeDefined()
+    expect(e!.meta).toMatchObject({ document: 'docs/decisions.md', adr: true, present: true })
+  })
+
+  it('emits NO adr event for an empty / single-line decisions.md (non-empty gate)', () => {
+    tmp = mkTmp()
+    fs.mkdirSync(path.join(tmp, 'docs'))
+    fs.writeFileSync(path.join(tmp, 'docs/decisions.md'), '\n')
+    const { events } = scanRepo(tmp, { sessionId: 'adr-empty', ts: '2026-01-01T00:00:00Z' })
+    expect(adrEvent(events)).toBeUndefined()
+  })
+
+  it('emits NO adr event and NO adr sentinel when the file is absent (forgiving silence)', () => {
+    tmp = mkTmp()
+    const { events } = scanRepo(tmp, { sessionId: 'adr-absent', ts: '2026-01-01T00:00:00Z' })
+    expect(events.some((e) => (e.meta as Record<string, unknown>)['adr'] !== undefined)).toBe(false)
+  })
+
+  it('detects the docs/DECISIONS.md fallback path', () => {
+    tmp = mkTmp()
+    fs.mkdirSync(path.join(tmp, 'docs'))
+    fs.writeFileSync(path.join(tmp, 'docs/DECISIONS.md'), '# Decisions\nWe decided things.\nAnd more things.\n')
+    const { events } = scanRepo(tmp, { sessionId: 'adr-fallback', ts: '2026-01-01T00:00:00Z' })
+    expect(adrEvent(events)).toBeDefined()
+  })
+})
+
 describe('scanRepo — git last-commit diff classification', () => {
   let tmp: string
 

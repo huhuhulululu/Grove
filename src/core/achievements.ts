@@ -177,6 +177,13 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     desc: 'Reach prestige rank 3.',
     when: (s) => prestigeRankOf(s) >= 3,
   },
+  // -- Standardization (Pillar B) --
+  {
+    id: 'ach:adr',
+    name: 'Decision Maker',
+    desc: 'Recorded your first architectural decision.',
+    when: (s) => (s.quests.find((q) => q.id === 'adr-kept')?.completions ?? 0) >= 1,
+  },
 ]
 
 /**

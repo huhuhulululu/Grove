@@ -104,6 +104,7 @@ describe('contract — engine reward.* keys reproduce the legacy English byte-fo
     ['reward.quest.merge_unlocked', undefined, 'Merge the PR unlocked'],
     ['reward.quest.plan_ahead_buff', undefined, 'plan set · ready to build'],
     ['reward.quest.plan_ahead_unlocked', undefined, 'Plan Ahead unlocked'],
+    ['reward.quest.adr_recorded', undefined, 'decisions.md kept · ADR recorded'],
 
     // XP_FLAVOUR sub-strings (composed into reward.xp by the engine)
     ['reward.flavour.commit', undefined, 'commit'],
@@ -135,6 +136,8 @@ describe('contract — engine reward.* keys reproduce the legacy English byte-fo
     ['quest.doc-streak.desc', undefined, 'Keep docs fresh, week over week · a tiered, renewable streak.'],
     ['quest.plan-ahead.title', undefined, 'Plan Ahead'],
     ['quest.plan-ahead.desc', undefined, 'Write a plan before you build · marks the chore done.'],
+    ['quest.adr-kept.title', undefined, 'Decisions Recorded'],
+    ['quest.adr-kept.desc', undefined, 'Keep docs/decisions.md · record why the code is shaped this way.'],
   ]
 
   for (const [key, args, expected] of cases) {

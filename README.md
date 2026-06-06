@@ -46,6 +46,28 @@ Signals are captured by thin per-tool adapters and reduced by a **pure** engine,
 AI-coding workflow · Claude Code, Cursor, Aider, Codex / Copilot / Gemini CLI, or plain terminal + git.
 One adapter per tool, zero coupling.
 
+```mermaid
+flowchart LR
+    subgraph YOURS["🔒 YOUR REAL WORK · read-only to Grove"]
+        direction TB
+        A1["git commit"]
+        A2["a test run you started"]
+        A3["a PR you merged"]
+        A4["CLAUDE.md · specs · synced docs"]
+    end
+    YOURS -->|"adapters capture<br/>OUTCOMES only"| E["📨 one normalized<br/>event stream"]
+    E --> ENGINE{{"🧪 PURE ENGINE<br/>events ➜ cosmetic state<br/>no fs · no clock · no network<br/>randomness = an injected seed"}}
+    ENGINE --> STATE["🎮 COSMETIC GAME-STATE<br/>XP · 🌰 seeds · 🎴 cards<br/>⚔️ gear · 🏆 achievements · 🗺️ run-bag"]
+    ENGINE -. "✋ cannot write back — it is a pure function" .-> YOURS
+    classDef real stroke:#3fb950,stroke-width:2px
+    classDef eng stroke:#8a2be2,stroke-width:3px
+    class YOURS real
+    class ENGINE eng
+```
+
+The arrows go **one way only**. Outcomes flow *in*; loot flows *out*; your code, commits, and git history
+are on the read-only side of a wall the engine cannot reach across (ADR-0005).
+
 ## 60-second quickstart
 
 ```sh
@@ -73,13 +95,17 @@ sq learn test-first          # one plain line: why a failing test first pins the
 
 ## The core loop
 
-```text
-   ship a real outcome            you choose when to spend         a calm arrival
-  ────────────────────  ──▶  ──────────────────────────  ──▶  ────────────────────
-   green test · merge          sq pull / craft / foil          🌳 you've got the
-   clean build · a spec        enhance · repair · protect         groove (mastery)
-        │  earns 🌰 seeds            │  cosmetic upgrades              one warm line,
-        ▼                           ▼  (code never touched)           never a treadmill
+```mermaid
+flowchart LR
+    O["✅ ship a real outcome<br/>green test · merge · clean build · a spec"]
+    S["🌰 earn seeds<br/>you decide WHEN to spend"]
+    SP["🎴 pull · craft · foil<br/>⚔️ enhance · repair · protect<br/>🗺️ dive the Incursion"]
+    U["✨ cosmetic upgrades<br/>your code is never touched"]
+    M["🌳 mastery — one warm arrival<br/>never a treadmill"]
+    O --> S --> SP --> U --> O
+    U -. "eventually" .-> M
+    classDef hot stroke:#3fb950,stroke-width:2px
+    class O,U hot
 ```
 
 Grove **rewards outcomes, never raw activity** · no LOC, commit-count, or hours grind. A red test costs you
@@ -88,10 +114,32 @@ never a "you haven't…".
 
 ## Highlights
 
+A whole game grows from two pillars — *relieve fatigue*, *drive good habits* — fenced by the firewall and kept calm:
+
+```mermaid
+flowchart TB
+    G(["🌳 Grove"])
+    G --> P1["🍃 Relieve fatigue"]
+    G --> P2["🛠️ Drive good habits"]
+    G --> FW["🔒 Ethics firewall"]
+    G --> CAL["🔋 Calm & yours"]
+    P1 --> a1["🎴 Collection · 39 cards · gacha · foil"]
+    P1 --> a2["⚔️ Gear & loadout · enhance · synergies"]
+    P1 --> a3["🗺️ The Incursion · push-your-luck dungeon"]
+    P1 --> a4["🏆 Recognition · achievements · mastery"]
+    P2 --> b1["📜 Quest board · CLAUDE.md · specs · docs · ADRs"]
+    P2 --> b2["🎓 sq learn · opt-in why"]
+    FW --> c1["pure engine · cosmetic-only · never touches code or git"]
+    CAL --> d1["Vigor / Weekly energy · --zen · local-first · i18n ×4"]
+    classDef pillar stroke:#3fb950,stroke-width:2px
+    class P1,P2,FW,CAL pillar
+```
+
 | | |
 |---|---|
 | 🎴 **Collection** | 7 card sets · 39 cards · gacha pulls with pity + a targeted `--spark` guarantee; craft missing cards and cosmetically **foil** owned ones (a renewable shard sink, diminishing past a full craft's worth). |
 | ⚔️ **Gear & loadout** | A risk/reward `enhance` / `repair` / `protect` loop, a 3-slot loadout, and 8 cosmetic synergies between equipped cards/gear/buffs (ADR-0014). |
+| 🗺️ **The Incursion** | The **dungeon**: a push-your-luck roguelike run. Pack your build, dive a seeded gauntlet of floor archetypes (**elite** harder-richer · **treasure** safe-jackpot · **rest** heals), spend a one-shot **shield**, and fell a two-phase **boss** — but the loot is yours only if you **escape alive**; dive too deep and die and the run-bag is forfeit. Real stakes that are **100% cosmetic**: your code, commits, and git are never touched (ADR-0005). |
 | 🏆 **Recognition** | 13 derivable **achievements** (retroactive, no FOMO), a one-shot **mastery** arrival that ends the endgame treadmill, **comeback** (a stuck suite finally green), and **first light** (your first green build). |
 | 📜 **Good habits** | A habit-quest board (write a `CLAUDE.md`, a spec, a plan, keep docs synced, **record decisions** in `docs/decisions.md`) and `sq learn` · opt-in one-line *why*s for both newcomers and veterans. |
 | 🔋 **Anti-burnout energy** | Your Claude Code 5h/7d quota becomes **Vigor / Weekly** energy, framed as *remaining* (never "burned"); unmetered plans show a calm "Wellspring", never invented scarcity. Account-global across all your repos. |
@@ -112,6 +160,7 @@ never a "you haven't…".
 | `sq pull [--premium] [--spark <id>]` | Spend 🌰 seeds for a gacha pull · you choose when |
 | `sq craft <id>` · `sq foil [id]` · `sq convert [n]` | Shard sinks: craft a missing card, foil an owned one, or convert surplus shards back to seeds |
 | `sq enhance <ref>` · `sq repair <ref>` · `sq protect <ref>` | The gear risk/reward loop (cosmetic only) |
+| `sq incursion start [--kit shield]` · `dive` · `escape` · `history` | The **dungeon**: dive a seeded roguelike run of floor archetypes + a two-phase boss; bank loot only if you escape alive (cosmetic stakes) |
 | `sq suggest-commit` | Read-only: draft a commit message from your staged diff (never commits) |
 | `sq checkpoint` | Non-destructive `git stash create` snapshot + a rest buff |
 | `sq statusline install` / `uninstall` | Chain Grove onto your Claude Code statusline (energy meter) |

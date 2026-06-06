@@ -149,6 +149,17 @@
   imports Ink/React — `handleTui`/`handleServe` use dynamic `import()`, tsup `splitting:true`; cold-start
   490ms→~70ms, main bundle 378KB→100KB (Ink loads only for `sq tui`). (3) Dead-code cleanup (6 files). **1682
   tests, tsc clean, build OK, firewall intact.**
+- **2026-06-06 — Incursion depth, gate-then-build.** A fresh 37-agent design→adversarial-review workflow
+  vetted 6 Incursion fast-follows; the gate REJECTED two with code-grounded blockers (typed-floors: its
+  "bit-identical buildPower" premise is false and it would punish the very gear investment the module
+  rewards; seed-wager: a no-lose dominant-strategy non-decision) and shipped the top pick. **The Incursion
+  now has a consumable: a single-use SHIELD** (`sq incursion start --kit shield`, 30 🌰) that soaks ONE
+  failed dive at the moment of your choosing. The per-item cap (`SHIELD_CAP=1`) is load-bearing balance,
+  not tidiness — a Monte-Carlo pin proves 1 shield keeps banking-before-the-last-floor optimal (tension
+  alive) while 2 would flip the run to always-dive. Engine stays PURE (no new GameState field — the kit
+  lives in the ephemeral run.json); the seed debit is crash-safe (run written before the currency is
+  spent, shield stripped if unaffordable) and the start-without-funds path TEACHES instead of erroring.
+  **1879 tests, tsc clean, build OK, firewall intact.** (Shipped on PR atop the #7 firewall hardening.)
 
 ## Current snapshot (2026-06-01)
 

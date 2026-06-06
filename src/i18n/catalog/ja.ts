@@ -197,6 +197,7 @@ export const ja: Catalog = {
   'ui.collection.locked': '{set}  🔒 L{level}',
   'ui.collection.row': '{set}  {owned}/{total}{done}',
   'ui.collection.done': '  ✓',
+  'ui.collection.foil': ' ✨{foiled}/{total}',
   'ui.gear.none': '(ギアなし · PR をマージしてドロップ)',
   'ui.gear.row': '{name} +{level}{broken}{protected}{effect}',
   'ui.gear.broken': '  破損',

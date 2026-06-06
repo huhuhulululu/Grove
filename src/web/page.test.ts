@@ -30,6 +30,14 @@ function seededState(): GameState {
 }
 
 describe('renderPage', () => {
+  it('shows a foil span for a set with foiled cards', () => {
+    const cards = [{ id: 'forest.sapling', name: 'Sapling', rarity: 'common', set: 'forest' }] as GameState['cards']
+    const state: GameState = { ...initialState(), cards, foiled: ['forest.sapling'] }
+    const html = renderPage(state)
+    expect(html).toContain('tag foil')
+    expect(html).toMatch(/✨1\//)
+  })
+
   it('returns a self-contained HTML document', () => {
     const html = renderPage(seededState())
     expect(html).toContain('<!DOCTYPE html>')

@@ -132,6 +132,7 @@ function energyRow(icon: string, label: string, bindKey: 'vigor' | 'sap', value:
 
 function collectionSection(state: GameState, locale: Locale): string {
   const ownedIds = new Set(state.cards.map((c) => c.id))
+  const foiledIds = new Set(state.foiled ?? [])
   const level = Math.max(1, state.player.level)
   const rows = Object.keys(CARD_SETS).map((setName) => {
     const unlock = setUnlockLevel(setName)
@@ -140,9 +141,11 @@ function collectionSection(state: GameState, locale: Locale): string {
     }
     const allIds = cardIdsInSet(setName)
     const owned = allIds.filter((id) => ownedIds.has(id)).length
+    const foiled = allIds.filter((id) => foiledIds.has(id)).length
     const total = allIds.length
     const done = total > 0 && owned === total ? ' <span class="tag done">✓</span>' : ''
-    return `<li>${esc(setName)} <span class="count">${owned}/${total}</span>${done}</li>`
+    const foil = foiled > 0 ? ` <span class="tag foil">✨${foiled}/${total}</span>` : ''
+    return `<li>${esc(setName)} <span class="count">${owned}/${total}</span>${done}${foil}</li>`
   })
   return section(t(locale, 'ui.web.collection'), `<ul class="list">${rows.join('')}</ul>`)
 }

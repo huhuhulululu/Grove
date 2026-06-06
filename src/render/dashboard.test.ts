@@ -1163,3 +1163,20 @@ describe('incursion panel — surface an active run on the daily dashboard', () 
     expect(out.toLowerCase()).toMatch(/reached|escape/)
   })
 })
+
+describe('renderDashboard — COLLECTION foil progress', () => {
+  it('shows a per-set FOIL marker (✨N/total) when owned cards in a set are foiled', () => {
+    const cards = [
+      { id: 'forest.sapling', name: 'Sapling', rarity: 'common', set: 'forest' },
+      { id: 'forest.fern', name: 'Fern', rarity: 'common', set: 'forest' },
+    ] as GameState['cards']
+    const state: GameState = { ...initialState(), cards, foiled: ['forest.sapling', 'forest.fern'] }
+    expect(renderDashboard(state)).toMatch(/✨2\/5/) // forest has 5 cards; 2 foiled
+  })
+
+  it('shows NO foil marker for a set with zero foiled cards (no ✨0 clutter)', () => {
+    const cards = [{ id: 'forest.sapling', name: 'Sapling', rarity: 'common', set: 'forest' }] as GameState['cards']
+    const state: GameState = { ...initialState(), cards, foiled: [] }
+    expect(renderDashboard(state)).not.toMatch(/✨\d/) // the ✨-foil CTA is "✨ foil", never "✨<digit>"
+  })
+})

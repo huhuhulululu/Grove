@@ -239,6 +239,7 @@ export const en: Catalog = {
   'ui.collection.locked': '{set}  🔒 L{level}',
   'ui.collection.row': '{set}  {owned}/{total}{done}',
   'ui.collection.done': '  ✓',
+  'ui.collection.foil': ' ✨{foiled}/{total}',
   'ui.gear.none': '(no gear yet · merge a PR to drop some)',
   'ui.gear.row': '{name} +{level}{broken}{protected}{effect}',
   'ui.gear.broken': '  BROKEN',

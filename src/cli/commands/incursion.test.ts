@@ -290,6 +290,40 @@ describe('sq incursion — the playable roguelike loop', () => {
     expect(out()).toContain('TREASURE')
   })
 
+  it('the scout tags a REST floor and shows "heals 1 HP" instead of loot', () => {
+    let s = -1, idx = -1
+    for (let i = 0; i < 400; i++) {
+      const m = rollMap(i)
+      const j = m.findIndex((f, k) => f.kind === 'rest' && k < RUN_FLOORS - 1)
+      if (j >= 0) { s = i; idx = j; break }
+    }
+    expect(s).toBeGreaterThanOrEqual(0)
+    const rs: RunState = { seed: s, power: 1, floors: rollMap(s), current: idx, hp: 1, bag: { cards: [], gear: [], seeds: 0 } }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(rs), 'utf-8')
+    run(['incursion', '--home', home]) // status
+    expect(out()).toContain('🌿 REST')
+    expect(out().toLowerCase()).toContain('heals 1 hp')
+  })
+
+  it('clearing a REST floor narrates the heal, not a loot bank', () => {
+    let s = -1, idx = -1
+    for (let i = 0; i < 600; i++) {
+      const m = rollMap(i)
+      const j = m.findIndex((f, k) => f.kind === 'rest' && k < RUN_FLOORS - 1)
+      if (j < 0) continue
+      const probe: RunState = { seed: i, power: 5, floors: m, current: j, hp: 1, bag: { cards: [], gear: [], seeds: 0 } }
+      if (resolveFloor(probe).cleared) { s = i; idx = j; break }
+    }
+    expect(s).toBeGreaterThanOrEqual(0)
+    const rs: RunState = { seed: s, power: 5, floors: rollMap(s), current: idx, hp: 1, bag: { cards: [], gear: [], seeds: 0 } }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(rs), 'utf-8')
+    run(['incursion', 'dive', '--home', home])
+    expect(out().toLowerCase()).toMatch(/catch your breath|hp \+1/)
+    expect(out()).not.toMatch(/Banked:/) // a rest clear banks nothing
+  })
+
   it('the boss scout shows the ☠ BOSS tag and the SQUARED two-phase odds', () => {
     const m = rollMap(7)
     const rs: RunState = { seed: 7, power: 2.0, floors: m, current: RUN_FLOORS - 1, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }

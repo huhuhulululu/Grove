@@ -53,7 +53,7 @@ const GEAR_LEVEL_POWER = 0.04
 /** Floor archetypes. ELITE = a harder gamble for fatter loot (the risky-richer fork);
  *  TREASURE = a safe jackpot, fatter loot at NORMAL odds (the safe-richer fork). (A REST
  *  archetype is a deliberate later follow-up.) */
-export type FloorKind = 'combat' | 'elite' | 'treasure'
+export type FloorKind = 'combat' | 'elite' | 'treasure' | 'rest'
 /** How often a non-final floor rolls ELITE. This is the RATE knob (tune frequency, not the
  *  mult) so the bare run stays a real gamble; pinned by the balance test. ELITE is rolled
  *  FIRST and its window is fixed, so adding TREASURE never shifts the elite set or the rate. */
@@ -69,6 +69,10 @@ const ELITE_SEED_MULT = 2
 const TREASURE_CHANCE = 0.22
 /** A treasure floor banks this multiple of base seeds — the fattest bank, at normal odds. */
 const TREASURE_SEED_MULT = 2.5
+/** How often a non-final floor rolls REST (carved from combat AFTER elite+treasure, so it leaves
+ *  their sets — and difficulty — untouched). A rest floor's CLEAR HEALS 1 HP instead of banking
+ *  loot: a respite that can carry you to the boss at full HP (it pays off most against the climax). */
+const REST_CHANCE = 0.18
 
 /** The final floor is a two-phase BOSS: clearing it means winning TWO back-to-back rolls at
  *  the boss difficulty in ONE dive, so its clear-prob is clearChance². That restores a real
@@ -216,6 +220,7 @@ function floorKind(seed: number, i: number, floors: number): FloorKind {
   const r = runRng(seed, `kind:${i}`)()
   if (r < ELITE_CHANCE) return 'elite'
   if (r < ELITE_CHANCE + TREASURE_CHANCE) return 'treasure'
+  if (r < ELITE_CHANCE + TREASURE_CHANCE + REST_CHANCE) return 'rest'
   return 'combat'
 }
 
@@ -231,7 +236,9 @@ export function rollMap(seed: number, floors = RUN_FLOORS): RunFloor[] {
         ? baseSeeds * ELITE_SEED_MULT
         : kind === 'treasure'
           ? Math.round(baseSeeds * TREASURE_SEED_MULT)
-          : baseSeeds
+          : kind === 'rest'
+            ? 0 // a rest floor banks NO loot — the heal IS the reward
+            : baseSeeds
     out.push({
       // elite raises difficulty; treasure leaves it at baseline (a real dive, not free money)
       difficulty: kind === 'elite' ? baseDifficulty * ELITE_DIFF_MULT : baseDifficulty,
@@ -291,6 +298,11 @@ export function resolveFloor(run: RunState): DiveResult {
     : phase1
 
   if (cleared) {
+    if (floor.kind === 'rest') {
+      // a REST floor: clearing HEALS 1 HP (capped at RUN_HP, never overheal) and banks NO loot.
+      const hp = Math.min(RUN_HP, run.hp + 1)
+      return { run: { ...run, current: run.current + 1, hp }, cleared: true, dead: false }
+    }
     const bag = mergeDrop(run.bag, floor, run.seed, run.current)
     return { run: { ...run, current: run.current + 1, bag }, cleared: true, dead: false }
   }

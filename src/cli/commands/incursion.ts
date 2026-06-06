@@ -144,8 +144,6 @@ function nextFloorPrompt(run: RunState): string {
   const floor = run.floors[run.current]!
   // floorClearChance squares the odds for a boss — the scout shows the TRUE two-phase chance
   const odds = Math.round(floorClearChance(run.power, floor) * 100)
-  const article = /^[aeiou]/i.test(floor.cardRarity) ? 'an' : 'a'
-  const guards = `${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
   const kind = floor.kind ?? 'combat'
   const tag = floor.boss
     ? ' · ☠ BOSS (2 phases)'
@@ -153,9 +151,18 @@ function nextFloorPrompt(run: RunState): string {
       ? ' · ⚔ ELITE'
       : kind === 'treasure'
         ? ' · 💎 TREASURE'
-        : ''
+        : kind === 'rest'
+          ? ' · 🌿 REST'
+          : ''
+  let guardsClause: string
+  if (kind === 'rest') {
+    guardsClause = 'heals 1 HP on clear (no loot)'
+  } else {
+    const article = /^[aeiou]/i.test(floor.cardRarity) ? 'an' : 'a'
+    guardsClause = `guards ${article} ${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
+  }
   return [
-    `  Floor ${run.current + 1}/${run.floors.length}${tag} · difficulty ${floor.difficulty.toFixed(2)} · guards ${article} ${guards}`,
+    `  Floor ${run.current + 1}/${run.floors.length}${tag} · difficulty ${floor.difficulty.toFixed(2)} · ${guardsClause}`,
     `  → sq incursion dive  (clear ${odds}%)   or   sq incursion escape  (bank ${bagLine(run)})`,
   ].join('\n')
 }
@@ -305,10 +312,14 @@ export function handleIncursion(
       return 0
     }
     if (res.cleared) {
-      const guard = `${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
-      if (floor.boss) {
+      if ((floor.kind ?? 'combat') === 'rest') {
+        const healed = res.run.hp > run.hp
+        console.log(`  🌿 REST Floor ${run.current + 1} cleared — you catch your breath.${healed ? ' HP +1.' : ' (already at full HP.)'}`)
+      } else if (floor.boss) {
+        const guard = `${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
         console.log(`  ☠ BOSS Floor ${run.current + 1} felled! Banked: ${guard}`)
       } else {
+        const guard = `${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
         const kind = floor.kind ?? 'combat'
         const label = kind === 'elite' ? 'ELITE ' : kind === 'treasure' ? 'TREASURE ' : ''
         console.log(`  ⚔ ${label}Floor ${run.current + 1} cleared! Banked: ${guard}`)

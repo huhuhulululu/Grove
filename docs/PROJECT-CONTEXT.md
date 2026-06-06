@@ -211,6 +211,17 @@
   0.07..0.15→0.12..0.20; the boss TENSION pin still holds. **1925 tests, tsc clean, build OK, firewall intact.**
   (Stacked PR atop the boss. Highest-value remaining: branching-paths — choose-your-next-floor, decisionDensity
   9 — but it is an XL run-state-model refactor + full balance recalibration; recommend a dedicated effort.)
+- **2026-06-06 — Dashboard surfaces the active Incursion run (a BROAD design→review round's top pick).** With the
+  dungeon feature-complete, a fresh 21-agent round surveyed ALL of Grove for the next right-sized improvement
+  (it DEFERRED two with hard blockers: a loadout-ownership-gate that turns 15 tests RED + has broken buff/gear
+  semantics, and a statusline-ETA that breaks the ≤28 width contract). Top pick, shipped: the Incursion — Grove's
+  biggest loot-at-stake feature — was structurally INVISIBLE from the daily `sq dashboard` (grep returned zero
+  hits); start a run, walk away, nothing reminded you. Now `renderDashboard` appends ONE factual panel
+  (`⚔ INCURSION · floor N/M · HP X · run open`) when a run is open. FIREWALL must-fix the gate caught: the
+  dashboard reads run.json with the PLAIN read-only `readRun` (NOT `readActiveRun`, which DELETES a dead tombstone
+  — merely viewing the dashboard would have erased the firewall marker); a dead/absent run shows no panel and is
+  byte-identical to before. No GameState field (the run is ephemeral); render stays PURE; no CTA/nag (passive
+  surface = factual state only); 3 i18n keys ×4 locales. **1934 tests, tsc clean, build OK, firewall intact.**
 
 ## Current snapshot (2026-06-01)
 

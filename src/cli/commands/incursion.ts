@@ -38,7 +38,9 @@ function runPath(dir: string): string {
   return path.join(dir, 'run.json')
 }
 
-function readRun(dir: string): RunState | null {
+/** A PLAIN, read-only run.json read — never mutates disk. (Unlike readActiveRun, which deletes a
+ *  dead tombstone.) Safe for passive surfaces like the dashboard to peek at the active run. */
+export function readRun(dir: string): RunState | null {
   try {
     const raw = fs.readFileSync(runPath(dir), 'utf-8')
     return JSON.parse(raw) as RunState

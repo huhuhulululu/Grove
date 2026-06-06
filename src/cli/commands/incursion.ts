@@ -23,11 +23,14 @@ import {
   clearChance,
   isCleared,
   escapeBag,
+  runOutcomeRecord,
   RUN_HP,
+  RUN_FLOORS,
   SHIELD_COST,
   EMPTY_KIT,
   type RunState,
   type RunKit,
+  type RunRecord,
 } from '../../engine/incursion'
 import type { Locale } from '../../i18n/types'
 
@@ -71,6 +74,47 @@ function clearRun(dir: string): void {
   } catch {
     /* best-effort */
   }
+}
+
+// ---- run history (a sibling ephemeral file — NEVER in GameState) ----------
+const HISTORY_CAP = 20
+
+function historyPath(dir: string): string {
+  return path.join(dir, 'incursion-history.json')
+}
+
+function readHistory(dir: string): RunRecord[] {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(historyPath(dir), 'utf-8'))
+    return Array.isArray(parsed) ? (parsed as RunRecord[]) : []
+  } catch {
+    return [] // missing or corrupt → an empty ledger, best-effort
+  }
+}
+
+/** Prepend the newest record, cap the log, best-effort (history loss never affects a run). */
+function appendHistory(dir: string, rec: RunRecord): void {
+  try {
+    const next = [rec, ...readHistory(dir)].slice(0, HISTORY_CAP)
+    fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(historyPath(dir), JSON.stringify(next), 'utf-8')
+  } catch {
+    /* best-effort */
+  }
+}
+
+function renderRecord(r: RunRecord): string {
+  if (r.outcome === 'escaped') {
+    const b = r.banked
+    const parts: string[] = []
+    if (b && b.cards) parts.push(`${b.cards} card${b.cards === 1 ? '' : 's'}`)
+    if (b && b.gear) parts.push(`${b.gear} gear`)
+    if (b && b.seeds) parts.push(`${b.seeds} 🌰`)
+    const banked = parts.length ? parts.join(' · ') : 'nothing'
+    return `🌲 Escaped · ${r.floorsCleared}/${RUN_FLOORS} cleared · banked ${banked}`
+  }
+  // died — purely factual, no shame (no "you died", no death count, no "try again")
+  return `✗ Fell on floor ${r.diedOn} · ${r.floorsCleared}/${RUN_FLOORS} cleared before the run ended`
 }
 
 function hpPips(hp: number): string {
@@ -195,6 +239,22 @@ export function handleIncursion(
     return 0
   }
 
+  // ---- history ------------------------------------------------------------
+  if (action === 'history') {
+    const hist = readHistory(dir)
+    if (hist.length === 0) {
+      console.log(zen ? 'incursion history · empty' : '  No incursions yet. Start one: sq incursion start')
+      return 0
+    }
+    if (zen) {
+      console.log(`incursion history · ${hist.length} run${hist.length === 1 ? '' : 's'}`)
+      return 0
+    }
+    console.log(`🌲 Incursion log · last ${hist.length} run${hist.length === 1 ? '' : 's'} (newest first):`)
+    for (const r of hist) console.log(`  ${renderRecord(r)}`)
+    return 0
+  }
+
   // ---- dive ---------------------------------------------------------------
   if (action === 'dive') {
     const run = readActiveRun(dir)
@@ -210,6 +270,10 @@ export function handleIncursion(
     const res = resolveFloor(run)
 
     if (res.dead) {
+      // Record the fallen war story ONCE, here in the dive branch (the tombstone-cleanup
+      // path in readActiveRun has no DiveResult and must never record). PRE-resolve `run`
+      // so diedOn is the floor being dived; the forfeit bag is recorded as banked:null.
+      appendHistory(dir, runOutcomeRecord(run, 'died'))
       // Tombstone BEFORE deleting: if the delete fails, `dead: true` still bars escape
       // from ever banking this forfeit bag (firewall). readActiveRun retries the cleanup.
       writeRun(dir, { ...res.run, dead: true })
@@ -269,6 +333,9 @@ export function handleIncursion(
         saveState(dir, next)
       })
     }
+    // Record the war story — but skip an instant empty escape (start→escape with no dive),
+    // so the ledger holds real runs, not no-op noise.
+    if (run.current > 0 || !empty) appendHistory(dir, runOutcomeRecord(run, 'escaped'))
     clearRun(dir)
     if (zen) {
       console.log(empty ? '✓ escaped · empty-handed' : `✓ escaped · banked ${bagLine(run)}`)
@@ -283,6 +350,6 @@ export function handleIncursion(
     return 0
   }
 
-  console.error('  Usage: sq incursion [start [--seed S] | status | dive | escape]')
+  console.error('  Usage: sq incursion [start [--seed S] [--kit shield] | status | dive | escape | history]')
   return 2
 }

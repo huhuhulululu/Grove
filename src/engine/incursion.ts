@@ -278,3 +278,39 @@ export function isCleared(run: RunState): boolean {
 export function escapeBag(run: RunState): RunBag {
   return run.bag
 }
+
+// ---------------------------------------------------------------------------
+// Run history — an honest, cosmetic war-story record (sibling ephemeral file)
+// ---------------------------------------------------------------------------
+
+/** One past run, for the cosmetic `sq incursion history` log (a sibling ephemeral file —
+ *  NEVER GameState). floorsCleared is derived from the BAG, so it stays honest even when a
+ *  fail/shield advanced the run past a floor without clearing it. */
+export interface RunRecord {
+  outcome: 'escaped' | 'died'
+  /** floors actually cleared = bag.cards.length (NOT run.current, which advances on a fail too) */
+  floorsCleared: number
+  /** the 1-based floor that ended the run (death only); null on escape */
+  diedOn: number | null
+  /** what reached your real collection on escape; null on death (a forfeit bag is never banked) */
+  banked: { cards: number; gear: number; seeds: number } | null
+  seed: number
+}
+
+/**
+ * Derive an honest run record. PURE. The death caller passes the PRE-resolve run so diedOn
+ * is the floor being dived; the bag is the source of truth for floorsCleared either way, and
+ * a death banks NULL (the forfeit bag never reached real state — no firewall leak).
+ */
+export function runOutcomeRecord(run: RunState, outcome: 'escaped' | 'died'): RunRecord {
+  return {
+    outcome,
+    floorsCleared: run.bag.cards.length,
+    diedOn: outcome === 'died' ? run.current + 1 : null,
+    banked:
+      outcome === 'escaped'
+        ? { cards: run.bag.cards.length, gear: run.bag.gear.length, seeds: run.bag.seeds }
+        : null,
+    seed: run.seed,
+  }
+}

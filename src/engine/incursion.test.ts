@@ -19,6 +19,7 @@ import {
   resolveFloor,
   isCleared,
   escapeBag,
+  runOutcomeRecord,
   EMPTY_KIT,
   SHIELD_CAP,
   RUN_FLOORS,
@@ -26,9 +27,14 @@ import {
   type RunState,
   type RunKit,
 } from './incursion'
+import type { Card } from '../core/rewards'
 
 function gear(name: string, level: number): Gear {
   return { id: `g-${name}-${level}`, name, level, rarity: 'rare', broken: false }
+}
+
+function cards(n: number): Card[] {
+  return Array.from({ length: n }, (_, i) => ({ id: `c${i}`, name: `Card ${i}`, rarity: 'common', set: 'forest' }))
 }
 
 // A RunState with a chosen power, for balance simulation without a full GameState.
@@ -97,6 +103,30 @@ describe('rollMap + startRun', () => {
     expect(run.current).toBe(0)
     expect(run.bag).toEqual({ cards: [], gear: [], seeds: 0 })
     expect(run.power).toBeCloseTo(1.0, 5)
+  })
+})
+
+describe('runOutcomeRecord — an honest, pure run summary (no firewall leak)', () => {
+  it('floorsCleared comes from the BAG (clears), never run.current (which advances on fail too)', () => {
+    // floor 0 cleared (1 card banked) then floor 1 failed → current advanced to 2 with 1 card.
+    const run: RunState = { seed: 5, power: 1, floors: rollMap(5), current: 2, hp: 1, bag: { cards: cards(1), gear: [], seeds: 8 } }
+    const rec = runOutcomeRecord(run, 'died')
+    expect(rec.floorsCleared).toBe(1) // honest: bag.cards.length
+    expect(rec.floorsCleared).toBeLessThan(run.current) // a fail advanced current past the cleared count
+    expect(rec.diedOn).toBe(3) // current+1 — the 1-based floor that ended the run
+  })
+
+  it('a DEATH record banks NULL (the forfeit bag never reached real state — no firewall leak)', () => {
+    const run: RunState = { seed: 1, power: 0, floors: rollMap(1), current: 1, hp: 0, bag: { cards: cards(1), gear: [], seeds: 999 } }
+    expect(runOutcomeRecord(run, 'died').banked).toBeNull()
+  })
+
+  it('an ESCAPE record carries the banked bag counts and no diedOn', () => {
+    const run: RunState = { seed: 5, power: 1, floors: rollMap(5), current: 3, hp: 2, bag: { cards: cards(3), gear: [gear('Commit Hammer', 2)], seeds: 50 } }
+    const rec = runOutcomeRecord(run, 'escaped')
+    expect(rec.floorsCleared).toBe(3)
+    expect(rec.diedOn).toBeNull()
+    expect(rec.banked).toEqual({ cards: 3, gear: 1, seeds: 50 })
   })
 })
 

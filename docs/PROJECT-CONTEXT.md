@@ -170,6 +170,15 @@
   gamble), strong (2.1) 0.800, the gap preserved. Engine stays PURE; back-compat (`floor.kind ?? 'combat'`
   at every read site) means a legacy kit-less run.json resolves byte-identically; help untouched (archetypes
   are a map-roll detail). **1889 tests, tsc clean, build OK, firewall intact.** (Stacked PR atop the shield.)
+- **2026-06-06 — Incursion run history (war stories).** Third vetted-READY item from the workflow:
+  `sq incursion history` shows a calm, cosmetic log of past runs in a SIBLING ephemeral file
+  (`incursion-history.json`, capped at 20, best-effort — NEVER GameState). The gate caught a real latent
+  bug: floors-cleared must come from `bag.cards.length` (a clear always banks one card), NOT `run.current`
+  (which advances on a fail/shield too) — so "cleared N/5" can't lie. A pure `runOutcomeRecord(run, outcome)`
+  derives it; a DEATH banks `null` (the forfeit bag never reached real state — no firewall leak) and the line
+  is purely factual ("Fell on floor N", no "you died"/death-count/"try again" nag). The record is appended
+  ONCE in the dive dead-branch (never via the tombstone-cleanup path) and skips instant empty escapes.
+  `history` added to USAGE + cli.help ×4 locales. **1898 tests, tsc clean, build OK, firewall intact.**
 
 ## Current snapshot (2026-06-01)
 

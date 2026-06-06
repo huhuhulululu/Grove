@@ -279,6 +279,17 @@ describe('sq incursion — the playable roguelike loop', () => {
     expect(out()).toContain('history')
   })
 
+  it('the scout line tags a TREASURE floor', () => {
+    let s = -1
+    for (let i = 0; i < 400; i++) if (rollMap(i)[0]!.kind === 'treasure') { s = i; break }
+    expect(s).toBeGreaterThanOrEqual(0)
+    const armed: RunState = { seed: s, power: 1, floors: rollMap(s), current: 0, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(armed), 'utf-8')
+    run(['incursion', '--home', home]) // status
+    expect(out()).toContain('TREASURE')
+  })
+
   it('a legacy run.json (floors without a kind) renders status without an ELITE tag, no throw', () => {
     const floorsNoKind = rollMap(1).map((f) => ({ difficulty: f.difficulty, cardRarity: f.cardRarity, seeds: f.seeds, gear: f.gear }))
     const legacy = { seed: 1, power: 1, floors: floorsNoKind, current: 0, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }

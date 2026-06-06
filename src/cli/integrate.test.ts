@@ -40,7 +40,7 @@ import {
   REPAIR_COST_BASE,
   REPAIR_COST_PER_LEVEL,
 } from '../engine/gear'
-import { MAX_XP_PER_LEVEL } from '../engine/xp'
+import { MAX_XP_PER_LEVEL, xpForLevel } from '../engine/xp'
 import type { GameState } from '../core/state'
 
 // ---- Helpers ----------------------------------------------------------------
@@ -324,5 +324,21 @@ describe('web XP curve stays in lockstep with the engine (P1)', () => {
     const m = inlineRe.exec(src)
     expect(m, 'inline xpForLevel not found in src/web/page.ts').not.toBeNull()
     expect(Number(m![1])).toBe(MAX_XP_PER_LEVEL)
+  })
+
+  it('the inline web xpForLevel stays in BEHAVIOURAL lockstep with the engine (cap + coefficient + exponent)', () => {
+    // The cap test above pins only 1200; the coefficient (50) and exponent (1.5) are
+    // unpinned, so a curve-shape retune in the engine would silently de-sync the web
+    // XP bar while the cap test stayed green. Pin the WHOLE formula by BEHAVIOUR:
+    // extract the inline body and assert it yields identical values to the engine's
+    // xpForLevel across the curve — sub-cap, the cap knee, and the plateau.
+    const src = fs.readFileSync(path.resolve(process.cwd(), 'src/web/page.ts'), 'utf8')
+    const m = /function xpForLevel\(level\)\{ return ([^;]+); \}/.exec(src)
+    expect(m, 'inline xpForLevel body not found in src/web/page.ts (reformatted?)').not.toBeNull()
+    // eslint-disable-next-line no-new-func -- intentional: run the page's OWN inlined body to prove lockstep.
+    const webXpForLevel = new Function('level', 'return ' + m![1]) as unknown as (level: number) => number
+    for (const L of [1, 2, 3, 5, 8, 9, 10, 15, 20, 50, 100]) {
+      expect(webXpForLevel(L), `web xpForLevel(${L}) drifted from the engine`).toBe(xpForLevel(L))
+    }
   })
 })

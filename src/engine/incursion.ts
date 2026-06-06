@@ -72,6 +72,12 @@ export interface RunState {
   current: number
   hp: number
   bag: RunBag
+  /**
+   * Firewall tombstone, owned by the CLI shell — the engine NEVER sets or reads this.
+   * On death the shell flags `dead: true` before deleting run.json, so that even if the
+   * delete fails (locked file, full disk) a later `escape` can never bank a forfeit bag.
+   */
+  dead?: boolean
 }
 
 /** The outcome of a single dive. */

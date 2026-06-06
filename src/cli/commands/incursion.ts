@@ -22,6 +22,7 @@ import {
   resolveFloor,
   clearChance,
   isCleared,
+  escapeBag,
   RUN_HP,
   type RunState,
 } from '../../engine/incursion'
@@ -38,6 +39,22 @@ function readRun(dir: string): RunState | null {
   } catch {
     return null
   }
+}
+
+/**
+ * The active run, or null. A `dead: true` tombstone counts as NO active run: it can never
+ * be escaped (firewall — a forfeit bag must never reach real state), and we retry its
+ * cleanup here so the next `start` is free. This closes the hole where a failed delete on
+ * death could otherwise leave a dead run's bag bankable.
+ */
+function readActiveRun(dir: string): RunState | null {
+  const run = readRun(dir)
+  if (run === null) return null
+  if (run.dead) {
+    clearRun(dir)
+    return null
+  }
+  return run
 }
 
 function writeRun(dir: string, run: RunState): void {
@@ -100,7 +117,7 @@ export function handleIncursion(
 
   // ---- start --------------------------------------------------------------
   if (action === 'start') {
-    if (readRun(dir) !== null) {
+    if (readActiveRun(dir) !== null) {
       console.log('  An incursion is already underway. Finish it: sq incursion (status) · dive · escape.')
       return 0
     }
@@ -120,18 +137,24 @@ export function handleIncursion(
 
   // ---- status (default) ---------------------------------------------------
   if (action === 'status') {
-    const run = readRun(dir)
+    const run = readActiveRun(dir)
     if (run === null) {
       console.log('  No active incursion. Start one: sq incursion start')
       return 0
     }
-    console.log(zen ? `incursion · floor ${run.current + 1}/${run.floors.length} · HP ${run.hp} · bag ${bagLine(run)}` : renderRun(run))
+    if (zen) {
+      console.log(isCleared(run)
+        ? `incursion · cleared · HP ${run.hp} · bag ${bagLine(run)}`
+        : `incursion · floor ${run.current + 1}/${run.floors.length} · HP ${run.hp} · bag ${bagLine(run)}`)
+      return 0
+    }
+    console.log(renderRun(run))
     return 0
   }
 
   // ---- dive ---------------------------------------------------------------
   if (action === 'dive') {
-    const run = readRun(dir)
+    const run = readActiveRun(dir)
     if (run === null) {
       console.log('  No active incursion. Start one: sq incursion start')
       return 0
@@ -144,6 +167,9 @@ export function handleIncursion(
     const res = resolveFloor(run)
 
     if (res.dead) {
+      // Tombstone BEFORE deleting: if the delete fails, `dead: true` still bars escape
+      // from ever banking this forfeit bag (firewall). readActiveRun retries the cleanup.
+      writeRun(dir, { ...res.run, dead: true })
       clearRun(dir)
       if (zen) {
         console.log('✗ incursion lost · bag forfeit (real collection untouched)')
@@ -174,25 +200,34 @@ export function handleIncursion(
 
   // ---- escape -------------------------------------------------------------
   if (action === 'escape') {
-    const run = readRun(dir)
+    const run = readActiveRun(dir)
     if (run === null) {
       console.log('  No active incursion to escape. Start one: sq incursion start')
       return 0
     }
-    const bag = run.bag
-    withStateLock(dir, () => {
-      let next = loadState(dir)
-      for (const card of bag.cards) {
-        const r = addCard(next.cards, next.completedSets, card)
-        next = { ...next, cards: r.cards, completedSets: r.completedSets }
-      }
-      if (bag.gear.length > 0) next = { ...next, gear: [...next.gear, ...bag.gear] }
-      if (bag.seeds > 0) next = { ...next, player: { ...next.player, currency: next.player.currency + bag.seeds } }
-      saveState(dir, next)
-    })
+    const bag = escapeBag(run)
+    const empty = bag.cards.length === 0 && bag.gear.length === 0 && bag.seeds === 0
+    // Only touch real state when there's something to bank — an empty escape is a no-op
+    // on the collection (no needless locked write, and no dishonest "arms full" line).
+    if (!empty) {
+      withStateLock(dir, () => {
+        let next = loadState(dir)
+        for (const card of bag.cards) {
+          const r = addCard(next.cards, next.completedSets, card)
+          next = { ...next, cards: r.cards, completedSets: r.completedSets }
+        }
+        if (bag.gear.length > 0) next = { ...next, gear: [...next.gear, ...bag.gear] }
+        if (bag.seeds > 0) next = { ...next, player: { ...next.player, currency: next.player.currency + bag.seeds } }
+        saveState(dir, next)
+      })
+    }
     clearRun(dir)
     if (zen) {
-      console.log(`✓ escaped · banked ${bagLine(run)}`)
+      console.log(empty ? '✓ escaped · empty-handed' : `✓ escaped · banked ${bagLine(run)}`)
+      return 0
+    }
+    if (empty) {
+      console.log(`  🌲 You slip out empty-handed. Nothing banked — but nothing lost, and a new run is free: sq incursion start`)
       return 0
     }
     console.log(`  🌲 You walk out of the incursion alive, arms full.`)

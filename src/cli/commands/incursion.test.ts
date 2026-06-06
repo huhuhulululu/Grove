@@ -111,4 +111,49 @@ describe('sq incursion — the playable roguelike loop', () => {
     expect(saved.hp).toBe(RUN_HP)
     expect(RUN_HP).toBe(2)
   })
+
+  it('--zen status on a fully-cleared run reads "cleared", never "floor 6/5"', () => {
+    // synthesize a cleared run (current === floors.length) straight to disk
+    const floors = rollMap(7)
+    const cleared: RunState = {
+      seed: 7, power: 2, floors, current: floors.length, hp: 2,
+      bag: { cards: [], gear: [], seeds: 0 },
+    }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(cleared), 'utf-8')
+
+    run(['--zen', 'incursion', '--home', home]) // default action = status
+    expect(out()).toMatch(/incursion · cleared/)
+    expect(out()).not.toMatch(/floor 6\/5/)
+  })
+
+  it('escaping an empty bag is honest (empty-handed) and banks NOTHING', () => {
+    run(['incursion', 'start', '--seed', 'demo', '--home', home])
+    const before = loadState(stateDir(home))
+    logs = []
+    expect(run(['incursion', 'escape', '--home', home])).toBe(0)
+    const after = loadState(stateDir(home))
+    expect(after).toEqual(before) // collection byte-identical — nothing banked
+    expect(out().toLowerCase()).toContain('empty-handed')
+    expect(out()).not.toMatch(/arms full/)
+    expect(fs.existsSync(runFile())).toBe(false) // run consumed
+  })
+
+  it('FIREWALL: a dead-run tombstone can never be escaped (bag stays forfeit)', () => {
+    // Simulate a death whose run.json delete failed: a `dead: true` tombstone with a fat bag.
+    const floors = rollMap(3)
+    const tombstone: RunState = {
+      seed: 3, power: 1, floors, current: 1, hp: 0, dead: true,
+      bag: { cards: [], gear: [], seeds: 999 },
+    }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(tombstone), 'utf-8')
+
+    const before = loadState(stateDir(home))
+    expect(run(['incursion', 'escape', '--home', home])).toBe(0)
+    const after = loadState(stateDir(home))
+    expect(after).toEqual(before) // the forfeit bag was NOT banked — firewall holds
+    expect(out()).toMatch(/No active incursion/)
+    expect(fs.existsSync(runFile())).toBe(false) // tombstone cleaned up
+  })
 })

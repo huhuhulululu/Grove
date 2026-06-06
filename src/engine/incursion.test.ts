@@ -100,6 +100,73 @@ describe('rollMap + startRun', () => {
   })
 })
 
+describe('floor archetypes — ELITE floors are the mid-run greed fork', () => {
+  it('every floor carries a valid kind, and elites show up across runs', () => {
+    let sawElite = false
+    for (let s = 0; s < 100; s++) {
+      const m = rollMap(s)
+      for (const f of m) expect(['combat', 'elite']).toContain(f.kind)
+      if (m.some((f) => f.kind === 'elite')) sawElite = true
+    }
+    expect(sawElite).toBe(true) // the archetype actually fires
+  })
+
+  it('the FINAL floor is NEVER elite — the boss stays the depth-bias + gear climax', () => {
+    for (let s = 0; s < 200; s++) expect(rollMap(s)[RUN_FLOORS - 1]!.kind).toBe('combat')
+  })
+
+  it('an ELITE floor is HARDER and FATTER than the same-depth combat baseline (risk → reward)', () => {
+    for (let s = 0; s < 200; s++) {
+      const m = rollMap(s)
+      const idx = m.findIndex((f, i) => f.kind === 'elite' && i < RUN_FLOORS - 1)
+      if (idx < 0) continue
+      const baseDifficulty = 1.0 + idx * 0.45
+      const baseSeeds = 8 + idx * 6
+      expect(m[idx]!.difficulty).toBeGreaterThan(baseDifficulty) // a tougher gamble
+      expect(m[idx]!.seeds).toBeGreaterThan(baseSeeds) // …for fatter loot
+      return
+    }
+    throw new Error('no elite floor found across 200 seeds')
+  })
+
+  it('the modest elite mult keeps difficulty STRICTLY rising across all seeds (no out-of-order spike)', () => {
+    for (let s = 0; s < 200; s++) {
+      const m = rollMap(s)
+      for (let i = 1; i < m.length; i++) expect(m[i]!.difficulty).toBeGreaterThan(m[i - 1]!.difficulty)
+    }
+  })
+
+  it('rollMap stays deterministic with archetypes (same seed → same kinds)', () => {
+    expect(rollMap(123).map((f) => f.kind)).toEqual(rollMap(123).map((f) => f.kind))
+  })
+})
+
+describe('BALANCE (Monte-Carlo) — elite floors keep the run a real gamble', () => {
+  const SEEDS = 3000
+  const fullClearRate = (power: number): number => {
+    let survived = 0
+    for (let s = 0; s < SEEDS; s++) if (playGreedy(power, s).survived) survived++
+    return survived / SEEDS
+  }
+
+  it('a bare greedy full-clear is a real gamble with elites in the mix (calibrated band)', () => {
+    // Deterministic over seeds 0..2999: measured 0.171 (elites pulled it down from the
+    // vanilla 0.203). A tight band brackets it — far tighter than the legacy 0.02..0.6.
+    const bare = fullClearRate(1.0)
+    expect(bare).toBeGreaterThan(0.12)
+    expect(bare).toBeLessThan(0.22)
+  })
+
+  it('a strong build still full-clears MEANINGFULLY more than a bare one (investment pays)', () => {
+    expect(fullClearRate(2.1)).toBeGreaterThan(fullClearRate(1.0) + 0.2)
+  })
+
+  it('the boss floor (never elite) still swings on build by a meaningful margin', () => {
+    const boss = 1.0 + (RUN_FLOORS - 1) * 0.45
+    expect(clearChance(2.0, boss) - clearChance(1.0, boss)).toBeGreaterThanOrEqual(0.12)
+  })
+})
+
 describe('resolveFloor — dive resolution', () => {
   it('a clear banks the floor drop and advances; deterministic from (seed, floor)', () => {
     // A high-power run clears floor 0 deterministically.

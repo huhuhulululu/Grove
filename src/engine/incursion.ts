@@ -50,6 +50,19 @@ const MAX_CLEAR = 0.95
 /** Each enhancement level on your best-of-name gear adds this to run power. */
 const GEAR_LEVEL_POWER = 0.04
 
+/** Floor archetypes. An ELITE floor is a harder gamble that guards fatter loot — the
+ *  greed fork mid-run. (REST/TREASURE archetypes are a deliberate later follow-up.) */
+export type FloorKind = 'combat' | 'elite'
+/** How often a non-final floor rolls ELITE. This is the RATE knob (tune frequency, not the
+ *  mult) so the bare run stays a real gamble; pinned by the balance test. */
+const ELITE_CHANCE = 0.3
+/** An elite floor's difficulty multiplier. Deliberately MODEST: at 1.15 the elite bump is
+ *  smaller than a depth step, so difficulty stays strictly rising (no out-of-order spike),
+ *  and the boss floor — which is never elite — remains the climax via depth-bias + gear. */
+const ELITE_DIFF_MULT = 1.15
+/** An elite floor banks this multiple of the depth's base seeds — the reward for the risk. */
+const ELITE_SEED_MULT = 2
+
 // ---------------------------------------------------------------------------
 // Types — the ephemeral run (never persisted into GameState)
 // ---------------------------------------------------------------------------
@@ -62,6 +75,8 @@ export interface RunFloor {
   seeds: number
   /** the deepest floor also guards a gear drop */
   gear: boolean
+  /** archetype (absent on a legacy run.json → treated as 'combat' at every read site) */
+  kind?: FloorKind
 }
 
 export interface RunBag {
@@ -168,14 +183,26 @@ function floorCardRarity(seed: number, i: number): Rarity {
   return 'common'
 }
 
+/** ELITE on a fresh rng stream (label `kind:i`, so it never perturbs rarity/card/gear/dive).
+ *  The final floor is NEVER elite — it is already the climax (depth-bias + the gear guard). */
+function floorKind(seed: number, i: number, floors: number): FloorKind {
+  if (i === floors - 1) return 'combat'
+  return runRng(seed, `kind:${i}`)() < ELITE_CHANCE ? 'elite' : 'combat'
+}
+
 export function rollMap(seed: number, floors = RUN_FLOORS): RunFloor[] {
   const out: RunFloor[] = []
   for (let i = 0; i < floors; i++) {
+    const kind = floorKind(seed, i, floors)
+    const elite = kind === 'elite'
+    const baseDifficulty = BASE_DIFF + i * DIFF_STEP
+    const baseSeeds = 8 + i * 6 // deeper floors bank more seeds
     out.push({
-      difficulty: BASE_DIFF + i * DIFF_STEP,
+      difficulty: elite ? baseDifficulty * ELITE_DIFF_MULT : baseDifficulty,
       cardRarity: floorCardRarity(seed, i),
-      seeds: 8 + i * 6, // deeper floors bank more seeds
+      seeds: elite ? baseSeeds * ELITE_SEED_MULT : baseSeeds,
       gear: i === floors - 1, // the final floor also guards a gear piece
+      kind,
     })
   }
   return out

@@ -135,7 +135,7 @@ describe('floor archetypes — ELITE floors are the mid-run greed fork', () => {
     let sawElite = false
     for (let s = 0; s < 100; s++) {
       const m = rollMap(s)
-      for (const f of m) expect(['combat', 'elite']).toContain(f.kind)
+      for (const f of m) expect(['combat', 'elite', 'treasure']).toContain(f.kind)
       if (m.some((f) => f.kind === 'elite')) sawElite = true
     }
     expect(sawElite).toBe(true) // the archetype actually fires
@@ -168,6 +168,46 @@ describe('floor archetypes — ELITE floors are the mid-run greed fork', () => {
 
   it('rollMap stays deterministic with archetypes (same seed → same kinds)', () => {
     expect(rollMap(123).map((f) => f.kind)).toEqual(rollMap(123).map((f) => f.kind))
+  })
+})
+
+describe('TREASURE floors — a safe jackpot (fat loot at NORMAL odds)', () => {
+  it('treasure floors appear, and every floor still carries a valid kind', () => {
+    let sawTreasure = false
+    for (let s = 0; s < 200; s++) {
+      const m = rollMap(s)
+      for (const f of m) expect(['combat', 'elite', 'treasure']).toContain(f.kind)
+      if (m.some((f) => f.kind === 'treasure')) sawTreasure = true
+    }
+    expect(sawTreasure).toBe(true)
+  })
+
+  it('a TREASURE floor keeps its depth baseline difficulty (a REAL dive, not free money) but banks FATTER loot', () => {
+    for (let s = 0; s < 200; s++) {
+      const m = rollMap(s)
+      const idx = m.findIndex((f, i) => f.kind === 'treasure' && i < RUN_FLOORS - 1)
+      if (idx < 0) continue
+      const baseDifficulty = 1.0 + idx * 0.45
+      const baseSeeds = 8 + idx * 6
+      expect(m[idx]!.difficulty).toBeCloseTo(baseDifficulty, 5) // NOT raised → normal odds, still a gamble
+      expect(m[idx]!.seeds).toBeGreaterThan(baseSeeds) // …but a richer bank than a plain floor
+      return
+    }
+    throw new Error('no treasure floor found across 200 seeds')
+  })
+
+  it('the final floor is never a special archetype — the boss stays the climax', () => {
+    for (let s = 0; s < 200; s++) expect(rollMap(s)[RUN_FLOORS - 1]!.kind).toBe('combat')
+  })
+
+  it('treasure does NOT touch difficulty, so the bare full-clear rate is UNCHANGED (elite frequency held)', () => {
+    // The BALANCE describe pins bare ≈ 0.171; treasure leaves every floor's difficulty intact
+    // (only seeds get fatter), so greedy survival over the fixed seed set cannot shift.
+    let survived = 0
+    for (let s = 0; s < 3000; s++) if (playGreedy(1.0, s).survived) survived++
+    const bare = survived / 3000
+    expect(bare).toBeGreaterThan(0.12)
+    expect(bare).toBeLessThan(0.22)
   })
 })
 

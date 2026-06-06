@@ -179,6 +179,15 @@
   is purely factual ("Fell on floor N", no "you died"/death-count/"try again" nag). The record is appended
   ONCE in the dive dead-branch (never via the tombstone-cleanup path) and skips instant empty escapes.
   `history` added to USAGE + cli.help ×4 locales. **1898 tests, tsc clean, build OK, firewall intact.**
+- **2026-06-06 — Incursion TREASURE floors (the safe-jackpot fork).** A third archetype completing the
+  combat/elite/treasure set: a non-final floor rolls TREASURE — FATTER loot (×2.5 seeds) at its NORMAL
+  depth difficulty (a real dive, not free money). It pairs with ELITE (risky-richer): treasure is
+  safe-richer. The key safety property, verified: TREASURE is carved from the COMBAT window AFTER elite is
+  rolled (elite's window is fixed first), and it leaves difficulty untouched — so the elite set and the
+  bare greedy full-clear rate are provably UNCHANGED (still exactly 0.171; the existing balance band holds
+  with NO re-tune). Pure engine (rollMap-only, no resolveFloor change), back-compat (`kind ?? 'combat'`),
+  scout/cleared lines tag `💎 TREASURE`, help untouched (a map-roll detail). **1903 tests, tsc clean, build
+  OK, firewall intact.** (Stacked PR atop run history. A REST archetype remains the one deferred follow-up.)
 
 ## Current snapshot (2026-06-01)
 

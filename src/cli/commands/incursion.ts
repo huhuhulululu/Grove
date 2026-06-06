@@ -145,7 +145,8 @@ function nextFloorPrompt(run: RunState): string {
   const odds = Math.round(clearChance(run.power, floor.difficulty) * 100)
   const article = /^[aeiou]/i.test(floor.cardRarity) ? 'an' : 'a'
   const guards = `${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
-  const eliteTag = (floor.kind ?? 'combat') === 'elite' ? ' · ⚔ ELITE' : ''
+  const kind = floor.kind ?? 'combat'
+  const eliteTag = kind === 'elite' ? ' · ⚔ ELITE' : kind === 'treasure' ? ' · 💎 TREASURE' : ''
   return [
     `  Floor ${run.current + 1}/${run.floors.length}${eliteTag} · difficulty ${floor.difficulty.toFixed(2)} · guards ${article} ${guards}`,
     `  → sq incursion dive  (clear ${odds}%)   or   sq incursion escape  (bank ${bagLine(run)})`,
@@ -298,8 +299,9 @@ export function handleIncursion(
     }
     if (res.cleared) {
       const guard = `${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
-      const eliteLabel = (floor.kind ?? 'combat') === 'elite' ? 'ELITE ' : ''
-      console.log(`  ⚔ ${eliteLabel}Floor ${run.current + 1} cleared! Banked: ${guard}`)
+      const kind = floor.kind ?? 'combat'
+      const label = kind === 'elite' ? 'ELITE ' : kind === 'treasure' ? 'TREASURE ' : ''
+      console.log(`  ⚔ ${label}Floor ${run.current + 1} cleared! Banked: ${guard}`)
     } else if (res.shielded) {
       console.log(`  🛡 Floor ${run.current + 1} would have repelled you — the shield held. HP unchanged, one shield spent.`)
     } else {

@@ -125,6 +125,12 @@ export interface RunState {
   current: number
   hp: number
   bag: RunBag
+  /**
+   * Floors actually CLEARED so far. Tracked explicitly because a REST clear heals instead of
+   * banking a card, so bag.cards.length undercounts. Absent on a legacy run.json → derived from
+   * bag.cards.length (the old heuristic) for the honest count.
+   */
+  clears?: number
   /** consumables packed for this run (absent on a legacy run.json → treated as empty) */
   kit?: RunKit
   /**
@@ -298,13 +304,16 @@ export function resolveFloor(run: RunState): DiveResult {
     : phase1
 
   if (cleared) {
+    // Count this clear honestly — a REST clear advances + heals but banks no card, so
+    // bag.cards.length alone would undercount it.
+    const clears = (run.clears ?? run.bag.cards.length) + 1
     if (floor.kind === 'rest') {
       // a REST floor: clearing HEALS 1 HP (capped at RUN_HP, never overheal) and banks NO loot.
       const hp = Math.min(RUN_HP, run.hp + 1)
-      return { run: { ...run, current: run.current + 1, hp }, cleared: true, dead: false }
+      return { run: { ...run, current: run.current + 1, hp, clears }, cleared: true, dead: false }
     }
     const bag = mergeDrop(run.bag, floor, run.seed, run.current)
-    return { run: { ...run, current: run.current + 1, bag }, cleared: true, dead: false }
+    return { run: { ...run, current: run.current + 1, bag, clears }, cleared: true, dead: false }
   }
 
   // A SHIELD soaks this fail: advance past the floor with no HP lost and no loot, spending
@@ -353,13 +362,14 @@ export interface RunRecord {
 
 /**
  * Derive an honest run record. PURE. The death caller passes the PRE-resolve run so diedOn
- * is the floor being dived; the bag is the source of truth for floorsCleared either way, and
- * a death banks NULL (the forfeit bag never reached real state — no firewall leak).
+ * is the floor being dived; floorsCleared uses the explicit `clears` counter (it counts REST
+ * clears, which bank no card), falling back to bag.cards.length for a legacy run. A death banks
+ * NULL (the forfeit bag never reached real state — no firewall leak).
  */
 export function runOutcomeRecord(run: RunState, outcome: 'escaped' | 'died'): RunRecord {
   return {
     outcome,
-    floorsCleared: run.bag.cards.length,
+    floorsCleared: run.clears ?? run.bag.cards.length,
     diedOn: outcome === 'died' ? run.current + 1 : null,
     banked:
       outcome === 'escaped'

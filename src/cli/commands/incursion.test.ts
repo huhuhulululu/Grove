@@ -118,11 +118,11 @@ describe('sq incursion — the playable roguelike loop', () => {
   })
 
   it('--zen status on a fully-cleared run reads "cleared", never "floor 6/5"', () => {
-    // synthesize a cleared run (current === floors.length) straight to disk
+    // synthesize a TRUE full clear (current === floors.length AND the boss felled → its gear banked)
     const floors = rollMap(7)
     const cleared: RunState = {
       seed: 7, power: 2, floors, current: floors.length, hp: 2,
-      bag: { cards: [], gear: [], seeds: 0 },
+      bag: { cards: [], gear: [{ id: 'g', name: 'Boss Drop', level: 0, rarity: 'rare', broken: false }], seeds: 0 },
     }
     fs.mkdirSync(stateDir(home), { recursive: true })
     fs.writeFileSync(runFile(), JSON.stringify(cleared), 'utf-8')
@@ -377,6 +377,24 @@ describe('sq incursion — the playable roguelike loop', () => {
     run(['incursion', 'dive', '--home', home])
     expect(loadState(stateDir(home))).toEqual(before) // forfeit bag never touches real state
     expect(fs.existsSync(runFile())).toBe(false)
+  })
+
+  it('status after a boss FAIL-survive shows "boss still stands", never the false trophy', () => {
+    // a run that advanced PAST the boss via a fail-survive: current === RUN_FLOORS, but no boss gear banked
+    const afterFail: RunState = { seed: 7, power: 1, floors: rollMap(7), current: RUN_FLOORS, hp: 1, bag: { cards: [], gear: [], seeds: 40 } }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(afterFail), 'utf-8')
+    run(['incursion', '--home', home]) // status
+    expect(out().toLowerCase()).toMatch(/boss still stands/)
+    expect(out().toLowerCase()).not.toMatch(/cleared all/) // no false "🏆 you cleared all 5 floors"
+  })
+
+  it('status after FELLING the boss shows the trophy (gear in the bag ⟺ boss felled)', () => {
+    const won: RunState = { seed: 7, power: 5, floors: rollMap(7), current: RUN_FLOORS, hp: 2, bag: { cards: [], gear: [{ id: 'g', name: 'Boss Drop', level: 0, rarity: 'rare', broken: false }], seeds: 48 } }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(won), 'utf-8')
+    run(['incursion', '--home', home])
+    expect(out().toLowerCase()).toMatch(/cleared all/) // a genuine full clear earns the trophy
   })
 
   it('a legacy final floor with no boss key renders without a BOSS tag, no throw', () => {

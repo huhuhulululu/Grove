@@ -197,6 +197,7 @@ export const ko: Catalog = {
   'ui.collection.locked': '{set}  🔒 L{level}',
   'ui.collection.row': '{set}  {owned}/{total}{done}',
   'ui.collection.done': '  ✓',
+  'ui.collection.foil': ' ✨{foiled}/{total}',
   'ui.gear.none': '(장비 없음 · PR을 병합해 드롭)',
   'ui.gear.row': '{name} +{level}{broken}{protected}{effect}',
   'ui.gear.broken': '  파손',

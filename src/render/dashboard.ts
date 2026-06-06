@@ -466,6 +466,8 @@ function renderOdds(state: GameState, width: number, locale: Locale = 'en'): str
 function renderCollection(state: GameState, width: number, locale: Locale = 'en'): string {
   // Count distinct owned card ids per set
   const ownedIds = new Set(state.cards.map((c) => c.id))
+  // Per-set foil progress: shards spent foiling owned cards become lasting board presence.
+  const foiledSet = new Set(state.foiled ?? [])
   const level = state.player.level
 
   const rows = Object.keys(CARD_SETS).map((setName) => {
@@ -478,10 +480,13 @@ function renderCollection(state: GameState, width: number, locale: Locale = 'en'
     }
     const allIds = cardIdsInSet(setName)
     const owned = allIds.filter((id) => ownedIds.has(id)).length
+    const foiled = allIds.filter((id) => foiledSet.has(id)).length
     const total = allIds.length
     // ✓ marks a fully-completed set (set-completion progress).
     const done = total > 0 && owned === total ? t(locale, 'ui.collection.done') : ''
-    return boxRow(t(locale, 'ui.collection.row', { set: setName, owned, total, done }), width)
+    // ✨N/total marks foil progress — suppressed at 0 so an un-foiled set stays clean (no clutter).
+    const foil = foiled > 0 ? t(locale, 'ui.collection.foil', { foiled, total }) : ''
+    return boxRow(t(locale, 'ui.collection.row', { set: setName, owned, total, done }) + foil, width)
   })
 
   return [

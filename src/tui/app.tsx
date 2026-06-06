@@ -273,7 +273,8 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
       lines.push(`  ${t(locale, 'ui.collection.locked', { set: c.set, level: c.unlockLevel })}`)
     } else {
       const done = c.complete ? t(locale, 'ui.collection.done') : ''
-      lines.push(`  ${t(locale, 'ui.collection.row', { set: c.set, owned: c.owned, total: c.total, done })}`)
+      const foil = c.foiled > 0 ? t(locale, 'ui.collection.foil', { foiled: c.foiled, total: c.total }) : ''
+      lines.push(`  ${t(locale, 'ui.collection.row', { set: c.set, owned: c.owned, total: c.total, done })}${foil}`)
     }
   }
   lines.push('')
@@ -662,7 +663,7 @@ function AppView(props: {
             >
               {c.locked
                 ? t(locale, 'ui.collection.locked', { set: c.set, level: c.unlockLevel })
-                : `${pulsing ? '✦ ' : ''}${t(locale, 'ui.collection.row', { set: c.set, owned: c.owned, total: c.total, done: c.complete ? t(locale, 'ui.collection.done') : '' })}`}
+                : `${pulsing ? '✦ ' : ''}${t(locale, 'ui.collection.row', { set: c.set, owned: c.owned, total: c.total, done: c.complete ? t(locale, 'ui.collection.done') : '' })}${c.foiled > 0 ? t(locale, 'ui.collection.foil', { foiled: c.foiled, total: c.total }) : ''}`}
             </Text>
           )
         })}

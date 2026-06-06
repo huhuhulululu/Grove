@@ -197,6 +197,7 @@ export const zhCN: Catalog = {
   'ui.collection.locked': '{set}  🔒 L{level}',
   'ui.collection.row': '{set}  {owned}/{total}{done}',
   'ui.collection.done': '  ✓',
+  'ui.collection.foil': ' ✨{foiled}/{total}',
   'ui.gear.none': '(暂无装备 · 合并一个 PR 来掉落)',
   'ui.gear.row': '{name} +{level}{broken}{protected}{effect}',
   'ui.gear.broken': '  已损',

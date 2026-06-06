@@ -67,6 +67,8 @@ export interface HeaderVM {
 export interface CollectionVM {
   set: string
   owned: number
+  /** how many of the set's cards are foiled (cosmetic foil progress) */
+  foiled: number
   total: number
   complete: boolean
   /** true when the set is gated above the player's level (can't be filled yet). */
@@ -231,6 +233,7 @@ export function tuiModel(state: GameState): TuiModel {
 /** One row per card set: owned/total, completion, lock state, and a colour rarity. */
 function buildCollection(state: GameState): CollectionVM[] {
   const ownedById = new Map(state.cards.map((c) => [c.id, c]))
+  const foiledSet = new Set(state.foiled ?? [])
   const level = Math.max(1, state.player.level)
 
   return Object.keys(CARD_SETS).map((set) => {
@@ -239,10 +242,11 @@ function buildCollection(state: GameState): CollectionVM[] {
     const total = allIds.length
     const ownedCards = allIds.map((id) => ownedById.get(id)).filter((c) => c !== undefined)
     const owned = ownedCards.length
+    const foiled = allIds.filter((id) => foiledSet.has(id)).length
     const locked = unlockLevel > level
     const complete = !locked && total > 0 && owned === total
     const rarity = topRarity(ownedCards.map((c) => c.rarity))
-    return { set, owned, total, complete, locked, unlockLevel, rarity }
+    return { set, owned, foiled, total, complete, locked, unlockLevel, rarity }
   })
 }
 

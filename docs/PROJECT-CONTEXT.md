@@ -222,6 +222,16 @@
   — merely viewing the dashboard would have erased the firewall marker); a dead/absent run shows no panel and is
   byte-identical to before. No GameState field (the run is ephemeral); render stays PURE; no CTA/nag (passive
   surface = factual state only); 3 i18n keys ×4 locales. **1934 tests, tsc clean, build OK, firewall intact.**
+- **2026-06-06 — Per-set FOIL progress in the collection panel (a focused vet round's top pick).** A second
+  vet round (4 un-vetted broad-round candidates) DEFERRED doc-streak (calm invariant actually PASSED — positive-
+  only counter — but the blueprint understated scope: 4 quest-board surfaces + QuestVM plumbing it omitted),
+  ranked achievement-i18n (value 3) and web-xp-drift (value 2, cap already pinned) low. Top pick SHIPPED: the
+  collection panel now shows a per-set foil marker (`forest 2/5 ✨2/5`) so shards spent foiling owned cards become
+  lasting board presence instead of a one-shot line. RENDER-ONLY (state.foiled already exists + wired — ZERO new
+  GameState); suppressed at foiled===0 (no clutter). The load-bearing care: the collection row renders on FOUR
+  surfaces (dashboard string · renderTuiFrame · live Ink AppView · web HTML) — the [[tui-dual-render-paths]]
+  lesson, here quadruple — all moved in lockstep, each pinned by a test. New ui.collection.foil key ×4 locales
+  (glyph+numbers, em-dash-free). **1939 tests, tsc clean, build OK, firewall intact.**
 
 ## Current snapshot (2026-06-01)
 

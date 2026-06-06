@@ -20,7 +20,7 @@ import { hashStringToSeed } from '../../core/rng'
 import {
   startRun,
   resolveFloor,
-  clearChance,
+  floorClearChance,
   isCleared,
   escapeBag,
   runOutcomeRecord,
@@ -142,13 +142,20 @@ function nextFloorPrompt(run: RunState): string {
     return `  🏆 You cleared all ${run.floors.length} floors. Walk out: sq incursion escape  (bank ${bagLine(run)})`
   }
   const floor = run.floors[run.current]!
-  const odds = Math.round(clearChance(run.power, floor.difficulty) * 100)
+  // floorClearChance squares the odds for a boss — the scout shows the TRUE two-phase chance
+  const odds = Math.round(floorClearChance(run.power, floor) * 100)
   const article = /^[aeiou]/i.test(floor.cardRarity) ? 'an' : 'a'
   const guards = `${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
   const kind = floor.kind ?? 'combat'
-  const eliteTag = kind === 'elite' ? ' · ⚔ ELITE' : kind === 'treasure' ? ' · 💎 TREASURE' : ''
+  const tag = floor.boss
+    ? ' · ☠ BOSS (2 phases)'
+    : kind === 'elite'
+      ? ' · ⚔ ELITE'
+      : kind === 'treasure'
+        ? ' · 💎 TREASURE'
+        : ''
   return [
-    `  Floor ${run.current + 1}/${run.floors.length}${eliteTag} · difficulty ${floor.difficulty.toFixed(2)} · guards ${article} ${guards}`,
+    `  Floor ${run.current + 1}/${run.floors.length}${tag} · difficulty ${floor.difficulty.toFixed(2)} · guards ${article} ${guards}`,
     `  → sq incursion dive  (clear ${odds}%)   or   sq incursion escape  (bank ${bagLine(run)})`,
   ].join('\n')
 }
@@ -299,16 +306,26 @@ export function handleIncursion(
     }
     if (res.cleared) {
       const guard = `${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
-      const kind = floor.kind ?? 'combat'
-      const label = kind === 'elite' ? 'ELITE ' : kind === 'treasure' ? 'TREASURE ' : ''
-      console.log(`  ⚔ ${label}Floor ${run.current + 1} cleared! Banked: ${guard}`)
+      if (floor.boss) {
+        console.log(`  ☠ BOSS Floor ${run.current + 1} felled! Banked: ${guard}`)
+      } else {
+        const kind = floor.kind ?? 'combat'
+        const label = kind === 'elite' ? 'ELITE ' : kind === 'treasure' ? 'TREASURE ' : ''
+        console.log(`  ⚔ ${label}Floor ${run.current + 1} cleared! Banked: ${guard}`)
+      }
     } else if (res.shielded) {
       console.log(`  🛡 Floor ${run.current + 1} would have repelled you — the shield held. HP unchanged, one shield spent.`)
     } else {
       console.log(`  ✗ Floor ${run.current + 1} repelled you. HP ${hpPips(res.run.hp)} (-1). You push on, bloodied.`)
     }
     console.log(`  HP ${hpPips(res.run.hp)}${kitTag(res.run)} · bag: ${bagLine(res.run)}`)
-    console.log(nextFloorPrompt(res.run))
+    if (floor.boss && !res.cleared) {
+      // A boss FAIL still advances to "cleared" state (the run is over), but you did NOT fell
+      // the boss — be honest: no boss loot, walk away with the pre-boss bag.
+      console.log(`  The boss still stands — but you walk away alive (no boss loot). Escape to bank: sq incursion escape  (bank ${bagLine(res.run)})`)
+    } else {
+      console.log(nextFloorPrompt(res.run))
+    }
     return 0
   }
 

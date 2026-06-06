@@ -188,6 +188,18 @@
   with NO re-tune). Pure engine (rollMap-only, no resolveFloor change), back-compat (`kind ?? 'combat'`),
   scout/cleared lines tag `💎 TREASURE`, help untouched (a map-roll detail). **1903 tests, tsc clean, build
   OK, firewall intact.** (Stacked PR atop run history. A REST archetype remains the one deferred follow-up.)
+- **2026-06-06 — Incursion BOSS climax (a fresh 37-agent design→review round).** With the prior vetted queue
+  nearly dry, a new design→adversarial-review workflow vetted 6 next-gen decision-deepeners and REJECTED two
+  with reproduced engine math (run-modifiers: glass+shield is a strict free-upside dominant config; depth-push:
+  a failed push at HP=2 forfeits nothing — a free lottery). Top pick SHIPPED: the final floor is now a TWO-PHASE
+  BOSS — clearing it means winning clearChance² in one dive, so the climax is a real escape-vs-dive crux again
+  (it had decayed to a near-automatic single gear roll). A pure `floorClearChance(power, floor)` is the single
+  odds source (CLI never hand-squares); `boss?:boolean` on the ephemeral RunFloor (no GameState field, no
+  i18n/USAGE churn); the boss guards the fattest seeds (×1.5) + gear; a boss fail-survive is rendered honestly
+  ("the boss still stands — no boss loot", not a false trophy). Balance RE-PINNED in the same commit: the boss
+  pulled bare greedy full-clear 0.171→**0.110** (a fatal phase-fail at 1 HP is likelier); the existing 0.12..0.22
+  bands moved to 0.07..0.15, and a TENSION pin proves escape-before-the-boss is EV-optimal up to ~power 2.0 (the
+  flip to DIVE lands above). **1918 tests, tsc clean, build OK, firewall intact.** (Stacked PR atop treasure.)
 
 ## Current snapshot (2026-06-01)
 

@@ -14,7 +14,7 @@ import { run } from '../sq'
 import { loadState, saveState } from '../../store/store'
 import { stateDir } from '../../store/paths'
 import { initialState } from '../../core/state'
-import { rollMap, resolveFloor, RUN_HP, SHIELD_COST, type RunState } from '../../engine/incursion'
+import { rollMap, resolveFloor, floorClearChance, RUN_HP, RUN_FLOORS, SHIELD_COST, type RunState } from '../../engine/incursion'
 
 let home: string
 let logs: string[]
@@ -288,6 +288,72 @@ describe('sq incursion — the playable roguelike loop', () => {
     fs.writeFileSync(runFile(), JSON.stringify(armed), 'utf-8')
     run(['incursion', '--home', home]) // status
     expect(out()).toContain('TREASURE')
+  })
+
+  it('the boss scout shows the ☠ BOSS tag and the SQUARED two-phase odds', () => {
+    const m = rollMap(7)
+    const rs: RunState = { seed: 7, power: 2.0, floors: m, current: RUN_FLOORS - 1, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(rs), 'utf-8')
+    run(['incursion', '--home', home]) // status
+    expect(out()).toContain('☠ BOSS')
+    expect(out()).toContain(`clear ${Math.round(floorClearChance(2.0, m[RUN_FLOORS - 1]!) * 100)}%`) // squared odds
+  })
+
+  it('felling the boss prints the ☠ BOSS flourish', () => {
+    let s = -1
+    for (let i = 0; i < 500; i++) {
+      const rs: RunState = { seed: i, power: 5, floors: rollMap(i), current: RUN_FLOORS - 1, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }
+      if (resolveFloor(rs).cleared) { s = i; break }
+    }
+    expect(s).toBeGreaterThanOrEqual(0)
+    const rs: RunState = { seed: s, power: 5, floors: rollMap(s), current: RUN_FLOORS - 1, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(rs), 'utf-8')
+    run(['incursion', 'dive', '--home', home])
+    expect(out()).toMatch(/☠ BOSS Floor \d+ felled/)
+  })
+
+  it('a boss FAIL-survive is honest: the boss still stands, no "cleared all floors" trophy', () => {
+    let s = -1
+    for (let i = 0; i < 1000; i++) {
+      const rs: RunState = { seed: i, power: 0, floors: rollMap(i), current: RUN_FLOORS - 1, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }
+      const r = resolveFloor(rs)
+      if (!r.cleared && !r.dead) { s = i; break }
+    }
+    expect(s).toBeGreaterThanOrEqual(0)
+    const rs: RunState = { seed: s, power: 0, floors: rollMap(s), current: RUN_FLOORS - 1, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 20 } }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(rs), 'utf-8')
+    run(['incursion', 'dive', '--home', home])
+    expect(out().toLowerCase()).toMatch(/boss still stands/)
+    expect(out().toLowerCase()).not.toMatch(/cleared all/) // no misleading victory trophy
+  })
+
+  it('a fatal boss death forfeits the bag and leaves real GameState byte-identical (firewall)', () => {
+    let s = -1
+    for (let i = 0; i < 1000; i++) {
+      const rs: RunState = { seed: i, power: 0, floors: rollMap(i), current: RUN_FLOORS - 1, hp: 1, bag: { cards: [], gear: [], seeds: 0 } }
+      if (resolveFloor(rs).dead) { s = i; break }
+    }
+    const dying: RunState = { seed: s, power: 0, floors: rollMap(s), current: RUN_FLOORS - 1, hp: 1, bag: { cards: [], gear: [], seeds: 999 } }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(dying), 'utf-8')
+    const before = loadState(stateDir(home))
+    run(['incursion', 'dive', '--home', home])
+    expect(loadState(stateDir(home))).toEqual(before) // forfeit bag never touches real state
+    expect(fs.existsSync(runFile())).toBe(false)
+  })
+
+  it('a legacy final floor with no boss key renders without a BOSS tag, no throw', () => {
+    const legacy = {
+      seed: 1, power: 2, current: RUN_FLOORS - 1, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 },
+      floors: rollMap(1).map((f, i) => (i === RUN_FLOORS - 1 ? { difficulty: f.difficulty, cardRarity: f.cardRarity, seeds: f.seeds, gear: f.gear } : f)),
+    }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(legacy), 'utf-8')
+    expect(run(['incursion', '--home', home])).toBe(0)
+    expect(out()).not.toContain('BOSS')
   })
 
   it('a legacy run.json (floors without a kind) renders status without an ELITE tag, no throw', () => {

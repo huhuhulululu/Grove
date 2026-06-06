@@ -14,6 +14,7 @@ import type { Gear } from '../core/rewards'
 import {
   buildPower,
   clearChance,
+  floorClearChance,
   rollMap,
   startRun,
   resolveFloor,
@@ -22,12 +23,17 @@ import {
   runOutcomeRecord,
   EMPTY_KIT,
   SHIELD_CAP,
+  BOSS_SEED_MULT,
   RUN_FLOORS,
   RUN_HP,
   type RunState,
   type RunKit,
 } from './incursion'
 import type { Card } from '../core/rewards'
+import { mulberry32, hashStringToSeed } from '../core/rng'
+
+/** Replicate the engine's per-label rng so a test can predict a single dive roll. */
+const rollOf = (seed: number, label: string): number => mulberry32(hashStringToSeed(`${seed}:${label}`))()
 
 function gear(name: string, level: number): Gear {
   return { id: `g-${name}-${level}`, name, level, rarity: 'rare', broken: false }
@@ -200,14 +206,149 @@ describe('TREASURE floors — a safe jackpot (fat loot at NORMAL odds)', () => {
     for (let s = 0; s < 200; s++) expect(rollMap(s)[RUN_FLOORS - 1]!.kind).toBe('combat')
   })
 
-  it('treasure does NOT touch difficulty, so the bare full-clear rate is UNCHANGED (elite frequency held)', () => {
-    // The BALANCE describe pins bare ≈ 0.171; treasure leaves every floor's difficulty intact
-    // (only seeds get fatter), so greedy survival over the fixed seed set cannot shift.
+  it('treasure does NOT touch difficulty, so it does not move the bare full-clear rate', () => {
+    // With the two-phase BOSS climax the bare greedy full-clear sits at ≈0.110 (measured);
+    // treasure leaves every floor's DIFFICULTY intact (only seeds get fatter), so it cannot
+    // shift that rate — the band brackets the boss-set floor.
     let survived = 0
     for (let s = 0; s < 3000; s++) if (playGreedy(1.0, s).survived) survived++
     const bare = survived / 3000
-    expect(bare).toBeGreaterThan(0.12)
-    expect(bare).toBeLessThan(0.22)
+    expect(bare).toBeGreaterThan(0.07)
+    expect(bare).toBeLessThan(0.15)
+  })
+})
+
+describe('BOSS floor — the climax is a two-phase gamble', () => {
+  const LAST = RUN_FLOORS - 1
+
+  it('the final floor is the BOSS: boss flag, gear, fattest seeds (×1.5); non-final floors are not boss', () => {
+    for (let s = 0; s < 100; s++) {
+      const m = rollMap(s)
+      expect(m[LAST]!.boss).toBe(true)
+      expect(m[LAST]!.gear).toBe(true)
+      for (let i = 0; i < LAST; i++) expect(m[i]!.boss).toBeFalsy()
+    }
+    const baseLast = 8 + LAST * 6 // 32
+    expect(rollMap(0)[LAST]!.seeds).toBe(Math.round(baseLast * BOSS_SEED_MULT))
+  })
+
+  it('floorClearChance SQUARES the odds on a boss, single elsewhere', () => {
+    const m = rollMap(0)
+    expect(floorClearChance(2.0, m[LAST]!)).toBeCloseTo(clearChance(2.0, m[LAST]!.difficulty) ** 2, 10)
+    expect(floorClearChance(2.0, m[0]!)).toBeCloseTo(clearChance(2.0, m[0]!.difficulty), 10)
+  })
+
+  it('a BOSS requires BOTH phases: a seed that passes phase 1 but FAILS phase 2 does NOT clear', () => {
+    const power = 2.0
+    let found = -1
+    for (let s = 0; s < 3000; s++) {
+      const chance = clearChance(power, rollMap(s)[LAST]!.difficulty)
+      if (rollOf(s, `dive:${LAST}`) < chance && !(rollOf(s, `dive-boss:${LAST}`) < chance)) { found = s; break }
+    }
+    expect(found).toBeGreaterThanOrEqual(0)
+    const m = rollMap(found)
+    const run: RunState = { seed: found, power, floors: m, current: LAST, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }
+    expect(run.floors[LAST]!.boss).toBe(true)
+    expect(resolveFloor(run).cleared).toBe(false) // phase 2 failed → boss holds
+    // the SAME phase-1 pass on a NON-boss floor WOULD clear (single-phase) — proves phase 2 is load-bearing
+    const asNormal: RunState = { ...run, floors: m.map((f, i) => (i === LAST ? { ...f, boss: false } : f)) }
+    expect(resolveFloor(asNormal).cleared).toBe(true)
+  })
+
+  it('resolveFloor on the boss is deterministic (same run → same outcome)', () => {
+    const run: RunState = { seed: 42, power: 3, floors: rollMap(42), current: LAST, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }
+    expect(resolveFloor(run)).toEqual(resolveFloor(run))
+  })
+
+  it('a fatal boss fail at 1 HP is death, and the record banks NULL (firewall)', () => {
+    let s = -1
+    for (let i = 0; i < 3000; i++) {
+      const run: RunState = { seed: i, power: 0, floors: rollMap(i), current: LAST, hp: 1, bag: { cards: [], gear: [], seeds: 0 } }
+      if (resolveFloor(run).dead) { s = i; break }
+    }
+    expect(s).toBeGreaterThanOrEqual(0)
+    const dying: RunState = { seed: s, power: 0, floors: rollMap(s), current: LAST, hp: 1, bag: { cards: cards(2), gear: [], seeds: 50 } }
+    expect(resolveFloor(dying).dead).toBe(true)
+    expect(runOutcomeRecord(dying, 'died').banked).toBeNull()
+  })
+
+  it('a shield soaks a boss fail: HP held, shield spent, boss NOT cleared', () => {
+    let s = -1
+    for (let i = 0; i < 3000; i++) {
+      const run: RunState = { seed: i, power: 0, floors: rollMap(i), current: LAST, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }
+      if (!resolveFloor(run).cleared) { s = i; break }
+    }
+    const armed: RunState = { seed: s, power: 0, floors: rollMap(s), current: LAST, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 }, kit: { shield: 1 } }
+    const res = resolveFloor(armed)
+    expect(res.cleared).toBe(false)
+    expect(res.shielded).toBe(true)
+    expect(res.run.hp).toBe(RUN_HP)
+    expect(res.run.kit?.shield).toBe(0)
+  })
+
+  it('BACK-COMPAT: a final floor with no boss key resolves single-phase (legacy run.json)', () => {
+    const power = 2.0
+    for (let s = 0; s < 50; s++) {
+      const legacyLast = rollMap(s).map((f, i) =>
+        i === LAST ? { difficulty: f.difficulty, cardRarity: f.cardRarity, seeds: f.seeds, gear: f.gear } : f,
+      )
+      const run: RunState = { seed: s, power, floors: legacyLast, current: LAST, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }
+      const singlePass = rollOf(s, `dive:${LAST}`) < clearChance(power, legacyLast[LAST]!.difficulty)
+      expect(resolveFloor(run).cleared).toBe(singlePass) // no boss key → single dive, never dive-boss
+    }
+  })
+
+  it('the boss is a real gamble even for a strong build (0.4 < clearChance² < 0.8 at power 2.6)', () => {
+    const bossDiff = 1.0 + LAST * 0.45 // 2.8
+    const p2 = clearChance(2.6, bossDiff) ** 2
+    expect(p2).toBeGreaterThan(0.4)
+    expect(p2).toBeLessThan(0.8)
+  })
+
+  it('TENSION: escape-before-the-boss is EV-optimal for a bare/mid build — the boss restores a real decision', () => {
+    const SEEDS = 3000
+    // Expected BANKED seeds for "dive `depth` floors then escape"; a death forfeits the bag (0).
+    const evToDepth = (power: number, depth: number): number => {
+      let total = 0
+      for (let s = 0; s < SEEDS; s++) {
+        let run: RunState = { seed: s, power, floors: rollMap(s), current: 0, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }
+        let dead = false
+        while (!isCleared(run) && run.current < depth) {
+          const res = resolveFloor(run)
+          run = res.run
+          if (res.dead) { dead = true; break }
+        }
+        if (!dead) total += run.bag.seeds
+      }
+      return total / SEEDS
+    }
+    for (const power of [1.0, 2.0]) {
+      const bankBeforeBoss = evToDepth(power, RUN_FLOORS - 1)
+      const gambleTheBoss = evToDepth(power, RUN_FLOORS)
+      // banking before the boss yields >= diving it → diving the boss is NOT free; it is a real
+      // gamble you should decline until invested (the flip to DIVE lands above power ~2.0).
+      expect(bankBeforeBoss).toBeGreaterThanOrEqual(gambleTheBoss)
+    }
+  })
+
+  it('INVESTMENT: a strong build full-clears far more than a bare one even through the two-phase boss', () => {
+    const SEEDS = 3000
+    const fullClearRate = (power: number): number => {
+      let survived = 0
+      for (let s = 0; s < SEEDS; s++) {
+        let run: RunState = { seed: s, power, floors: rollMap(s), current: 0, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }
+        let ok = true
+        for (;;) {
+          if (isCleared(run)) break
+          const res = resolveFloor(run)
+          if (res.dead) { ok = false; break }
+          run = res.run
+        }
+        if (ok && run.hp > 0) survived++
+      }
+      return survived / SEEDS
+    }
+    expect(fullClearRate(2.6)).toBeGreaterThan(fullClearRate(1.0) + 0.5) // measured ≈0.897 vs ≈0.110
   })
 })
 
@@ -219,12 +360,12 @@ describe('BALANCE (Monte-Carlo) — elite floors keep the run a real gamble', ()
     return survived / SEEDS
   }
 
-  it('a bare greedy full-clear is a real gamble with elites in the mix (calibrated band)', () => {
-    // Deterministic over seeds 0..2999: measured 0.171 (elites pulled it down from the
-    // vanilla 0.203). A tight band brackets it — far tighter than the legacy 0.02..0.6.
+  it('a bare greedy full-clear is a real gamble with elites + the two-phase boss (calibrated band)', () => {
+    // Deterministic over seeds 0..2999: measured 0.110 — the two-phase BOSS pulled it down from
+    // the elite-only 0.171 (a fatal boss fail at 1 HP is now likelier). A tight band brackets it.
     const bare = fullClearRate(1.0)
-    expect(bare).toBeGreaterThan(0.12)
-    expect(bare).toBeLessThan(0.22)
+    expect(bare).toBeGreaterThan(0.07)
+    expect(bare).toBeLessThan(0.15)
   })
 
   it('a strong build still full-clears MEANINGFULLY more than a bare one (investment pays)', () => {

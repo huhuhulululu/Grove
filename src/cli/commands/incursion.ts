@@ -24,7 +24,10 @@ import {
   isCleared,
   escapeBag,
   RUN_HP,
+  SHIELD_COST,
+  EMPTY_KIT,
   type RunState,
+  type RunKit,
 } from '../../engine/incursion'
 import type { Locale } from '../../i18n/types'
 
@@ -74,6 +77,11 @@ function hpPips(hp: number): string {
   return '🟩'.repeat(Math.max(0, hp)) + '⬛'.repeat(Math.max(0, RUN_HP - hp))
 }
 
+/** A ` · 🛡 shield` tag when the run still holds a shield, else '' (legacy runs → ''). */
+function kitTag(run: RunState): string {
+  return (run.kit?.shield ?? 0) > 0 ? ' · 🛡 shield' : ''
+}
+
 function bagLine(run: RunState): string {
   const b = run.bag
   if (b.cards.length === 0 && b.gear.length === 0 && b.seeds === 0) return 'empty'
@@ -101,7 +109,7 @@ function nextFloorPrompt(run: RunState): string {
 
 function renderRun(run: RunState): string {
   return [
-    `🌲 The Incursion · power ${run.power.toFixed(2)} · HP ${hpPips(run.hp)} · bag: ${bagLine(run)}`,
+    `🌲 The Incursion · power ${run.power.toFixed(2)} · HP ${hpPips(run.hp)}${kitTag(run)} · bag: ${bagLine(run)}`,
     nextFloorPrompt(run),
   ].join('\n')
 }
@@ -123,14 +131,48 @@ export function handleIncursion(
     }
     const seedFlag = flags['seed']
     const seed = seedFlag !== undefined ? hashStringToSeed(seedFlag) : (Date.now() >>> 0)
-    const run = startRun(loadState(dir), seed)
+
+    // --kit: the only item is a single SHIELD. Parse intent, then settle payment below.
+    const kitFlag = flags['kit']
+    const wantsShield = kitFlag === 'shield'
+    const unknownKit = kitFlag !== undefined && !wantsShield
+    let kit: RunKit = EMPTY_KIT
+    let kitNote: 'bought' | 'unaffordable' | 'unknown' | 'none' = unknownKit ? 'unknown' : 'none'
+
+    // FIREWALL ORDERING: write the run (with the tentative kit) FIRST so a crash can never
+    // debit seeds for a run that doesn't exist; then settle the seed cost under the state
+    // lock, stripping the shield back off if the player can't actually afford it.
+    if (wantsShield) kit = { shield: 1 }
+    let run = startRun(loadState(dir), seed, undefined, kit)
     writeRun(dir, run)
+    if (wantsShield) {
+      let paid = false
+      withStateLock(dir, () => {
+        const cur = loadState(dir)
+        if (cur.player.currency >= SHIELD_COST) {
+          saveState(dir, { ...cur, player: { ...cur.player, currency: cur.player.currency - SHIELD_COST } })
+          paid = true
+        } else {
+          run = { ...run, kit: EMPTY_KIT }
+          writeRun(dir, run) // strip the unpaid shield off the already-written run
+        }
+      })
+      kitNote = paid ? 'bought' : 'unaffordable'
+    }
+
     if (zen) {
-      console.log(`✓ incursion started · ${run.floors.length} floors · HP ${run.hp}`)
+      console.log(`✓ incursion started · ${run.floors.length} floors · HP ${run.hp}${kitNote === 'bought' ? ' · kit: shield' : ''}`)
       return 0
     }
-    console.log(`🌲 You pack your build and dive into a seeded incursion. power ${run.power.toFixed(2)} · HP ${hpPips(run.hp)}`)
+    console.log(`🌲 You pack your build and dive into a seeded incursion. power ${run.power.toFixed(2)} · HP ${hpPips(run.hp)}${kitTag(run)}`)
     console.log(`  ${run.floors.length} floors of escalating loot ahead. It's only yours if you walk out alive.`)
+    if (kitNote === 'bought') {
+      console.log(`  🛡 You strap on a shield (${SHIELD_COST} 🌰 spent) — it soaks one failed dive, at the moment of your choosing.`)
+    } else if (kitNote === 'unaffordable') {
+      console.log(`  (A shield costs ${SHIELD_COST} 🌰, more than you've banked — kits are bought with seeds you bank by ESCAPING runs, so clear a few floors first. Diving kit-less.)`)
+    } else if (kitNote === 'unknown') {
+      console.log(`  (Unknown kit "${kitFlag}". The only kit is: --kit shield. Diving kit-less.)`)
+    }
     console.log(nextFloorPrompt(run))
     return 0
   }
@@ -184,16 +226,20 @@ export function handleIncursion(
     if (zen) {
       console.log(res.cleared
         ? `✓ floor ${run.current + 1} cleared · bag ${bagLine(res.run)}`
-        : `· floor ${run.current + 1} failed · HP ${res.run.hp}`)
+        : res.shielded
+          ? `· floor ${run.current + 1} held (shield) · HP ${res.run.hp}`
+          : `· floor ${run.current + 1} failed · HP ${res.run.hp}`)
       return 0
     }
     if (res.cleared) {
       const guard = `${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
       console.log(`  ⚔ Floor ${run.current + 1} cleared! Banked: ${guard}`)
+    } else if (res.shielded) {
+      console.log(`  🛡 Floor ${run.current + 1} would have repelled you — the shield held. HP unchanged, one shield spent.`)
     } else {
       console.log(`  ✗ Floor ${run.current + 1} repelled you. HP ${hpPips(res.run.hp)} (-1). You push on, bloodied.`)
     }
-    console.log(`  HP ${hpPips(res.run.hp)} · bag: ${bagLine(res.run)}`)
+    console.log(`  HP ${hpPips(res.run.hp)}${kitTag(res.run)} · bag: ${bagLine(res.run)}`)
     console.log(nextFloorPrompt(res.run))
     return 0
   }

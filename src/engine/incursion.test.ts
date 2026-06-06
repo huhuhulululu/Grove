@@ -19,9 +19,12 @@ import {
   resolveFloor,
   isCleared,
   escapeBag,
+  EMPTY_KIT,
+  SHIELD_CAP,
   RUN_FLOORS,
   RUN_HP,
   type RunState,
+  type RunKit,
 } from './incursion'
 
 function gear(name: string, level: number): Gear {
@@ -29,19 +32,27 @@ function gear(name: string, level: number): Gear {
 }
 
 // A RunState with a chosen power, for balance simulation without a full GameState.
-function runWithPower(power: number, seed: number): RunState {
-  return { seed, power, floors: rollMap(seed), current: 0, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }
+// An optional kit arms the run with consumables (omitted → a kit-less legacy run).
+function runWithPower(power: number, seed: number, kit?: RunKit): RunState {
+  const base: RunState = { seed, power, floors: rollMap(seed), current: 0, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }
+  return kit ? { ...base, kit } : base
 }
 
 /** Play greedily (always dive) until cleared or dead. Returns the terminal state. */
-function playGreedy(power: number, seed: number): { survived: boolean; floorsCleared: number; loot: number } {
-  let run = runWithPower(power, seed)
+function playGreedy(power: number, seed: number, kit?: RunKit): { survived: boolean; floorsCleared: number; loot: number } {
+  let run = runWithPower(power, seed, kit)
   for (;;) {
     if (isCleared(run)) return { survived: true, floorsCleared: run.current, loot: run.bag.cards.length }
     const res = resolveFloor(run)
     if (res.dead) return { survived: false, floorsCleared: res.run.current, loot: 0 }
     run = res.run
   }
+}
+
+/** The first seed whose floor-0 dive FAILS at this power (deterministic across runs). */
+function failingSeed(power: number): number {
+  for (let s = 0; s < 500; s++) if (!resolveFloor(runWithPower(power, s)).cleared) return s
+  throw new Error('no failing seed found')
 }
 
 describe('buildPower — your loadout + enhanced gear finally matter', () => {
@@ -154,5 +165,102 @@ describe('BALANCE (Monte-Carlo) — the stakes are real and the build matters', 
       return total / SEEDS
     }
     expect(avg(2.1)).toBeGreaterThan(avg(1.0))
+  })
+})
+
+describe('run kit — a single-use SHIELD bought at start', () => {
+  it('startRun snapshots an empty kit by default and clamps a bought shield to SHIELD_CAP', () => {
+    expect(startRun(initialState(), 7).kit).toEqual(EMPTY_KIT)
+    expect(startRun(initialState(), 7, RUN_FLOORS, { shield: 1 }).kit).toEqual({ shield: 1 })
+    // the per-item cap is the load-bearing balance constant — 2 shields would flip the
+    // run to always-dive (tension dead), so a request above the cap is clamped down.
+    expect(startRun(initialState(), 7, RUN_FLOORS, { shield: 9 }).kit).toEqual({ shield: SHIELD_CAP })
+  })
+
+  it('a shield ABSORBS a failed dive: HP held, one shield spent, shielded flag set', () => {
+    const s = failingSeed(0)
+    const bare = resolveFloor(runWithPower(0, s))
+    expect(bare.cleared).toBe(false)
+    expect(bare.run.hp).toBe(RUN_HP - 1) // bare: the fail chips 1 HP
+    expect(bare.shielded).toBeFalsy()
+
+    const shielded = resolveFloor(runWithPower(0, s, { shield: 1 }))
+    expect(shielded.cleared).toBe(false)
+    expect(shielded.shielded).toBe(true)
+    expect(shielded.run.hp).toBe(RUN_HP) // HP UNCHANGED — the shield soaked it
+    expect(shielded.run.kit?.shield).toBe(0) // the shield is consumed
+    expect(shielded.dead).toBe(false)
+  })
+
+  it('a shield PREVENTS death at 1 HP', () => {
+    const s = failingSeed(0)
+    expect(resolveFloor({ ...runWithPower(0, s), hp: 1 }).dead).toBe(true) // bare dies
+    const saved = resolveFloor({ ...runWithPower(0, s, { shield: 1 }), hp: 1 })
+    expect(saved.dead).toBe(false) // the shield saves the run
+    expect(saved.run.hp).toBe(1) // HP held
+    expect(saved.shielded).toBe(true)
+  })
+
+  it('a spent shield no longer protects — the NEXT fail chips HP as normal', () => {
+    const s = failingSeed(0)
+    const first = resolveFloor(runWithPower(0, s, { shield: 1 }))
+    expect(first.run.kit?.shield).toBe(0)
+    // the run at its next floor with an empty kit behaves exactly like a bare run
+    const next = resolveFloor({ ...first.run, current: 0 })
+    expect(next.shielded).toBeFalsy()
+    expect(next.run.hp).toBe(RUN_HP - 1)
+  })
+
+  it('BACK-COMPAT: a kit-less RunState resolves byte-identically to today', () => {
+    const s = failingSeed(0)
+    const noKit = resolveFloor(runWithPower(0, s)) // no kit field at all
+    const emptyKit = resolveFloor(runWithPower(0, s, { shield: 0 }))
+    expect(noKit.run.hp).toBe(emptyKit.run.hp)
+    expect(noKit.dead).toBe(emptyKit.dead)
+    expect(noKit.cleared).toBe(emptyKit.cleared)
+    expect(noKit.shielded).toBeFalsy()
+  })
+})
+
+describe('BALANCE (Monte-Carlo) — the shield helps, the cap keeps the gamble real', () => {
+  const SEEDS = 3000
+
+  const fullClearRate = (power: number, kit?: RunKit): number => {
+    let survived = 0
+    for (let s = 0; s < SEEDS; s++) if (playGreedy(power, s, kit).survived) survived++
+    return survived / SEEDS
+  }
+
+  // Expected BANKED seeds for the strategy "attempt `depth` floors, then escape".
+  // A death forfeits the whole bag (contributes 0) — the genuine downside of greed.
+  const evToDepth = (power: number, kit: RunKit, depth: number): number => {
+    let total = 0
+    for (let s = 0; s < SEEDS; s++) {
+      let run = runWithPower(power, s, kit)
+      let dead = false
+      while (!isCleared(run) && run.current < depth) {
+        const res = resolveFloor(run)
+        run = res.run
+        if (res.dead) { dead = true; break }
+      }
+      if (!dead) total += run.bag.seeds
+    }
+    return total / SEEDS
+  }
+
+  it('a 1-shield bare build full-clears MORE than no shield, yet stays under the 0.6 bare ceiling', () => {
+    const noShield = fullClearRate(1.0)
+    const oneShield = fullClearRate(1.0, { shield: 1 })
+    expect(oneShield).toBeGreaterThan(noShield) // the shield is a real help
+    expect(oneShield).toBeLessThan(0.6) // …but the strongest legal kit doesn't trivialize the run
+  })
+
+  it('with the strongest legal kit (1 shield), ALWAYS-DIVE is not strictly optimal — escape-early still pays (tension alive)', () => {
+    const kit: RunKit = { shield: 1 }
+    const evAllIn = evToDepth(1.0, kit, RUN_FLOORS) // dive every floor
+    const evEscapeEarly = Math.max(evToDepth(1.0, kit, RUN_FLOORS - 1), evToDepth(1.0, kit, RUN_FLOORS - 2))
+    // banking before the last floor(s) yields at least as many seeds in expectation as
+    // diving all the way — i.e. the escape-vs-dive call remains a real decision.
+    expect(evEscapeEarly).toBeGreaterThanOrEqual(evAllIn)
   })
 })

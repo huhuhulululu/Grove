@@ -11,9 +11,10 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { run } from '../sq'
-import { loadState } from '../../store/store'
+import { loadState, saveState } from '../../store/store'
 import { stateDir } from '../../store/paths'
-import { rollMap, resolveFloor, RUN_HP, type RunState } from '../../engine/incursion'
+import { initialState } from '../../core/state'
+import { rollMap, resolveFloor, RUN_HP, SHIELD_COST, type RunState } from '../../engine/incursion'
 
 let home: string
 let logs: string[]
@@ -137,6 +138,63 @@ describe('sq incursion — the playable roguelike loop', () => {
     expect(out().toLowerCase()).toContain('empty-handed')
     expect(out()).not.toMatch(/arms full/)
     expect(fs.existsSync(runFile())).toBe(false) // run consumed
+  })
+
+  // give the player a seed wallet so a shield is affordable
+  const fund = (seeds: number) => {
+    const s0 = initialState()
+    saveState(stateDir(home), { ...s0, player: { ...s0.player, currency: seeds } })
+  }
+
+  it('start --kit shield debits the cost and arms the run with one shield', () => {
+    fund(100)
+    expect(run(['incursion', 'start', '--seed', 'demo', '--kit', 'shield', '--home', home])).toBe(0)
+    expect(loadState(stateDir(home)).player.currency).toBe(100 - SHIELD_COST) // seeds spent
+    const saved = JSON.parse(fs.readFileSync(runFile(), 'utf-8')) as RunState
+    expect(saved.kit?.shield).toBe(1) // run is armed
+    expect(out().toLowerCase()).toMatch(/shield/)
+  })
+
+  it('start --kit shield with too few seeds buys nothing, teaches, and still starts the run', () => {
+    const before = loadState(stateDir(home)).player.currency // fresh player: no banked seeds
+    expect(run(['incursion', 'start', '--seed', 'demo', '--kit', 'shield', '--home', home])).toBe(0)
+    expect(loadState(stateDir(home)).player.currency).toBe(before) // NOT debited
+    expect(out().toLowerCase()).toMatch(/escap|bank|clear a few/) // a teaching line, not a bare error
+    expect(fs.existsSync(runFile())).toBe(true) // the run still starts, just kit-less
+    const saved = JSON.parse(fs.readFileSync(runFile(), 'utf-8')) as RunState
+    expect(saved.kit?.shield ?? 0).toBe(0)
+  })
+
+  it('a shield absorbs a failed dive on the CLI: HP held on disk, shield spent', () => {
+    // arm a run whose floor-0 dive fails (difficulty 99 → clamped to the 10% clear floor)
+    let s = -1
+    for (let i = 0; i < 300; i++) {
+      const probe: RunState = { seed: i, power: 0, floors: rollMap(i).map((f) => ({ ...f, difficulty: 99 })), current: 0, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 }, kit: { shield: 1 } }
+      if (!resolveFloor(probe).cleared) { s = i; break }
+    }
+    expect(s).toBeGreaterThanOrEqual(0)
+    const armed: RunState = { seed: s, power: 0, floors: rollMap(s).map((f) => ({ ...f, difficulty: 99 })), current: 0, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 }, kit: { shield: 1 } }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(armed), 'utf-8')
+
+    expect(run(['incursion', 'dive', '--home', home])).toBe(0)
+    const saved = JSON.parse(fs.readFileSync(runFile(), 'utf-8')) as RunState
+    expect(saved.hp).toBe(RUN_HP) // HP held — the shield soaked the fail
+    expect(saved.kit?.shield).toBe(0) // shield consumed
+    expect(out()).toMatch(/🛡|shield/i)
+  })
+
+  it('--zen start --kit shield is terse and notes the kit, no flourish', () => {
+    fund(100)
+    run(['--zen', 'incursion', 'start', '--seed', 'demo', '--kit', 'shield', '--home', home])
+    expect(out()).toMatch(/✓ incursion started/)
+    expect(out()).toMatch(/shield/)
+    expect(out()).not.toMatch(/🟩|Floor 1\/5/)
+  })
+
+  it('the incursion help line advertises the --kit shield option', () => {
+    run(['help', '--home', home])
+    expect(out()).toContain('--kit shield')
   })
 
   it('FIREWALL: a dead-run tombstone can never be escaped (bag stays forfeit)', () => {

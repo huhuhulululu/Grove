@@ -31,6 +31,14 @@ export const RUN_FLOORS = 5
  *  full-clears ~20% of greedy runs, so banking early is a smart play, not a formality. */
 export const RUN_HP = 2
 
+/** A single-use SHIELD bought (with banked seeds) at `start`: it soaks ONE failed dive
+ *  (no HP lost) at the moment of your choosing. Cosmetic seeds only (ADR-0005). */
+export const SHIELD_COST = 30
+/** The per-item cap is LOAD-BEARING balance, not a limit for tidiness: a Monte-Carlo pin
+ *  shows 1 shield keeps banking-before-the-last-floor optimal (tension alive), while 2 would
+ *  flip the run to always-dive (tension dead). The strongest LEGAL kit is one shield. */
+export const SHIELD_CAP = 1
+
 /** Per-floor difficulty rises with depth: floor i = BASE_DIFF + i*DIFF_STEP. */
 const BASE_DIFF = 1.0
 const DIFF_STEP = 0.45
@@ -62,6 +70,15 @@ export interface RunBag {
   seeds: number
 }
 
+/** The single-use consumables packed for a run (bought at start, spent mid-run). Lives
+ *  only in the ephemeral RunState — never in GameStateSchema. */
+export interface RunKit {
+  /** remaining shields (each soaks one failed dive); capped at SHIELD_CAP when bought */
+  shield: number
+}
+
+export const EMPTY_KIT: RunKit = { shield: 0 }
+
 export interface RunState {
   /** the run's deterministic seed (every dive/drop is derived from it) */
   seed: number
@@ -72,6 +89,8 @@ export interface RunState {
   current: number
   hp: number
   bag: RunBag
+  /** consumables packed for this run (absent on a legacy run.json → treated as empty) */
+  kit?: RunKit
   /**
    * Firewall tombstone, owned by the CLI shell — the engine NEVER sets or reads this.
    * On death the shell flags `dead: true` before deleting run.json, so that even if the
@@ -86,6 +105,8 @@ export interface DiveResult {
   cleared: boolean
   /** true when this dive dropped HP to 0 — the run is over, bag forfeit */
   dead: boolean
+  /** true when a fail was absorbed by a shield (no HP lost, one shield spent) */
+  shielded?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -160,7 +181,7 @@ export function rollMap(seed: number, floors = RUN_FLOORS): RunFloor[] {
   return out
 }
 
-export function startRun(state: GameState, seed: number, floors = RUN_FLOORS): RunState {
+export function startRun(state: GameState, seed: number, floors = RUN_FLOORS, kit: RunKit = EMPTY_KIT): RunState {
   return {
     seed,
     power: buildPower(state),
@@ -168,6 +189,8 @@ export function startRun(state: GameState, seed: number, floors = RUN_FLOORS): R
     current: 0,
     hp: RUN_HP,
     bag: { cards: [], gear: [], seeds: 0 },
+    // snapshot the kit, clamping the shield to the load-bearing cap
+    kit: { shield: Math.max(0, Math.min(SHIELD_CAP, kit.shield)) },
   }
 }
 
@@ -203,11 +226,20 @@ export function resolveFloor(run: RunState): DiveResult {
     return { run: { ...run, current: run.current + 1, bag }, cleared: true, dead: false }
   }
 
+  // A SHIELD soaks this fail: advance past the floor with no HP lost and no loot, spending
+  // one shield. It can save a run from death, but never grants loot — it only buys you one
+  // more wrong guess at the same escape-vs-dive crux.
+  const shield = run.kit?.shield ?? 0
+  if (shield > 0) {
+    const kit: RunKit = { ...(run.kit ?? EMPTY_KIT), shield: shield - 1 }
+    return { run: { ...run, current: run.current + 1, kit }, cleared: false, dead: false, shielded: true }
+  }
+
   // A fail chips 1 HP and you push PAST the floor bloodied (no loot). Advancing is
   // essential: each floor's outcome is sealed by the seed, so you cannot "retry" the
   // same floor — HP is your budget of mistakes across the run, not per-floor retries.
   const hp = run.hp - 1
-  return { run: { ...run, current: run.current + 1, hp }, cleared: false, dead: hp <= 0 }
+  return { run: { ...run, current: run.current + 1, hp }, cleared: false, dead: hp <= 0, shielded: false }
 }
 
 /** Whether the run has cleared every floor (the player should escape to bank it). */

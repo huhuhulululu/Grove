@@ -160,6 +160,16 @@
   lives in the ephemeral run.json); the seed debit is crash-safe (run written before the currency is
   spent, shield stripped if unaffordable) and the start-without-funds path TEACHES instead of erroring.
   **1879 tests, tsc clean, build OK, firewall intact.** (Shipped on PR atop the #7 firewall hardening.)
+- **2026-06-06 — Incursion floor archetypes (ELITE).** The next vetted-READY item from the same
+  37-agent workflow, scope-cut to combat+ELITE for a clean first commit (REST/TREASURE deferred). A
+  non-final floor now rolls ELITE (~24% of floors, ~75% of runs) on a fresh `kind:i` rng stream: a
+  **harder gamble (×1.15 difficulty) that guards fatter loot (×2 seeds)** — the mid-run greed fork. The
+  load-bearing tuning is FREQUENCY, not the mult: `ELITE_DIFF_MULT=1.15` is deliberately smaller than a
+  depth step, so difficulty stays strictly rising (proven across seeds) and the boss floor — NEVER elite —
+  stays the depth-bias + gear climax. Balance re-pinned: bare greedy full-clear 0.203→**0.171** (a tighter
+  gamble), strong (2.1) 0.800, the gap preserved. Engine stays PURE; back-compat (`floor.kind ?? 'combat'`
+  at every read site) means a legacy kit-less run.json resolves byte-identically; help untouched (archetypes
+  are a map-roll detail). **1889 tests, tsc clean, build OK, firewall intact.** (Stacked PR atop the shield.)
 
 ## Current snapshot (2026-06-01)
 

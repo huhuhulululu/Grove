@@ -39,6 +39,10 @@ afterEach(() => {
 
 const out = () => logs.join('\n')
 const runFile = () => path.join(stateDir(home), 'run.json')
+const historyFile = () => path.join(stateDir(home), 'incursion-history.json')
+const readHistory = (): unknown[] => {
+  try { return JSON.parse(fs.readFileSync(historyFile(), 'utf-8')) as unknown[] } catch { return [] }
+}
 
 describe('sq incursion — the playable roguelike loop', () => {
   it('start rolls a run, writes run.json, and shows the first floor + the dive/escape choice', () => {
@@ -207,6 +211,72 @@ describe('sq incursion — the playable roguelike loop', () => {
     fs.writeFileSync(runFile(), JSON.stringify(armed), 'utf-8')
     run(['incursion', '--home', home]) // status
     expect(out()).toContain('ELITE')
+  })
+
+  it('history is empty before any run', () => {
+    expect(run(['incursion', 'history', '--home', home])).toBe(0)
+    expect(out().toLowerCase()).toMatch(/no incursions|empty/)
+    expect(readHistory()).toEqual([])
+  })
+
+  it('escaping a run records a war story that history lists', () => {
+    run(['incursion', 'start', '--seed', 'demo', '--home', home])
+    run(['incursion', 'dive', '--home', home])
+    run(['incursion', 'dive', '--home', home])
+    run(['incursion', 'escape', '--home', home])
+    expect(readHistory().length).toBe(1)
+    logs = []
+    run(['incursion', 'history', '--home', home])
+    expect(out().toLowerCase()).toMatch(/escaped|cleared/)
+  })
+
+  it('an instant empty escape (start then escape, no dive) records NOTHING', () => {
+    run(['incursion', 'start', '--seed', 'demo', '--home', home])
+    run(['incursion', 'escape', '--home', home])
+    expect(readHistory()).toEqual([]) // no dive happened → no war story
+  })
+
+  it('a DEATH records a factual "fallen" story (no shame) and banks NOTHING into real state', () => {
+    // a near-certain death (reuse the firewall fixture: hp1, over-difficult floor, failing seed)
+    let s = -1
+    for (let i = 0; i < 300; i++) {
+      const probe: RunState = { seed: i, power: 0, floors: rollMap(i).map((f) => ({ ...f, difficulty: 99 })), current: 0, hp: 1, bag: { cards: [], gear: [], seeds: 0 } }
+      if (resolveFloor(probe).dead) { s = i; break }
+    }
+    expect(s).toBeGreaterThanOrEqual(0)
+    const dying: RunState = { seed: s, power: 0, floors: rollMap(s).map((f) => ({ ...f, difficulty: 99 })), current: 0, hp: 1, bag: { cards: [], gear: [], seeds: 999 } }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(dying), 'utf-8')
+
+    const before = loadState(stateDir(home))
+    run(['incursion', 'dive', '--home', home])
+    const after = loadState(stateDir(home))
+    expect(after).toEqual(before) // firewall: death banks nothing real
+
+    const hist = readHistory() as Array<{ outcome: string; banked: unknown }>
+    expect(hist.length).toBe(1)
+    expect(hist[0]!.outcome).toBe('died')
+    expect(hist[0]!.banked).toBeNull() // the forfeit bag is NOT recorded as banked
+    logs = []
+    run(['incursion', 'history', '--home', home])
+    expect(out().toLowerCase()).toMatch(/fell on floor|ended/)
+    expect(out().toLowerCase()).not.toMatch(/you died|try again|failed you|shame/) // calm, factual
+  })
+
+  it('a dead-run tombstone cleanup (via status) does NOT append a history record', () => {
+    // simulate a death whose run.json delete failed: a dead tombstone left on disk
+    const floors = rollMap(3)
+    const tombstone: RunState = { seed: 3, power: 1, floors, current: 1, hp: 0, dead: true, bag: { cards: [], gear: [], seeds: 9 } }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(tombstone), 'utf-8')
+    run(['incursion', '--home', home]) // status → readActiveRun cleans the tombstone
+    expect(readHistory()).toEqual([]) // the cleanup path must NOT record (it has no DiveResult)
+    expect(fs.existsSync(runFile())).toBe(false)
+  })
+
+  it('the help advertises the history subcommand', () => {
+    run(['help', '--home', home])
+    expect(out()).toContain('history')
   })
 
   it('a legacy run.json (floors without a kind) renders status without an ELITE tag, no throw', () => {

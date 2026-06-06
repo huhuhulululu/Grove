@@ -198,6 +198,8 @@ export const ko: Catalog = {
   'ui.collection.row': '{set}  {owned}/{total}{done}',
   'ui.collection.done': '  ✓',
   'ui.collection.foil': ' ✨{foiled}/{total}',
+  'ui.quest.streak': ' 🔥{streak} · 다음 +{seeds} 🌰 @ {at}',
+  'ui.quest.streak_max': ' 🔥{streak} · 최고 등급',
   'ui.gear.none': '(장비 없음 · PR을 병합해 드롭)',
   'ui.gear.row': '{name} +{level}{broken}{protected}{effect}',
   'ui.gear.broken': '  파손',

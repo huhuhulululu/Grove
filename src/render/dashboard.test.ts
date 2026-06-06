@@ -1180,3 +1180,10 @@ describe('renderDashboard — COLLECTION foil progress', () => {
     expect(renderDashboard(state)).not.toMatch(/✨\d/) // the ✨-foil CTA is "✨ foil", never "✨<digit>"
   })
 })
+
+describe('renderDashboard — QUESTS doc-streak', () => {
+  it('shows the Doc Streak count + next tier when the renewable streak has climbed', () => {
+    const state: GameState = { ...initialState(), quests: [{ id: 'doc-streak', status: 'active', completions: 3 }] }
+    expect(renderDashboard(state)).toContain('🔥3')
+  })
+})

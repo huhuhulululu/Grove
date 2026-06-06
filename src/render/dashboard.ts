@@ -18,7 +18,7 @@ import {
   nextSetUnlock,
   ALL_CARD_DEFS,
 } from '../core/cards'
-import { QUESTS } from '../core/quests'
+import { QUESTS, docStreakSuffix } from '../core/quests'
 import { xpForLevel } from '../engine/xp'
 import { gearEffectText } from '../engine/gear'
 import {
@@ -576,7 +576,9 @@ function renderQuests(state: GameState, width: number, locale: Locale = 'en'): s
     // Translate quest title via i18n key; fall back to def.title if key missing.
     const titleKey = `quest.${def.id}.title`
     const title = t(locale, titleKey) !== titleKey ? t(locale, titleKey) : def.title
-    return boxRow(`${glyph} ${title}`, width)
+    // The renewable Doc Streak reads renewable: its current count + the next tier goal.
+    const streak = def.id === 'doc-streak' ? docStreakSuffix(progress?.completions ?? 0, locale) : ''
+    return boxRow(`${glyph} ${title}${streak}`, width)
   })
 
   return [

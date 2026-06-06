@@ -240,6 +240,8 @@ export const en: Catalog = {
   'ui.collection.row': '{set}  {owned}/{total}{done}',
   'ui.collection.done': '  ✓',
   'ui.collection.foil': ' ✨{foiled}/{total}',
+  'ui.quest.streak': ' 🔥{streak} · next +{seeds} 🌰 at {at}',
+  'ui.quest.streak_max': ' 🔥{streak} · top tier',
   'ui.gear.none': '(no gear yet · merge a PR to drop some)',
   'ui.gear.row': '{name} +{level}{broken}{protected}{effect}',
   'ui.gear.broken': '  BROKEN',

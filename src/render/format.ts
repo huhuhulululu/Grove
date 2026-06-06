@@ -8,7 +8,7 @@
 
 import type { Reward } from '../core/rewards'
 import type { GameState } from '../core/state'
-import type { QuestDef } from '../core/quests'
+import { docStreakSuffix, type QuestDef } from '../core/quests'
 import { prestigeRank, PRESTIGE_BUFF_ID } from '../engine/reduce'
 import type { Locale } from '../i18n/types'
 import { t } from '../i18n/t'
@@ -193,7 +193,8 @@ export function formatQuests(quests: QuestDef[], state: GameState, locale: Local
     const desc = t(locale, `quest.${def.id}.desc`) !== `quest.${def.id}.desc`
       ? t(locale, `quest.${def.id}.desc`)
       : def.description
-    return `  ${glyph} ${title}\n      ${desc}`
+    const streak = def.id === 'doc-streak' ? docStreakSuffix(progress?.completions ?? 0, locale) : ''
+    return `  ${glyph} ${title}${streak}\n      ${desc}`
   })
 
   const buffsLine =

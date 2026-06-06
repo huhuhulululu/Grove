@@ -69,6 +69,13 @@ export interface DashboardOptions {
    * omit this field continue to receive English output unchanged.
    */
   locale?: Locale
+  /**
+   * A plain summary of an ACTIVE Incursion run (the dungeon), injected by the
+   * impure shell from the ephemeral run.json. A small flat datum — NOT RunState —
+   * so the pure renderer stays free of engine imports. When absent, NO panel
+   * renders and the dashboard is byte-identical to before.
+   */
+  incursion?: { floor: number; floors: number; hp: number; cleared: boolean }
 }
 
 /**
@@ -102,8 +109,25 @@ export function renderDashboard(state: GameState, opts: DashboardOptions = {}): 
     renderQuests(state, width, locale),
     renderBuffs(state, width, locale),
   ]
+  // Surface an ACTIVE Incursion run (the flagship loot-at-stake feature) only when one is open,
+  // so a started-and-forgotten run stops being invisible. Absent run → no panel → byte-identical.
+  if (opts.incursion) sections.push(renderIncursion(opts.incursion, width, locale))
 
   return sections.join('\n')
+}
+
+/** A factual one-line panel for an active Incursion run — no CTA arrow / nag (passive surface). */
+function renderIncursion(inc: NonNullable<DashboardOptions['incursion']>, width: number, locale: Locale = 'en'): string {
+  const line = inc.cleared
+    ? t(locale, 'ui.incursion.dashboard_cleared', { floors: inc.floors, hp: inc.hp })
+    : t(locale, 'ui.incursion.dashboard_line', { floor: inc.floor, floors: inc.floors, hp: inc.hp })
+  return [
+    boxTop(width),
+    boxTitle(t(locale, 'ui.panel.incursion'), width),
+    boxDivider(width),
+    boxRow(line, width),
+    boxBottom(width),
+  ].join('\n')
 }
 
 // ---------------------------------------------------------------------------

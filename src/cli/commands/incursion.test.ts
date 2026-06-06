@@ -435,3 +435,27 @@ describe('sq incursion — the playable roguelike loop', () => {
     expect(fs.existsSync(runFile())).toBe(false) // tombstone cleaned up
   })
 })
+
+describe('sq dashboard — surfacing the active incursion run (read-only)', () => {
+  it('surfaces an active run as an INCURSION panel (reads run.json read-only)', () => {
+    run(['incursion', 'start', '--seed', 'demo', '--home', home])
+    logs = []
+    run(['dashboard', '--no-clear', '--home', home])
+    expect(out()).toContain('INCURSION')
+    expect(out()).toMatch(/floor 1\/5/)
+  })
+
+  it('shows NO incursion panel when there is no active run', () => {
+    run(['dashboard', '--no-clear', '--home', home])
+    expect(out()).not.toContain('INCURSION')
+  })
+
+  it('FIREWALL: viewing the dashboard does NOT delete a dead-tombstone run.json (read-only peek)', () => {
+    const tombstone: RunState = { seed: 3, power: 1, floors: rollMap(3), current: 1, hp: 0, dead: true, bag: { cards: [], gear: [], seeds: 9 } }
+    fs.mkdirSync(stateDir(home), { recursive: true })
+    fs.writeFileSync(runFile(), JSON.stringify(tombstone), 'utf-8')
+    run(['dashboard', '--no-clear', '--home', home])
+    expect(fs.existsSync(runFile())).toBe(true) // the tombstone survives — the dashboard read never mutates disk
+    expect(out()).not.toContain('INCURSION') // a dead run is not an active run
+  })
+})

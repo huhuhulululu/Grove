@@ -1142,3 +1142,24 @@ describe('renderDashboard — width is clamped (no RangeError)', () => {
     expect([...top].length).toBeLessThanOrEqual(100)
   })
 })
+
+describe('incursion panel — surface an active run on the daily dashboard', () => {
+  it('shows an INCURSION panel with floor/HP when an active-run summary is injected', () => {
+    const out = renderDashboard(initialState(), { incursion: { floor: 2, floors: 5, hp: 1, cleared: false } })
+    expect(out).toContain('INCURSION')
+    expect(out).toMatch(/floor 2\/5/)
+    expect(out).toMatch(/HP 1/)
+  })
+
+  it('is ABSENT — byte-identical to today — when no incursion summary is injected (firewall: no run, no change)', () => {
+    const s = initialState()
+    expect(renderDashboard(s, { incursion: undefined })).toBe(renderDashboard(s))
+    expect(renderDashboard(s)).not.toContain('INCURSION')
+  })
+
+  it('a cleared-position run reads "reached/escape", never a false "floor 6/5"', () => {
+    const out = renderDashboard(initialState(), { incursion: { floor: 6, floors: 5, hp: 2, cleared: true } })
+    expect(out).not.toMatch(/floor 6\/5/)
+    expect(out.toLowerCase()).toMatch(/reached|escape/)
+  })
+})

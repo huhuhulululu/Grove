@@ -141,7 +141,7 @@ describe('floor archetypes — ELITE floors are the mid-run greed fork', () => {
     let sawElite = false
     for (let s = 0; s < 100; s++) {
       const m = rollMap(s)
-      for (const f of m) expect(['combat', 'elite', 'treasure']).toContain(f.kind)
+      for (const f of m) expect(['combat', 'elite', 'treasure', 'rest']).toContain(f.kind)
       if (m.some((f) => f.kind === 'elite')) sawElite = true
     }
     expect(sawElite).toBe(true) // the archetype actually fires
@@ -182,7 +182,7 @@ describe('TREASURE floors — a safe jackpot (fat loot at NORMAL odds)', () => {
     let sawTreasure = false
     for (let s = 0; s < 200; s++) {
       const m = rollMap(s)
-      for (const f of m) expect(['combat', 'elite', 'treasure']).toContain(f.kind)
+      for (const f of m) expect(['combat', 'elite', 'treasure', 'rest']).toContain(f.kind)
       if (m.some((f) => f.kind === 'treasure')) sawTreasure = true
     }
     expect(sawTreasure).toBe(true)
@@ -213,8 +213,71 @@ describe('TREASURE floors — a safe jackpot (fat loot at NORMAL odds)', () => {
     let survived = 0
     for (let s = 0; s < 3000; s++) if (playGreedy(1.0, s).survived) survived++
     const bare = survived / 3000
-    expect(bare).toBeGreaterThan(0.07)
-    expect(bare).toBeLessThan(0.15)
+    expect(bare).toBeGreaterThan(0.12)
+    expect(bare).toBeLessThan(0.20)
+  })
+})
+
+describe('REST floors — a respite that heals instead of loots', () => {
+  /** Find a (seed, floorIndex) of a non-final REST floor that CLEARS at high power. */
+  const restClearAt = (): { seed: number; idx: number } => {
+    for (let i = 0; i < 600; i++) {
+      const m = rollMap(i)
+      const j = m.findIndex((f, k) => f.kind === 'rest' && k < RUN_FLOORS - 1)
+      if (j < 0) continue
+      const probe: RunState = { seed: i, power: 5, floors: m, current: j, hp: 1, bag: { cards: [], gear: [], seeds: 0 } }
+      if (resolveFloor(probe).cleared) return { seed: i, idx: j }
+    }
+    throw new Error('no clearable rest floor found')
+  }
+
+  it('rest floors appear; every floor still carries a valid kind', () => {
+    let sawRest = false
+    for (let s = 0; s < 200; s++) {
+      const m = rollMap(s)
+      for (const f of m) expect(['combat', 'elite', 'treasure', 'rest']).toContain(f.kind)
+      if (m.some((f) => f.kind === 'rest')) sawRest = true
+    }
+    expect(sawRest).toBe(true)
+  })
+
+  it('a REST floor banks NO loot (0 seeds) and is never the final floor (the boss)', () => {
+    for (let s = 0; s < 200; s++) {
+      const m = rollMap(s)
+      expect(m[RUN_FLOORS - 1]!.kind).not.toBe('rest')
+      for (const f of m) if (f.kind === 'rest') expect(f.seeds).toBe(0)
+    }
+  })
+
+  it('clearing a REST floor HEALS 1 HP and banks NOTHING (the bag is untouched)', () => {
+    const { seed, idx } = restClearAt()
+    const hurt: RunState = { seed, power: 5, floors: rollMap(seed), current: idx, hp: 1, bag: { cards: cards(1), gear: [], seeds: 9 } }
+    const res = resolveFloor(hurt)
+    expect(res.cleared).toBe(true)
+    expect(res.run.hp).toBe(2) // healed 1 → RUN_HP
+    expect(res.run.bag).toEqual(hurt.bag) // no loot banked
+  })
+
+  it('a REST clear at FULL HP does not overheal (capped at RUN_HP)', () => {
+    const { seed, idx } = restClearAt()
+    const full: RunState = { seed, power: 5, floors: rollMap(seed), current: idx, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }
+    expect(resolveFloor(full).run.hp).toBe(RUN_HP)
+  })
+
+  it('a REST floor is still a real dive — a FAIL chips HP like any other floor (no free heal)', () => {
+    // find a rest floor that FAILS at power 0 (clamped to MIN_CLEAR) and drains HP
+    for (let i = 0; i < 600; i++) {
+      const m = rollMap(i)
+      const j = m.findIndex((f, k) => f.kind === 'rest' && k < RUN_FLOORS - 1)
+      if (j < 0) continue
+      const run: RunState = { seed: i, power: 0, floors: m, current: j, hp: RUN_HP, bag: { cards: [], gear: [], seeds: 0 } }
+      const res = resolveFloor(run)
+      if (!res.cleared) {
+        expect(res.run.hp).toBe(RUN_HP - 1) // a failed rest floor still costs 1 HP
+        return
+      }
+    }
+    throw new Error('no failing rest floor found')
   })
 })
 
@@ -364,8 +427,8 @@ describe('BALANCE (Monte-Carlo) — elite floors keep the run a real gamble', ()
     // Deterministic over seeds 0..2999: measured 0.110 — the two-phase BOSS pulled it down from
     // the elite-only 0.171 (a fatal boss fail at 1 HP is now likelier). A tight band brackets it.
     const bare = fullClearRate(1.0)
-    expect(bare).toBeGreaterThan(0.07)
-    expect(bare).toBeLessThan(0.15)
+    expect(bare).toBeGreaterThan(0.12)
+    expect(bare).toBeLessThan(0.20)
   })
 
   it('a strong build still full-clears MEANINGFULLY more than a bare one (investment pays)', () => {

@@ -200,6 +200,17 @@
   pulled bare greedy full-clear 0.171→**0.110** (a fatal phase-fail at 1 HP is likelier); the existing 0.12..0.22
   bands moved to 0.07..0.15, and a TENSION pin proves escape-before-the-boss is EV-optimal up to ~power 2.0 (the
   flip to DIVE lands above). **1918 tests, tsc clean, build OK, firewall intact.** (Stacked PR atop treasure.)
+- **2026-06-06 — Incursion REST floors (the archetype system, completed).** The deferred floor-types half,
+  now vetted-ready and shipped: combat / elite / treasure / **rest**. A non-final floor rolls REST (~14%):
+  clearing it HEALS 1 HP (capped, no overheal) and banks NO loot — a respite that can carry you to the boss
+  at FULL HP to survive a phase-fail (it synergizes with the new brutal climax). Carved from the combat window
+  AFTER elite+treasure (their sets/difficulty untouched); a rest floor is a real dive (a FAIL still chips HP)
+  but never the final floor. Pure (resolveFloor heal branch on CLEAR only); no GameState field; no i18n/USAGE
+  churn; `🌿 REST` scout tag + "heals 1 HP (no loot)" + a heal narration on clear. Balance RE-PINNED: the heal
+  lifts bare greedy full-clear 0.110→**0.160** (a healthy middle — the respite partly offsets the boss), bands
+  0.07..0.15→0.12..0.20; the boss TENSION pin still holds. **1925 tests, tsc clean, build OK, firewall intact.**
+  (Stacked PR atop the boss. Highest-value remaining: branching-paths — choose-your-next-floor, decisionDensity
+  9 — but it is an XL run-state-model refactor + full balance recalibration; recommend a dedicated effort.)
 
 ## Current snapshot (2026-06-01)
 

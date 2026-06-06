@@ -92,6 +92,7 @@ never a "you haven't…".
 |---|---|
 | 🎴 **Collection** | 7 card sets · 39 cards · gacha pulls with pity + a targeted `--spark` guarantee; craft missing cards and cosmetically **foil** owned ones (a renewable shard sink, diminishing past a full craft's worth). |
 | ⚔️ **Gear & loadout** | A risk/reward `enhance` / `repair` / `protect` loop, a 3-slot loadout, and 8 cosmetic synergies between equipped cards/gear/buffs (ADR-0014). |
+| 🗺️ **The Incursion** | The **dungeon**: a push-your-luck roguelike run. Pack your build, dive a seeded gauntlet of floor archetypes (**elite** harder-richer · **treasure** safe-jackpot · **rest** heals), spend a one-shot **shield**, and fell a two-phase **boss** — but the loot is yours only if you **escape alive**; dive too deep and die and the run-bag is forfeit. Real stakes that are **100% cosmetic**: your code, commits, and git are never touched (ADR-0005). |
 | 🏆 **Recognition** | 13 derivable **achievements** (retroactive, no FOMO), a one-shot **mastery** arrival that ends the endgame treadmill, **comeback** (a stuck suite finally green), and **first light** (your first green build). |
 | 📜 **Good habits** | A habit-quest board (write a `CLAUDE.md`, a spec, a plan, keep docs synced, **record decisions** in `docs/decisions.md`) and `sq learn` · opt-in one-line *why*s for both newcomers and veterans. |
 | 🔋 **Anti-burnout energy** | Your Claude Code 5h/7d quota becomes **Vigor / Weekly** energy, framed as *remaining* (never "burned"); unmetered plans show a calm "Wellspring", never invented scarcity. Account-global across all your repos. |
@@ -112,6 +113,7 @@ never a "you haven't…".
 | `sq pull [--premium] [--spark <id>]` | Spend 🌰 seeds for a gacha pull · you choose when |
 | `sq craft <id>` · `sq foil [id]` · `sq convert [n]` | Shard sinks: craft a missing card, foil an owned one, or convert surplus shards back to seeds |
 | `sq enhance <ref>` · `sq repair <ref>` · `sq protect <ref>` | The gear risk/reward loop (cosmetic only) |
+| `sq incursion start [--kit shield]` · `dive` · `escape` · `history` | The **dungeon**: dive a seeded roguelike run of floor archetypes + a two-phase boss; bank loot only if you escape alive (cosmetic stakes) |
 | `sq suggest-commit` | Read-only: draft a commit message from your staged diff (never commits) |
 | `sq checkpoint` | Non-destructive `git stash create` snapshot + a rest buff |
 | `sq statusline install` / `uninstall` | Chain Grove onto your Claude Code statusline (energy meter) |

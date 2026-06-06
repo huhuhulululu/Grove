@@ -92,6 +92,7 @@ Grove **只奖励成果，从不奖励原始活动** · 没有代码行数、提
 |---|---|
 | 🎴 **收藏** | 7 个套牌 · 39 张卡牌 · 抽卡（gacha）含保底 + `--spark` 定向保底；合成缺失卡牌，并为已有卡牌装饰性**闪箔**（可续的碎片消耗，超出完整合成价值后边际递减）。 |
 | ⚔️ **装备与配装** | 风险与收益兼备的 `enhance` / `repair` / `protect` 循环，3 槽位配装（loadout），以及装备卡牌、装备与增益之间的 8 种装饰性协同（synergy，ADR-0014）。 |
+| 🗺️ **地牢突袭（The Incursion）** | **地牢**：一场推运气的 roguelike 探险。带上你的构筑，潜入随机生成的层层关卡，途中有不同地形（**精英**层更难更肥 · **宝藏**层稳妥大赚 · **休整**层回血），可携带一次性**护盾**，并挑战两阶段 **Boss** —— 但战利品只有**活着逃出**才归你；潜得太深而阵亡，整袋战利品作废。真实的赌注，却**100% 纯装饰**：你的代码、提交与 git 永不受影响（ADR-0005）。 |
 | 🏆 **认可** | 13 个可推导**成就**（retroactive，无 FOMO），一次性**精通**（mastery）到达终止终局跑步机，**逆转**（comeback，测试组终于重新转绿），以及**初见曙光**（first light，首次构建转绿）。 |
 | 📜 **好习惯** | 习惯任务看板（写 `CLAUDE.md`、规格、计划、保持文档同步、在 `docs/decisions.md` **记录决策**）和 `sq learn` · 自选的一行「为什么」，对新手和老手都适用。 |
 | 🔋 **防燃尽精力** | 你的 Claude Code 5h/7d 配额变成**元气（Vigor）/ 本周（Weekly）**精力，展示*剩余*值（而非"已消耗"）；无计量计划显示平静的"源泉（Wellspring）"，从不制造虚假稀缺。跨全部仓库的账号级全局状态。 |
@@ -112,6 +113,7 @@ Grove **只奖励成果，从不奖励原始活动** · 没有代码行数、提
 | `sq pull [--premium] [--spark <id>]` | 花 🌰 种子抽卡 · 你决定何时 |
 | `sq craft <id>` · `sq foil [id]` · `sq convert [n]` | 碎片消耗：合成缺失卡牌、为已有卡牌上闪箔、将多余碎片换回种子 |
 | `sq enhance <ref>` · `sq repair <ref>` · `sq protect <ref>` | 装备风险与收益循环（纯装饰） |
+| `sq incursion start [--kit shield]` · `dive` · `escape` · `history` | **地牢**：潜入随机生成的 roguelike 探险，穿越各种地形与两阶段 Boss；只有活着逃出才能收入战利品（纯装饰赌注） |
 | `sq suggest-commit` | 只读：从暂存差异起草提交信息（从不提交） |
 | `sq checkpoint` | 无损 `git stash create` 快照 + 休息增益 |
 | `sq statusline install` / `uninstall` | 将 Grove 接入 Claude Code 状态栏（精力计量） |

@@ -70,6 +70,14 @@ const TREASURE_CHANCE = 0.22
 /** A treasure floor banks this multiple of base seeds — the fattest bank, at normal odds. */
 const TREASURE_SEED_MULT = 2.5
 
+/** The final floor is a two-phase BOSS: clearing it means winning TWO back-to-back rolls at
+ *  the boss difficulty in ONE dive, so its clear-prob is clearChance². That restores a real
+ *  escape-vs-dive decision at the climax — a bare build should bank before it; only an invested
+ *  build (or a shield) should gamble the whole bag on the boss. Published (ADR-0002). */
+export const BOSS_PHASES = 2
+/** The boss guards this multiple of the depth's base seeds — the climax pays the most. */
+export const BOSS_SEED_MULT = 1.5
+
 // ---------------------------------------------------------------------------
 // Types — the ephemeral run (never persisted into GameState)
 // ---------------------------------------------------------------------------
@@ -84,6 +92,8 @@ export interface RunFloor {
   gear: boolean
   /** archetype (absent on a legacy run.json → treated as 'combat' at every read site) */
   kind?: FloorKind
+  /** the final floor is a two-phase BOSS (absent/false on a legacy run.json → single-phase) */
+  boss?: boolean
 }
 
 export interface RunBag {
@@ -168,6 +178,13 @@ export function clearChance(power: number, difficulty: number): number {
   return Math.max(MIN_CLEAR, Math.min(MAX_CLEAR, raw))
 }
 
+/** The clear probability for an actual floor — SQUARED for a two-phase boss. The single source
+ *  of truth for boss odds, so the CLI never hand-squares (DRY). Published (ADR-0002). */
+export function floorClearChance(power: number, floor: RunFloor): number {
+  const single = clearChance(power, floor.difficulty)
+  return floor.boss ? single ** BOSS_PHASES : single
+}
+
 // ---------------------------------------------------------------------------
 // Map + run construction (deterministic from the seed)
 // ---------------------------------------------------------------------------
@@ -206,20 +223,24 @@ export function rollMap(seed: number, floors = RUN_FLOORS): RunFloor[] {
   const out: RunFloor[] = []
   for (let i = 0; i < floors; i++) {
     const kind = floorKind(seed, i, floors)
+    const boss = i === floors - 1 // the final floor is the two-phase boss
     const baseDifficulty = BASE_DIFF + i * DIFF_STEP
     const baseSeeds = 8 + i * 6 // deeper floors bank more seeds
+    const kindSeeds =
+      kind === 'elite'
+        ? baseSeeds * ELITE_SEED_MULT
+        : kind === 'treasure'
+          ? Math.round(baseSeeds * TREASURE_SEED_MULT)
+          : baseSeeds
     out.push({
       // elite raises difficulty; treasure leaves it at baseline (a real dive, not free money)
       difficulty: kind === 'elite' ? baseDifficulty * ELITE_DIFF_MULT : baseDifficulty,
       cardRarity: floorCardRarity(seed, i),
-      seeds:
-        kind === 'elite'
-          ? baseSeeds * ELITE_SEED_MULT
-          : kind === 'treasure'
-            ? Math.round(baseSeeds * TREASURE_SEED_MULT)
-            : baseSeeds,
-      gear: i === floors - 1, // the final floor also guards a gear piece
+      // the boss guards the fattest seeds; otherwise the archetype decides
+      seeds: boss ? Math.round(baseSeeds * BOSS_SEED_MULT) : kindSeeds,
+      gear: boss, // the final floor (boss) also guards a gear piece
       kind,
+      ...(boss ? { boss: true } : {}),
     })
   }
   return out
@@ -262,8 +283,12 @@ export function resolveFloor(run: RunState): DiveResult {
   if (floor === undefined) return { run, cleared: false, dead: false } // already cleared
 
   const chance = clearChance(run.power, floor.difficulty)
-  const roll = runRng(run.seed, `dive:${run.current}`)()
-  const cleared = roll < chance
+  const phase1 = runRng(run.seed, `dive:${run.current}`)() < chance
+  // A BOSS demands TWO back-to-back wins in one dive (clearChance²) — the climax is a real
+  // gamble, not a near-automatic gear roll. The phase-2 stream is drawn ONLY on a boss.
+  const cleared = floor.boss
+    ? phase1 && runRng(run.seed, `dive-boss:${run.current}`)() < chance
+    : phase1
 
   if (cleared) {
     const bag = mergeDrop(run.bag, floor, run.seed, run.current)

@@ -279,6 +279,17 @@ describe('REST floors — a respite that heals instead of loots', () => {
     }
     throw new Error('no failing rest floor found')
   })
+
+  it('floorsCleared COUNTS a cleared REST floor (rest banks no card, so bag.cards.length alone undercounts)', () => {
+    let s = -1
+    for (let i = 0; i < 600; i++) if (rollMap(i)[0]!.kind === 'rest') { s = i; break }
+    expect(s).toBeGreaterThanOrEqual(0)
+    let run: RunState = { seed: s, power: 8, floors: rollMap(s), current: 0, hp: 1, bag: { cards: [], gear: [], seeds: 0 } }
+    run = resolveFloor(run).run // clear floor 0 (REST) — heals, banks no card
+    run = resolveFloor(run).run // clear floor 1 — banks a card
+    expect(run.bag.cards.length).toBe(1) // only one card (the rest floor banked none)
+    expect(runOutcomeRecord(run, 'escaped').floorsCleared).toBe(2) // …but TWO floors were cleared — honest
+  })
 })
 
 describe('BOSS floor — the climax is a two-phase gamble', () => {

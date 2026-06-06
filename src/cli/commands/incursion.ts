@@ -136,9 +136,20 @@ function bagLine(run: RunState): string {
   return parts.join(' · ')
 }
 
+/** The boss is the ONLY gear-guarding floor, so a non-empty gear bag ⟺ the boss was felled.
+ *  A run with no boss floor (legacy) counts as felled — its "cleared" trophy is honest. This is
+ *  what distinguishes a true full clear from a boss FAIL-survive (which also advances to cleared). */
+function bossFelled(run: RunState): boolean {
+  return !run.floors.some((f) => f.boss) || run.bag.gear.length > 0
+}
+
 /** The scout + prompt for the floor you're standing in front of. */
 function nextFloorPrompt(run: RunState): string {
   if (isCleared(run)) {
+    if (!bossFelled(run)) {
+      // a boss FAIL-survive advanced you here, but the boss was never felled — no trophy, no boss loot
+      return `  ☠ The boss still stands — you walked away alive (no boss loot). Walk out: sq incursion escape  (bank ${bagLine(run)})`
+    }
     return `  🏆 You cleared all ${run.floors.length} floors. Walk out: sq incursion escape  (bank ${bagLine(run)})`
   }
   const floor = run.floors[run.current]!
@@ -245,8 +256,9 @@ export function handleIncursion(
       return 0
     }
     if (zen) {
+      const clearedLabel = bossFelled(run) ? 'cleared' : 'boss holds'
       console.log(isCleared(run)
-        ? `incursion · cleared · HP ${run.hp} · bag ${bagLine(run)}`
+        ? `incursion · ${clearedLabel} · HP ${run.hp} · bag ${bagLine(run)}`
         : `incursion · floor ${run.current + 1}/${run.floors.length} · HP ${run.hp} · bag ${bagLine(run)}`)
       return 0
     }

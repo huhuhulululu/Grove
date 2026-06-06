@@ -33,6 +33,11 @@ describe('renderTuiFrame — static frame for headless testing', () => {
     expect(renderTuiFrame(state)).toMatch(/✨2\//) // 2 of forest foiled
   })
 
+  it('shows the Doc Streak count on the quest board when the renewable streak has climbed', () => {
+    const state: GameState = { ...initialState(), quests: [{ id: 'doc-streak', status: 'active', completions: 3 }] }
+    expect(renderTuiFrame(state)).toContain('🔥3')
+  })
+
   it('shows level / seeds / shards / prestige in the header', () => {
     const state: GameState = {
       ...initialState(),

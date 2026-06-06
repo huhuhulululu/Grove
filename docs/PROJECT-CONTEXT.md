@@ -232,6 +232,16 @@
   surfaces (dashboard string · renderTuiFrame · live Ink AppView · web HTML) — the [[tui-dual-render-paths]]
   lesson, here quadruple — all moved in lockstep, each pinned by a test. New ui.collection.foil key ×4 locales
   (glyph+numbers, em-dash-free). **1939 tests, tsc clean, build OK, firewall intact.**
+- **2026-06-06 — Doc Streak surfaced on the quest board (the focused round's deferred item, right-sized).**
+  The earlier round DEFERRED doc-streak for an understated scope (it claimed 2 render paths; there are FOUR
+  quest-board surfaces + QuestVM drops `completions`); the CALM invariant had already PASSED (positive-only
+  counter, no streak-to-lose — surfacing it is forgiving, shows a goal not a nag). Built the corrected version:
+  Grove's one RENEWABLE quest now reads renewable — `◆ Doc Streak 🔥3 · next +20 🌰 at 6` — its current streak
+  (the quest's `completions`) + the next tier goal (from DOC_STREAK_TIERS), top-tier label at max, suppressed at
+  0. A pure `docStreakSuffix(streak, locale)` in core/quests.ts (core→i18n/t is sanctioned — t() is I/O-free);
+  QuestVM gains a `streak` field for the two TUI paths. All FOUR surfaces (dashboard renderQuests · format
+  formatQuests · renderTuiFrame · live Ink AppView) moved in lockstep ([[tui-dual-render-paths]], quadruple),
+  each pinned. 2 i18n keys ×4. **1946 tests, tsc clean, build OK, firewall intact.**
 
 ## Current snapshot (2026-06-01)
 

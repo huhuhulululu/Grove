@@ -26,6 +26,7 @@ import type { GameState } from '../core/state'
 import type { Reward, Rarity } from '../core/rewards'
 import type { Rng } from '../core/rng'
 import { mulberry32, hashStringToSeed } from '../core/rng'
+import { docStreakSuffix } from '../core/quests'
 import {
   pull as enginePull,
   pullPremium,
@@ -304,7 +305,8 @@ export function renderTuiFrame(state: GameState, opts: FrameOpts = {}): string {
     // with no catalog entry (t() returns the key itself on a miss).
     const key = `quest.${q.id}.title`
     const ttl = t(locale, key)
-    lines.push(`  ${glyph} ${ttl !== key ? ttl : q.title}`)
+    const streak = q.id === 'doc-streak' ? docStreakSuffix(q.streak, locale) : ''
+    lines.push(`  ${glyph} ${ttl !== key ? ttl : q.title}${streak}`)
   }
   lines.push('')
 
@@ -697,7 +699,8 @@ function AppView(props: {
           const key = `quest.${q.id}.title`
           const ttl = t(locale, key)
           const glyph = q.status === 'done' ? '✓' : q.status === 'active' ? '◆' : '·'
-          return <Text key={q.id}>{`${glyph} ${ttl !== key ? ttl : q.title}`}</Text>
+          const streak = q.id === 'doc-streak' ? docStreakSuffix(q.streak, locale) : ''
+          return <Text key={q.id}>{`${glyph} ${ttl !== key ? ttl : q.title}${streak}`}</Text>
         })}
       </PanelBox>
 

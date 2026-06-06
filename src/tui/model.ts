@@ -101,6 +101,8 @@ export interface QuestVM {
   id: string
   title: string
   status: 'todo' | 'active' | 'done'
+  /** completion count for a renewable quest (the Doc Streak); 0 for non-renewable / never-done */
+  streak: number
 }
 
 /** Economy view-model — what THIS balance affords (the core decision surface). */
@@ -279,7 +281,7 @@ function buildQuests(state: GameState): QuestVM[] {
     const progress = state.quests.find((q) => q.id === def.id)
     const status: QuestVM['status'] =
       progress?.status === 'done' ? 'done' : progress?.status === 'active' ? 'active' : 'todo'
-    return { id: def.id, title: def.title, status }
+    return { id: def.id, title: def.title, status, streak: progress?.completions ?? 0 }
   })
 }
 

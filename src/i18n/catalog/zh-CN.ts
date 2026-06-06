@@ -198,6 +198,8 @@ export const zhCN: Catalog = {
   'ui.collection.row': '{set}  {owned}/{total}{done}',
   'ui.collection.done': '  ✓',
   'ui.collection.foil': ' ✨{foiled}/{total}',
+  'ui.quest.streak': ' 🔥{streak} · 下一档 +{seeds} 🌰 @ {at}',
+  'ui.quest.streak_max': ' 🔥{streak} · 已达顶档',
   'ui.gear.none': '(暂无装备 · 合并一个 PR 来掉落)',
   'ui.gear.row': '{name} +{level}{broken}{protected}{effect}',
   'ui.gear.broken': '  已损',

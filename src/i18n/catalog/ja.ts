@@ -198,6 +198,8 @@ export const ja: Catalog = {
   'ui.collection.row': '{set}  {owned}/{total}{done}',
   'ui.collection.done': '  ✓',
   'ui.collection.foil': ' ✨{foiled}/{total}',
+  'ui.quest.streak': ' 🔥{streak} · 次 +{seeds} 🌰 @ {at}',
+  'ui.quest.streak_max': ' 🔥{streak} · 最上位',
   'ui.gear.none': '(ギアなし · PR をマージしてドロップ)',
   'ui.gear.row': '{name} +{level}{broken}{protected}{effect}',
   'ui.gear.broken': '  破損',

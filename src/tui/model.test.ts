@@ -169,6 +169,12 @@ describe('tuiModel — quest board', () => {
     const untouched = m.quests.find((q) => q.id === 'test-warden')!
     expect(untouched.status).toBe('todo')
   })
+
+  it('carries the renewable quest streak (Doc Streak completions) on the VM', () => {
+    const state: GameState = { ...initialState(), quests: [{ id: 'doc-streak', status: 'active', completions: 4 }] }
+    const docStreak = tuiModel(state).quests.find((q) => q.id === 'doc-streak')!
+    expect(docStreak.streak).toBe(4)
+  })
 })
 
 describe('tuiModel — economy / affordable actions', () => {

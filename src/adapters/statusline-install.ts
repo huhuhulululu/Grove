@@ -80,10 +80,14 @@ export function installStatusline(
     return { action: 'already-installed', original }
   }
 
-  // Write a timestamped backup before any mutation.
-  const ts = Date.now()
-  const backupPath = path.join(path.dirname(settingsPath), `settings.json.bak.${ts}`)
-  fs.copyFileSync(settingsPath, backupPath)
+  // Write a timestamped backup before any mutation. On a first-time install there
+  // is no settings.json yet (readSettings already failed soft to {}), so there is
+  // nothing to back up — skip it rather than crash on copyFileSync(ENOENT).
+  if (fs.existsSync(settingsPath)) {
+    const ts = Date.now()
+    const backupPath = path.join(path.dirname(settingsPath), `settings.json.bak.${ts}`)
+    fs.copyFileSync(settingsPath, backupPath)
+  }
 
   // Write the wrapper script that:
   //  1. reads stdin into a variable

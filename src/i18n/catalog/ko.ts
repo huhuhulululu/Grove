@@ -387,7 +387,7 @@ export const ko: Catalog = {
   'cli.help.subcommands': '서브커맨드:',
   'cli.help.cmd.event': '  event <타입> [--magnitude N] [--success true|false] [--source S] [--session ID]\n      Grove 이벤트를 수집합니다. <타입>은 다음 중 하나여야 합니다:\n          {eventTypes}',
   'cli.help.cmd.wrap': '  wrap [--as <타입>] [--home DIR] -- <명령어...>\n      평소에 실행하는 명령어(테스트/빌드/lint)를 실행하고, 출력을\n      투명하게 스트리밍하며, 종료 코드로 실제 결과를 수집합니다(ADR-0003):\n      성공 명령어는 보상을 부여; 실패 명령어는 아무것도 부여하지 않음(방화벽).\n      sq는 래핑된 명령어의 정확한 종료 코드로 종료(투명 패스스루),\n      스크립트나 CI의 어떤 명령어 앞에도 삽입 가능합니다.\n      --as  이벤트 타입 강제 지정 (test_result | build_result | lint_clean).\n            미지정시 명령어에서 추론(test/build/lint), 기본값 test_result.\n      예:   sq wrap -- npm test      sq wrap --as build_result -- make',
-  'cli.help.cmd.status': '  status\n      현재 Grove 게임 상태를 표시합니다.',
+  'cli.help.cmd.status': '  status [--json]\n      현재 Grove 게임 상태를 표시합니다.\n      --json  계산된 게임 상태를 JSON으로 stdout에 출력 (jq 친화적)',
   'cli.help.cmd.recap': '  recap [--since session|week|all] [--csv]\n      이벤트와 진행 상황 요약을 표시합니다.\n      --since session  (기본값) · 마지막 session_start 이후 이벤트\n      --since week     · 이번 주(UTC) 시작 이후 이벤트\n      --since all      · 모든 이벤트\n      --csv            · 이벤트 타임라인을 CSV로 stdout에 출력 (파이프: > file.csv)',
   'cli.help.cmd.scan': '  scan [경로] [--home DIR]\n      리포지토리 디렉토리에서 Pillar-B 신호(그리모아, 테스트, 문서, 스펙, 결정)를 스캔합니다.\n      경로 미지정시 process.cwd() 기본값. 감지된 이벤트를 수집하고\n      보상을 출력; 감지된 내용 요약을 출력합니다.',
   'cli.help.cmd.quests': '  quests [--home DIR]\n      Pillar-B 퀘스트 보드와 상태 기호 및 활성 버프를 표시합니다.\n      ✓ 완료  ◆ 활성  · 미시작',

@@ -10,6 +10,7 @@ import { loadState, readEvents } from '../../store/store'
 import { ingestEvent } from '../../app/ingest'
 import { buildRecap } from '../../app/recap'
 import { eventsToCsv } from '../../app/csv-export'
+import { gameStateToJson } from '../../app/status-json'
 import { formatReward, formatStatus, formatRecap, formatQuests } from '../../render/format'
 import { EVENT_TYPES } from '../../core/events'
 import type { GroveEvent } from '../../core/events'
@@ -106,8 +107,15 @@ export function handleEvent(
   return 0
 }
 
-export function handleStatus(dir: string, zen: boolean, locale: Locale = 'en'): number {
+export function handleStatus(flags: Record<string, string>, dir: string, zen: boolean, locale: Locale = 'en'): number {
   const state = loadState(dir)
+  // --json: machine-readable snapshot of the COMPUTED game-state (own-your-data,
+  // like --csv). Ignore zen — a machine format is tool-parsed, not human-read, so
+  // the calm-mode quieting (a human concern) does not apply. Read-only.
+  if (flags['json'] === 'true') {
+    console.log(JSON.stringify(gameStateToJson(state)))
+    return 0
+  }
   if (zen) {
     // Quiet status: a single terse line, no banner/box spectacle.
     const { player, cards } = state

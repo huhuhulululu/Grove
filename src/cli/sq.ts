@@ -115,7 +115,7 @@ interface ParsedArgs {
  */
 // Flags that carry NO value (boolean-only). A flag in this set is set to
 // 'true' unconditionally, never consuming the following positional token.
-const BOOL_FLAGS = new Set(['zen', 'no-clear', 'premium', 'once', 'no-wait', 'badge', 'all', 'csv'])
+const BOOL_FLAGS = new Set(['zen', 'no-clear', 'premium', 'once', 'no-wait', 'badge', 'all', 'csv', 'json'])
 
 function parseArgs(argv: string[]): ParsedArgs {
   const positional: string[] = []
@@ -259,8 +259,9 @@ Subcommands:
             Otherwise inferred from the command (test/build/lint), default test_result.
       e.g.  sq wrap -- npm test      sq wrap --as build_result -- make
 
-  status
+  status [--json]
       Show current Grove game state.
+      --json  export the computed game-state as JSON to stdout (jq-friendly)
 
   recap [--since session|week|all] [--csv]
       Show a recap of events and progress.
@@ -673,7 +674,7 @@ export function run(argv: string[]): number {
       return handleEvent(rest, flags, dir, zen, locale)
 
     case 'status':
-      return handleStatus(dir, zen, locale)
+      return handleStatus(flags, dir, zen, locale)
 
     case 'recap':
       return handleRecap(flags, dir, locale)

@@ -163,7 +163,7 @@ flowchart TB
 | `sq statusline-segment` | 차분하고 조합 가능한 한 줄 개요(레벨 · 경험치 · 에너지)를 자신의 바에 연결 |
 | `sq export [file]` · `sq import <file>` | 데이터 소유권: 이식 가능한 버전 관리 상태 (import는 먼저 백업, 잘못된 파일은 거부) |
 | `sq share [--badge]` · `sq ntfy <topic>` | 선택, 프라이버시 최소화: 공유 카드 / README 배지 · 주요 순간에 모바일 푸시 (기본값 **꺼짐**) |
-| `sq status` · `sq recap [--since session\|week\|all]` | 평문 상태 · 차분한 회고 |
+| `sq status [--json]` · `sq recap [--since session\|week\|all] [--csv]` | 평문 상태 · 차분한 회고 · `--json` / `--csv`로 성과 데이터 내보내기 (파일이나 jq로 파이프) |
 
 ## 윤리 방화벽
 

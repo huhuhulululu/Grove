@@ -164,7 +164,7 @@ flowchart TB
 | `sq statusline-segment` | 穏やかで組み合わせ可能な1行の概観（レベル · 経験値 · エナジー）を自分のバーに連結 |
 | `sq export [file]` · `sq import <file>` | データはあなたのもの: 移植可能 · バージョン付き状態（インポートは先にバックアップ、不正ファイルは拒否） |
 | `sq share [--badge]` · `sq ntfy <topic>` | オプトイン · プライバシー最小限: シェアカード / README バッジ · 大事な瞬間にモバイルプッシュ（デフォルト **オフ**） |
-| `sq status` · `sq recap [--since session\|week\|all]` | プレーンテキスト状態 · 穏やかな振り返り |
+| `sq status [--json]` · `sq recap [--since session\|week\|all] [--csv]` | プレーンテキスト状態 · 穏やかな振り返り · `--json` / `--csv` で成果データをエクスポート（ファイルや jq へパイプ） |
 
 ## 倫理ファイアウォール
 

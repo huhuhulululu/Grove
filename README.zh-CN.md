@@ -166,7 +166,7 @@ flowchart TB
 | `sq statusline-segment` | 一行平静、可组合的 Grove 概览（等级 · 经验 · 精力），接进你自己的状态栏 |
 | `sq export [file]` · `sq import <file>` | 数据自主：可移植的带版本存档（导入先备份，拒绝损坏文件） |
 | `sq share [--badge]` · `sq ntfy <topic>` | 可选 · 隐私最小化：分享卡 / README 徽章 · 重要时刻移动推送（默认**关闭**） |
-| `sq status` · `sq recap [--since session\|week\|all]` | 纯文本状态 · 平静回顾 |
+| `sq status [--json]` · `sq recap [--since session\|week\|all] [--csv]` | 纯文本状态 · 平静回顾 · 用 `--json` / `--csv` 导出你的成果数据（管道到文件或 jq） |
 
 ## 伦理防火墙
 

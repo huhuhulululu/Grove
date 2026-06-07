@@ -167,7 +167,7 @@ flowchart TB
 | `sq statusline-segment` | A calm, composable one-line glance (level · xp · energy) you chain into your own bar |
 | `sq export [file]` · `sq import <file>` | Own your data: portable, versioned state (import backs up first, refuses a bad file) |
 | `sq share [--badge]` · `sq ntfy <topic>` | Opt-in, privacy-minimal: a share card / README badge · mobile push on big moments (default **off**) |
-| `sq status` · `sq recap [--since session\|week\|all]` | Plain-text state · a calm look-back |
+| `sq status [--json]` · `sq recap [--since session\|week\|all] [--csv]` | Plain-text state · a calm look-back · pipe `--json` / `--csv` to own your outcome data |
 
 ## The ethics firewall
 

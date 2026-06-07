@@ -31,6 +31,14 @@ export const RUN_FLOORS = 5
  *  full-clears ~20% of greedy runs, so banking early is a smart play, not a formality. */
 export const RUN_HP = 2
 
+/** A single-use SHIELD bought (with banked seeds) at `start`: it soaks ONE failed dive
+ *  (no HP lost) at the moment of your choosing. Cosmetic seeds only (ADR-0005). */
+export const SHIELD_COST = 30
+/** The per-item cap is LOAD-BEARING balance, not a limit for tidiness: a Monte-Carlo pin
+ *  shows 1 shield keeps banking-before-the-last-floor optimal (tension alive), while 2 would
+ *  flip the run to always-dive (tension dead). The strongest LEGAL kit is one shield. */
+export const SHIELD_CAP = 1
+
 /** Per-floor difficulty rises with depth: floor i = BASE_DIFF + i*DIFF_STEP. */
 const BASE_DIFF = 1.0
 const DIFF_STEP = 0.45
@@ -41,6 +49,38 @@ const MIN_CLEAR = 0.1
 const MAX_CLEAR = 0.95
 /** Each enhancement level on your best-of-name gear adds this to run power. */
 const GEAR_LEVEL_POWER = 0.04
+
+/** Floor archetypes. ELITE = a harder gamble for fatter loot (the risky-richer fork);
+ *  TREASURE = a safe jackpot, fatter loot at NORMAL odds (the safe-richer fork). (A REST
+ *  archetype is a deliberate later follow-up.) */
+export type FloorKind = 'combat' | 'elite' | 'treasure' | 'rest'
+/** How often a non-final floor rolls ELITE. This is the RATE knob (tune frequency, not the
+ *  mult) so the bare run stays a real gamble; pinned by the balance test. ELITE is rolled
+ *  FIRST and its window is fixed, so adding TREASURE never shifts the elite set or the rate. */
+const ELITE_CHANCE = 0.3
+/** An elite floor's difficulty multiplier. Deliberately MODEST: at 1.15 the elite bump is
+ *  smaller than a depth step, so difficulty stays strictly rising (no out-of-order spike),
+ *  and the boss floor — which is never elite — remains the climax via depth-bias + gear. */
+const ELITE_DIFF_MULT = 1.15
+/** An elite floor banks this multiple of the depth's base seeds — the reward for the risk. */
+const ELITE_SEED_MULT = 2
+/** How often a non-final floor rolls TREASURE (carved from the combat window, AFTER elite —
+ *  so it leaves difficulty untouched and the bare full-clear rate unchanged). */
+const TREASURE_CHANCE = 0.22
+/** A treasure floor banks this multiple of base seeds — the fattest bank, at normal odds. */
+const TREASURE_SEED_MULT = 2.5
+/** How often a non-final floor rolls REST (carved from combat AFTER elite+treasure, so it leaves
+ *  their sets — and difficulty — untouched). A rest floor's CLEAR HEALS 1 HP instead of banking
+ *  loot: a respite that can carry you to the boss at full HP (it pays off most against the climax). */
+const REST_CHANCE = 0.18
+
+/** The final floor is a two-phase BOSS: clearing it means winning TWO back-to-back rolls at
+ *  the boss difficulty in ONE dive, so its clear-prob is clearChance². That restores a real
+ *  escape-vs-dive decision at the climax — a bare build should bank before it; only an invested
+ *  build (or a shield) should gamble the whole bag on the boss. Published (ADR-0002). */
+export const BOSS_PHASES = 2
+/** The boss guards this multiple of the depth's base seeds — the climax pays the most. */
+export const BOSS_SEED_MULT = 1.5
 
 // ---------------------------------------------------------------------------
 // Types — the ephemeral run (never persisted into GameState)
@@ -54,6 +94,10 @@ export interface RunFloor {
   seeds: number
   /** the deepest floor also guards a gear drop */
   gear: boolean
+  /** archetype (absent on a legacy run.json → treated as 'combat' at every read site) */
+  kind?: FloorKind
+  /** the final floor is a two-phase BOSS (absent/false on a legacy run.json → single-phase) */
+  boss?: boolean
 }
 
 export interface RunBag {
@@ -61,6 +105,15 @@ export interface RunBag {
   gear: Gear[]
   seeds: number
 }
+
+/** The single-use consumables packed for a run (bought at start, spent mid-run). Lives
+ *  only in the ephemeral RunState — never in GameStateSchema. */
+export interface RunKit {
+  /** remaining shields (each soaks one failed dive); capped at SHIELD_CAP when bought */
+  shield: number
+}
+
+export const EMPTY_KIT: RunKit = { shield: 0 }
 
 export interface RunState {
   /** the run's deterministic seed (every dive/drop is derived from it) */
@@ -72,6 +125,20 @@ export interface RunState {
   current: number
   hp: number
   bag: RunBag
+  /**
+   * Floors actually CLEARED so far. Tracked explicitly because a REST clear heals instead of
+   * banking a card, so bag.cards.length undercounts. Absent on a legacy run.json → derived from
+   * bag.cards.length (the old heuristic) for the honest count.
+   */
+  clears?: number
+  /** consumables packed for this run (absent on a legacy run.json → treated as empty) */
+  kit?: RunKit
+  /**
+   * Firewall tombstone, owned by the CLI shell — the engine NEVER sets or reads this.
+   * On death the shell flags `dead: true` before deleting run.json, so that even if the
+   * delete fails (locked file, full disk) a later `escape` can never bank a forfeit bag.
+   */
+  dead?: boolean
 }
 
 /** The outcome of a single dive. */
@@ -80,6 +147,8 @@ export interface DiveResult {
   cleared: boolean
   /** true when this dive dropped HP to 0 — the run is over, bag forfeit */
   dead: boolean
+  /** true when a fail was absorbed by a shield (no HP lost, one shield spent) */
+  shielded?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -119,6 +188,13 @@ export function clearChance(power: number, difficulty: number): number {
   return Math.max(MIN_CLEAR, Math.min(MAX_CLEAR, raw))
 }
 
+/** The clear probability for an actual floor — SQUARED for a two-phase boss. The single source
+ *  of truth for boss odds, so the CLI never hand-squares (DRY). Published (ADR-0002). */
+export function floorClearChance(power: number, floor: RunFloor): number {
+  const single = clearChance(power, floor.difficulty)
+  return floor.boss ? single ** BOSS_PHASES : single
+}
+
 // ---------------------------------------------------------------------------
 // Map + run construction (deterministic from the seed)
 // ---------------------------------------------------------------------------
@@ -141,20 +217,49 @@ function floorCardRarity(seed: number, i: number): Rarity {
   return 'common'
 }
 
+/** Archetype on a fresh rng stream (label `kind:i`, so it never perturbs rarity/card/gear/dive).
+ *  ELITE is tested FIRST on a fixed window, so its set (and the bare rate) is invariant to adding
+ *  TREASURE; treasure is carved from the remaining combat window. The final floor is NEVER special
+ *  — it is already the climax (depth-bias + the gear guard). */
+function floorKind(seed: number, i: number, floors: number): FloorKind {
+  if (i === floors - 1) return 'combat'
+  const r = runRng(seed, `kind:${i}`)()
+  if (r < ELITE_CHANCE) return 'elite'
+  if (r < ELITE_CHANCE + TREASURE_CHANCE) return 'treasure'
+  if (r < ELITE_CHANCE + TREASURE_CHANCE + REST_CHANCE) return 'rest'
+  return 'combat'
+}
+
 export function rollMap(seed: number, floors = RUN_FLOORS): RunFloor[] {
   const out: RunFloor[] = []
   for (let i = 0; i < floors; i++) {
+    const kind = floorKind(seed, i, floors)
+    const boss = i === floors - 1 // the final floor is the two-phase boss
+    const baseDifficulty = BASE_DIFF + i * DIFF_STEP
+    const baseSeeds = 8 + i * 6 // deeper floors bank more seeds
+    const kindSeeds =
+      kind === 'elite'
+        ? baseSeeds * ELITE_SEED_MULT
+        : kind === 'treasure'
+          ? Math.round(baseSeeds * TREASURE_SEED_MULT)
+          : kind === 'rest'
+            ? 0 // a rest floor banks NO loot — the heal IS the reward
+            : baseSeeds
     out.push({
-      difficulty: BASE_DIFF + i * DIFF_STEP,
+      // elite raises difficulty; treasure leaves it at baseline (a real dive, not free money)
+      difficulty: kind === 'elite' ? baseDifficulty * ELITE_DIFF_MULT : baseDifficulty,
       cardRarity: floorCardRarity(seed, i),
-      seeds: 8 + i * 6, // deeper floors bank more seeds
-      gear: i === floors - 1, // the final floor also guards a gear piece
+      // the boss guards the fattest seeds; otherwise the archetype decides
+      seeds: boss ? Math.round(baseSeeds * BOSS_SEED_MULT) : kindSeeds,
+      gear: boss, // the final floor (boss) also guards a gear piece
+      kind,
+      ...(boss ? { boss: true } : {}),
     })
   }
   return out
 }
 
-export function startRun(state: GameState, seed: number, floors = RUN_FLOORS): RunState {
+export function startRun(state: GameState, seed: number, floors = RUN_FLOORS, kit: RunKit = EMPTY_KIT): RunState {
   return {
     seed,
     power: buildPower(state),
@@ -162,6 +267,8 @@ export function startRun(state: GameState, seed: number, floors = RUN_FLOORS): R
     current: 0,
     hp: RUN_HP,
     bag: { cards: [], gear: [], seeds: 0 },
+    // snapshot the kit, clamping the shield to the load-bearing cap
+    kit: { shield: Math.max(0, Math.min(SHIELD_CAP, kit.shield)) },
   }
 }
 
@@ -189,19 +296,40 @@ export function resolveFloor(run: RunState): DiveResult {
   if (floor === undefined) return { run, cleared: false, dead: false } // already cleared
 
   const chance = clearChance(run.power, floor.difficulty)
-  const roll = runRng(run.seed, `dive:${run.current}`)()
-  const cleared = roll < chance
+  const phase1 = runRng(run.seed, `dive:${run.current}`)() < chance
+  // A BOSS demands TWO back-to-back wins in one dive (clearChance²) — the climax is a real
+  // gamble, not a near-automatic gear roll. The phase-2 stream is drawn ONLY on a boss.
+  const cleared = floor.boss
+    ? phase1 && runRng(run.seed, `dive-boss:${run.current}`)() < chance
+    : phase1
 
   if (cleared) {
+    // Count this clear honestly — a REST clear advances + heals but banks no card, so
+    // bag.cards.length alone would undercount it.
+    const clears = (run.clears ?? run.bag.cards.length) + 1
+    if (floor.kind === 'rest') {
+      // a REST floor: clearing HEALS 1 HP (capped at RUN_HP, never overheal) and banks NO loot.
+      const hp = Math.min(RUN_HP, run.hp + 1)
+      return { run: { ...run, current: run.current + 1, hp, clears }, cleared: true, dead: false }
+    }
     const bag = mergeDrop(run.bag, floor, run.seed, run.current)
-    return { run: { ...run, current: run.current + 1, bag }, cleared: true, dead: false }
+    return { run: { ...run, current: run.current + 1, bag, clears }, cleared: true, dead: false }
+  }
+
+  // A SHIELD soaks this fail: advance past the floor with no HP lost and no loot, spending
+  // one shield. It can save a run from death, but never grants loot — it only buys you one
+  // more wrong guess at the same escape-vs-dive crux.
+  const shield = run.kit?.shield ?? 0
+  if (shield > 0) {
+    const kit: RunKit = { ...(run.kit ?? EMPTY_KIT), shield: shield - 1 }
+    return { run: { ...run, current: run.current + 1, kit }, cleared: false, dead: false, shielded: true }
   }
 
   // A fail chips 1 HP and you push PAST the floor bloodied (no loot). Advancing is
   // essential: each floor's outcome is sealed by the seed, so you cannot "retry" the
   // same floor — HP is your budget of mistakes across the run, not per-floor retries.
   const hp = run.hp - 1
-  return { run: { ...run, current: run.current + 1, hp }, cleared: false, dead: hp <= 0 }
+  return { run: { ...run, current: run.current + 1, hp }, cleared: false, dead: hp <= 0, shielded: false }
 }
 
 /** Whether the run has cleared every floor (the player should escape to bank it). */
@@ -212,4 +340,41 @@ export function isCleared(run: RunState): boolean {
 /** The bag to commit on escape (the caller folds it into the real GameState). PURE. */
 export function escapeBag(run: RunState): RunBag {
   return run.bag
+}
+
+// ---------------------------------------------------------------------------
+// Run history — an honest, cosmetic war-story record (sibling ephemeral file)
+// ---------------------------------------------------------------------------
+
+/** One past run, for the cosmetic `sq incursion history` log (a sibling ephemeral file —
+ *  NEVER GameState). floorsCleared is derived from the BAG, so it stays honest even when a
+ *  fail/shield advanced the run past a floor without clearing it. */
+export interface RunRecord {
+  outcome: 'escaped' | 'died'
+  /** floors actually cleared = bag.cards.length (NOT run.current, which advances on a fail too) */
+  floorsCleared: number
+  /** the 1-based floor that ended the run (death only); null on escape */
+  diedOn: number | null
+  /** what reached your real collection on escape; null on death (a forfeit bag is never banked) */
+  banked: { cards: number; gear: number; seeds: number } | null
+  seed: number
+}
+
+/**
+ * Derive an honest run record. PURE. The death caller passes the PRE-resolve run so diedOn
+ * is the floor being dived; floorsCleared uses the explicit `clears` counter (it counts REST
+ * clears, which bank no card), falling back to bag.cards.length for a legacy run. A death banks
+ * NULL (the forfeit bag never reached real state — no firewall leak).
+ */
+export function runOutcomeRecord(run: RunState, outcome: 'escaped' | 'died'): RunRecord {
+  return {
+    outcome,
+    floorsCleared: run.clears ?? run.bag.cards.length,
+    diedOn: outcome === 'died' ? run.current + 1 : null,
+    banked:
+      outcome === 'escaped'
+        ? { cards: run.bag.cards.length, gear: run.bag.gear.length, seeds: run.bag.seeds }
+        : null,
+    seed: run.seed,
+  }
 }

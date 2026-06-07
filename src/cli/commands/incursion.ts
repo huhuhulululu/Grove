@@ -20,10 +20,17 @@ import { hashStringToSeed } from '../../core/rng'
 import {
   startRun,
   resolveFloor,
-  clearChance,
+  floorClearChance,
   isCleared,
+  escapeBag,
+  runOutcomeRecord,
   RUN_HP,
+  RUN_FLOORS,
+  SHIELD_COST,
+  EMPTY_KIT,
   type RunState,
+  type RunKit,
+  type RunRecord,
 } from '../../engine/incursion'
 import type { Locale } from '../../i18n/types'
 
@@ -31,13 +38,31 @@ function runPath(dir: string): string {
   return path.join(dir, 'run.json')
 }
 
-function readRun(dir: string): RunState | null {
+/** A PLAIN, read-only run.json read — never mutates disk. (Unlike readActiveRun, which deletes a
+ *  dead tombstone.) Safe for passive surfaces like the dashboard to peek at the active run. */
+export function readRun(dir: string): RunState | null {
   try {
     const raw = fs.readFileSync(runPath(dir), 'utf-8')
     return JSON.parse(raw) as RunState
   } catch {
     return null
   }
+}
+
+/**
+ * The active run, or null. A `dead: true` tombstone counts as NO active run: it can never
+ * be escaped (firewall — a forfeit bag must never reach real state), and we retry its
+ * cleanup here so the next `start` is free. This closes the hole where a failed delete on
+ * death could otherwise leave a dead run's bag bankable.
+ */
+function readActiveRun(dir: string): RunState | null {
+  const run = readRun(dir)
+  if (run === null) return null
+  if (run.dead) {
+    clearRun(dir)
+    return null
+  }
+  return run
 }
 
 function writeRun(dir: string, run: RunState): void {
@@ -53,8 +78,54 @@ function clearRun(dir: string): void {
   }
 }
 
+// ---- run history (a sibling ephemeral file — NEVER in GameState) ----------
+const HISTORY_CAP = 20
+
+function historyPath(dir: string): string {
+  return path.join(dir, 'incursion-history.json')
+}
+
+function readHistory(dir: string): RunRecord[] {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(historyPath(dir), 'utf-8'))
+    return Array.isArray(parsed) ? (parsed as RunRecord[]) : []
+  } catch {
+    return [] // missing or corrupt → an empty ledger, best-effort
+  }
+}
+
+/** Prepend the newest record, cap the log, best-effort (history loss never affects a run). */
+function appendHistory(dir: string, rec: RunRecord): void {
+  try {
+    const next = [rec, ...readHistory(dir)].slice(0, HISTORY_CAP)
+    fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(historyPath(dir), JSON.stringify(next), 'utf-8')
+  } catch {
+    /* best-effort */
+  }
+}
+
+function renderRecord(r: RunRecord): string {
+  if (r.outcome === 'escaped') {
+    const b = r.banked
+    const parts: string[] = []
+    if (b && b.cards) parts.push(`${b.cards} card${b.cards === 1 ? '' : 's'}`)
+    if (b && b.gear) parts.push(`${b.gear} gear`)
+    if (b && b.seeds) parts.push(`${b.seeds} 🌰`)
+    const banked = parts.length ? parts.join(' · ') : 'nothing'
+    return `🌲 Escaped · ${r.floorsCleared}/${RUN_FLOORS} cleared · banked ${banked}`
+  }
+  // died — purely factual, no shame (no "you died", no death count, no "try again")
+  return `✗ Fell on floor ${r.diedOn} · ${r.floorsCleared}/${RUN_FLOORS} cleared before the run ended`
+}
+
 function hpPips(hp: number): string {
   return '🟩'.repeat(Math.max(0, hp)) + '⬛'.repeat(Math.max(0, RUN_HP - hp))
+}
+
+/** A ` · 🛡 shield` tag when the run still holds a shield, else '' (legacy runs → ''). */
+function kitTag(run: RunState): string {
+  return (run.kit?.shield ?? 0) > 0 ? ' · 🛡 shield' : ''
 }
 
 function bagLine(run: RunState): string {
@@ -67,24 +138,51 @@ function bagLine(run: RunState): string {
   return parts.join(' · ')
 }
 
+/** The boss is the ONLY gear-guarding floor, so a non-empty gear bag ⟺ the boss was felled.
+ *  A run with no boss floor (legacy) counts as felled — its "cleared" trophy is honest. This is
+ *  what distinguishes a true full clear from a boss FAIL-survive (which also advances to cleared). */
+function bossFelled(run: RunState): boolean {
+  return !run.floors.some((f) => f.boss) || run.bag.gear.length > 0
+}
+
 /** The scout + prompt for the floor you're standing in front of. */
 function nextFloorPrompt(run: RunState): string {
   if (isCleared(run)) {
+    if (!bossFelled(run)) {
+      // a boss FAIL-survive advanced you here, but the boss was never felled — no trophy, no boss loot
+      return `  ☠ The boss still stands — you walked away alive (no boss loot). Walk out: sq incursion escape  (bank ${bagLine(run)})`
+    }
     return `  🏆 You cleared all ${run.floors.length} floors. Walk out: sq incursion escape  (bank ${bagLine(run)})`
   }
   const floor = run.floors[run.current]!
-  const odds = Math.round(clearChance(run.power, floor.difficulty) * 100)
-  const article = /^[aeiou]/i.test(floor.cardRarity) ? 'an' : 'a'
-  const guards = `${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
+  // floorClearChance squares the odds for a boss — the scout shows the TRUE two-phase chance
+  const odds = Math.round(floorClearChance(run.power, floor) * 100)
+  const kind = floor.kind ?? 'combat'
+  const tag = floor.boss
+    ? ' · ☠ BOSS (2 phases)'
+    : kind === 'elite'
+      ? ' · ⚔ ELITE'
+      : kind === 'treasure'
+        ? ' · 💎 TREASURE'
+        : kind === 'rest'
+          ? ' · 🌿 REST'
+          : ''
+  let guardsClause: string
+  if (kind === 'rest') {
+    guardsClause = 'heals 1 HP on clear (no loot)'
+  } else {
+    const article = /^[aeiou]/i.test(floor.cardRarity) ? 'an' : 'a'
+    guardsClause = `guards ${article} ${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
+  }
   return [
-    `  Floor ${run.current + 1}/${run.floors.length} · difficulty ${floor.difficulty.toFixed(2)} · guards ${article} ${guards}`,
+    `  Floor ${run.current + 1}/${run.floors.length}${tag} · difficulty ${floor.difficulty.toFixed(2)} · ${guardsClause}`,
     `  → sq incursion dive  (clear ${odds}%)   or   sq incursion escape  (bank ${bagLine(run)})`,
   ].join('\n')
 }
 
 function renderRun(run: RunState): string {
   return [
-    `🌲 The Incursion · power ${run.power.toFixed(2)} · HP ${hpPips(run.hp)} · bag: ${bagLine(run)}`,
+    `🌲 The Incursion · power ${run.power.toFixed(2)} · HP ${hpPips(run.hp)}${kitTag(run)} · bag: ${bagLine(run)}`,
     nextFloorPrompt(run),
   ].join('\n')
 }
@@ -100,38 +198,95 @@ export function handleIncursion(
 
   // ---- start --------------------------------------------------------------
   if (action === 'start') {
-    if (readRun(dir) !== null) {
+    if (readActiveRun(dir) !== null) {
       console.log('  An incursion is already underway. Finish it: sq incursion (status) · dive · escape.')
       return 0
     }
     const seedFlag = flags['seed']
     const seed = seedFlag !== undefined ? hashStringToSeed(seedFlag) : (Date.now() >>> 0)
-    const run = startRun(loadState(dir), seed)
+
+    // --kit: the only item is a single SHIELD. Parse intent, then settle payment below.
+    const kitFlag = flags['kit']
+    const wantsShield = kitFlag === 'shield'
+    const unknownKit = kitFlag !== undefined && !wantsShield
+    let kit: RunKit = EMPTY_KIT
+    let kitNote: 'bought' | 'unaffordable' | 'unknown' | 'none' = unknownKit ? 'unknown' : 'none'
+
+    // FIREWALL ORDERING: write the run (with the tentative kit) FIRST so a crash can never
+    // debit seeds for a run that doesn't exist; then settle the seed cost under the state
+    // lock, stripping the shield back off if the player can't actually afford it.
+    if (wantsShield) kit = { shield: 1 }
+    let run = startRun(loadState(dir), seed, undefined, kit)
     writeRun(dir, run)
+    if (wantsShield) {
+      let paid = false
+      withStateLock(dir, () => {
+        const cur = loadState(dir)
+        if (cur.player.currency >= SHIELD_COST) {
+          saveState(dir, { ...cur, player: { ...cur.player, currency: cur.player.currency - SHIELD_COST } })
+          paid = true
+        } else {
+          run = { ...run, kit: EMPTY_KIT }
+          writeRun(dir, run) // strip the unpaid shield off the already-written run
+        }
+      })
+      kitNote = paid ? 'bought' : 'unaffordable'
+    }
+
     if (zen) {
-      console.log(`✓ incursion started · ${run.floors.length} floors · HP ${run.hp}`)
+      console.log(`✓ incursion started · ${run.floors.length} floors · HP ${run.hp}${kitNote === 'bought' ? ' · kit: shield' : ''}`)
       return 0
     }
-    console.log(`🌲 You pack your build and dive into a seeded incursion. power ${run.power.toFixed(2)} · HP ${hpPips(run.hp)}`)
+    console.log(`🌲 You pack your build and dive into a seeded incursion. power ${run.power.toFixed(2)} · HP ${hpPips(run.hp)}${kitTag(run)}`)
     console.log(`  ${run.floors.length} floors of escalating loot ahead. It's only yours if you walk out alive.`)
+    if (kitNote === 'bought') {
+      console.log(`  🛡 You strap on a shield (${SHIELD_COST} 🌰 spent) — it soaks one failed dive, at the moment of your choosing.`)
+    } else if (kitNote === 'unaffordable') {
+      console.log(`  (A shield costs ${SHIELD_COST} 🌰, more than you've banked — kits are bought with seeds you bank by ESCAPING runs, so clear a few floors first. Diving kit-less.)`)
+    } else if (kitNote === 'unknown') {
+      console.log(`  (Unknown kit "${kitFlag}". The only kit is: --kit shield. Diving kit-less.)`)
+    }
     console.log(nextFloorPrompt(run))
     return 0
   }
 
   // ---- status (default) ---------------------------------------------------
   if (action === 'status') {
-    const run = readRun(dir)
+    const run = readActiveRun(dir)
     if (run === null) {
       console.log('  No active incursion. Start one: sq incursion start')
       return 0
     }
-    console.log(zen ? `incursion · floor ${run.current + 1}/${run.floors.length} · HP ${run.hp} · bag ${bagLine(run)}` : renderRun(run))
+    if (zen) {
+      const clearedLabel = bossFelled(run) ? 'cleared' : 'boss holds'
+      console.log(isCleared(run)
+        ? `incursion · ${clearedLabel} · HP ${run.hp} · bag ${bagLine(run)}`
+        : `incursion · floor ${run.current + 1}/${run.floors.length} · HP ${run.hp} · bag ${bagLine(run)}`)
+      return 0
+    }
+    console.log(renderRun(run))
+    return 0
+  }
+
+  // ---- history ------------------------------------------------------------
+  if (action === 'history') {
+    const hist = readHistory(dir)
+    if (hist.length === 0) {
+      console.log(zen ? 'incursion history · empty' : '  No incursions yet. Start one: sq incursion start')
+      return 0
+    }
+    if (zen) {
+      console.log(`incursion history · ${hist.length} run${hist.length === 1 ? '' : 's'}`)
+      return 0
+    }
+    console.log(`🌲 Incursion log · last ${hist.length} run${hist.length === 1 ? '' : 's'} (newest first):`)
+    for (const r of hist) console.log(`  ${renderRecord(r)}`)
     return 0
   }
 
   // ---- dive ---------------------------------------------------------------
   if (action === 'dive') {
-    const run = readRun(dir)
+    const run = readActiveRun(dir)
     if (run === null) {
       console.log('  No active incursion. Start one: sq incursion start')
       return 0
@@ -144,6 +299,13 @@ export function handleIncursion(
     const res = resolveFloor(run)
 
     if (res.dead) {
+      // Record the fallen war story ONCE, here in the dive branch (the tombstone-cleanup
+      // path in readActiveRun has no DiveResult and must never record). PRE-resolve `run`
+      // so diedOn is the floor being dived; the forfeit bag is recorded as banked:null.
+      appendHistory(dir, runOutcomeRecord(run, 'died'))
+      // Tombstone BEFORE deleting: if the delete fails, `dead: true` still bars escape
+      // from ever banking this forfeit bag (firewall). readActiveRun retries the cleanup.
+      writeRun(dir, { ...res.run, dead: true })
       clearRun(dir)
       if (zen) {
         console.log('✗ incursion lost · bag forfeit (real collection untouched)')
@@ -158,41 +320,73 @@ export function handleIncursion(
     if (zen) {
       console.log(res.cleared
         ? `✓ floor ${run.current + 1} cleared · bag ${bagLine(res.run)}`
-        : `· floor ${run.current + 1} failed · HP ${res.run.hp}`)
+        : res.shielded
+          ? `· floor ${run.current + 1} held (shield) · HP ${res.run.hp}`
+          : `· floor ${run.current + 1} failed · HP ${res.run.hp}`)
       return 0
     }
     if (res.cleared) {
-      const guard = `${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
-      console.log(`  ⚔ Floor ${run.current + 1} cleared! Banked: ${guard}`)
+      if ((floor.kind ?? 'combat') === 'rest') {
+        const healed = res.run.hp > run.hp
+        console.log(`  🌿 REST Floor ${run.current + 1} cleared — you catch your breath.${healed ? ' HP +1.' : ' (already at full HP.)'}`)
+      } else if (floor.boss) {
+        const guard = `${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
+        console.log(`  ☠ BOSS Floor ${run.current + 1} felled! Banked: ${guard}`)
+      } else {
+        const guard = `${floor.cardRarity} card${floor.gear ? ' + gear' : ''} + ${floor.seeds} 🌰`
+        const kind = floor.kind ?? 'combat'
+        const label = kind === 'elite' ? 'ELITE ' : kind === 'treasure' ? 'TREASURE ' : ''
+        console.log(`  ⚔ ${label}Floor ${run.current + 1} cleared! Banked: ${guard}`)
+      }
+    } else if (res.shielded) {
+      console.log(`  🛡 Floor ${run.current + 1} would have repelled you — the shield held. HP unchanged, one shield spent.`)
     } else {
       console.log(`  ✗ Floor ${run.current + 1} repelled you. HP ${hpPips(res.run.hp)} (-1). You push on, bloodied.`)
     }
-    console.log(`  HP ${hpPips(res.run.hp)} · bag: ${bagLine(res.run)}`)
-    console.log(nextFloorPrompt(res.run))
+    console.log(`  HP ${hpPips(res.run.hp)}${kitTag(res.run)} · bag: ${bagLine(res.run)}`)
+    if (floor.boss && !res.cleared) {
+      // A boss FAIL still advances to "cleared" state (the run is over), but you did NOT fell
+      // the boss — be honest: no boss loot, walk away with the pre-boss bag.
+      console.log(`  The boss still stands — but you walk away alive (no boss loot). Escape to bank: sq incursion escape  (bank ${bagLine(res.run)})`)
+    } else {
+      console.log(nextFloorPrompt(res.run))
+    }
     return 0
   }
 
   // ---- escape -------------------------------------------------------------
   if (action === 'escape') {
-    const run = readRun(dir)
+    const run = readActiveRun(dir)
     if (run === null) {
       console.log('  No active incursion to escape. Start one: sq incursion start')
       return 0
     }
-    const bag = run.bag
-    withStateLock(dir, () => {
-      let next = loadState(dir)
-      for (const card of bag.cards) {
-        const r = addCard(next.cards, next.completedSets, card)
-        next = { ...next, cards: r.cards, completedSets: r.completedSets }
-      }
-      if (bag.gear.length > 0) next = { ...next, gear: [...next.gear, ...bag.gear] }
-      if (bag.seeds > 0) next = { ...next, player: { ...next.player, currency: next.player.currency + bag.seeds } }
-      saveState(dir, next)
-    })
+    const bag = escapeBag(run)
+    const empty = bag.cards.length === 0 && bag.gear.length === 0 && bag.seeds === 0
+    // Only touch real state when there's something to bank — an empty escape is a no-op
+    // on the collection (no needless locked write, and no dishonest "arms full" line).
+    if (!empty) {
+      withStateLock(dir, () => {
+        let next = loadState(dir)
+        for (const card of bag.cards) {
+          const r = addCard(next.cards, next.completedSets, card)
+          next = { ...next, cards: r.cards, completedSets: r.completedSets }
+        }
+        if (bag.gear.length > 0) next = { ...next, gear: [...next.gear, ...bag.gear] }
+        if (bag.seeds > 0) next = { ...next, player: { ...next.player, currency: next.player.currency + bag.seeds } }
+        saveState(dir, next)
+      })
+    }
+    // Record the war story — but skip an instant empty escape (start→escape with no dive),
+    // so the ledger holds real runs, not no-op noise.
+    if (run.current > 0 || !empty) appendHistory(dir, runOutcomeRecord(run, 'escaped'))
     clearRun(dir)
     if (zen) {
-      console.log(`✓ escaped · banked ${bagLine(run)}`)
+      console.log(empty ? '✓ escaped · empty-handed' : `✓ escaped · banked ${bagLine(run)}`)
+      return 0
+    }
+    if (empty) {
+      console.log(`  🌲 You slip out empty-handed. Nothing banked — but nothing lost, and a new run is free: sq incursion start`)
       return 0
     }
     console.log(`  🌲 You walk out of the incursion alive, arms full.`)
@@ -200,6 +394,6 @@ export function handleIncursion(
     return 0
   }
 
-  console.error('  Usage: sq incursion [start [--seed S] | status | dive | escape]')
+  console.error('  Usage: sq incursion [start [--seed S] [--kit shield] | status | dive | escape | history]')
   return 2
 }

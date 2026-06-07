@@ -18,7 +18,7 @@ import {
   nextSetUnlock,
   ALL_CARD_DEFS,
 } from '../core/cards'
-import { QUESTS } from '../core/quests'
+import { QUESTS, docStreakSuffix } from '../core/quests'
 import { xpForLevel } from '../engine/xp'
 import { gearEffectText } from '../engine/gear'
 import {
@@ -69,6 +69,13 @@ export interface DashboardOptions {
    * omit this field continue to receive English output unchanged.
    */
   locale?: Locale
+  /**
+   * A plain summary of an ACTIVE Incursion run (the dungeon), injected by the
+   * impure shell from the ephemeral run.json. A small flat datum — NOT RunState —
+   * so the pure renderer stays free of engine imports. When absent, NO panel
+   * renders and the dashboard is byte-identical to before.
+   */
+  incursion?: { floor: number; floors: number; hp: number; cleared: boolean }
 }
 
 /**
@@ -102,8 +109,25 @@ export function renderDashboard(state: GameState, opts: DashboardOptions = {}): 
     renderQuests(state, width, locale),
     renderBuffs(state, width, locale),
   ]
+  // Surface an ACTIVE Incursion run (the flagship loot-at-stake feature) only when one is open,
+  // so a started-and-forgotten run stops being invisible. Absent run → no panel → byte-identical.
+  if (opts.incursion) sections.push(renderIncursion(opts.incursion, width, locale))
 
   return sections.join('\n')
+}
+
+/** A factual one-line panel for an active Incursion run — no CTA arrow / nag (passive surface). */
+function renderIncursion(inc: NonNullable<DashboardOptions['incursion']>, width: number, locale: Locale = 'en'): string {
+  const line = inc.cleared
+    ? t(locale, 'ui.incursion.dashboard_cleared', { floors: inc.floors, hp: inc.hp })
+    : t(locale, 'ui.incursion.dashboard_line', { floor: inc.floor, floors: inc.floors, hp: inc.hp })
+  return [
+    boxTop(width),
+    boxTitle(t(locale, 'ui.panel.incursion'), width),
+    boxDivider(width),
+    boxRow(line, width),
+    boxBottom(width),
+  ].join('\n')
 }
 
 // ---------------------------------------------------------------------------
@@ -442,6 +466,8 @@ function renderOdds(state: GameState, width: number, locale: Locale = 'en'): str
 function renderCollection(state: GameState, width: number, locale: Locale = 'en'): string {
   // Count distinct owned card ids per set
   const ownedIds = new Set(state.cards.map((c) => c.id))
+  // Per-set foil progress: shards spent foiling owned cards become lasting board presence.
+  const foiledSet = new Set(state.foiled ?? [])
   const level = state.player.level
 
   const rows = Object.keys(CARD_SETS).map((setName) => {
@@ -454,10 +480,13 @@ function renderCollection(state: GameState, width: number, locale: Locale = 'en'
     }
     const allIds = cardIdsInSet(setName)
     const owned = allIds.filter((id) => ownedIds.has(id)).length
+    const foiled = allIds.filter((id) => foiledSet.has(id)).length
     const total = allIds.length
     // ✓ marks a fully-completed set (set-completion progress).
     const done = total > 0 && owned === total ? t(locale, 'ui.collection.done') : ''
-    return boxRow(t(locale, 'ui.collection.row', { set: setName, owned, total, done }), width)
+    // ✨N/total marks foil progress — suppressed at 0 so an un-foiled set stays clean (no clutter).
+    const foil = foiled > 0 ? t(locale, 'ui.collection.foil', { foiled, total }) : ''
+    return boxRow(t(locale, 'ui.collection.row', { set: setName, owned, total, done }) + foil, width)
   })
 
   return [
@@ -547,7 +576,9 @@ function renderQuests(state: GameState, width: number, locale: Locale = 'en'): s
     // Translate quest title via i18n key; fall back to def.title if key missing.
     const titleKey = `quest.${def.id}.title`
     const title = t(locale, titleKey) !== titleKey ? t(locale, titleKey) : def.title
-    return boxRow(`${glyph} ${title}`, width)
+    // The renewable Doc Streak reads renewable: its current count + the next tier goal.
+    const streak = def.id === 'doc-streak' ? docStreakSuffix(progress?.completions ?? 0, locale) : ''
+    return boxRow(`${glyph} ${title}${streak}`, width)
   })
 
   return [

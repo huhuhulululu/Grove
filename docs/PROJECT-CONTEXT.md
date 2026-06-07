@@ -149,6 +149,99 @@
   imports Ink/React — `handleTui`/`handleServe` use dynamic `import()`, tsup `splitting:true`; cold-start
   490ms→~70ms, main bundle 378KB→100KB (Ink loads only for `sq tui`). (3) Dead-code cleanup (6 files). **1682
   tests, tsc clean, build OK, firewall intact.**
+- **2026-06-06 — Incursion depth, gate-then-build.** A fresh 37-agent design→adversarial-review workflow
+  vetted 6 Incursion fast-follows; the gate REJECTED two with code-grounded blockers (typed-floors: its
+  "bit-identical buildPower" premise is false and it would punish the very gear investment the module
+  rewards; seed-wager: a no-lose dominant-strategy non-decision) and shipped the top pick. **The Incursion
+  now has a consumable: a single-use SHIELD** (`sq incursion start --kit shield`, 30 🌰) that soaks ONE
+  failed dive at the moment of your choosing. The per-item cap (`SHIELD_CAP=1`) is load-bearing balance,
+  not tidiness — a Monte-Carlo pin proves 1 shield keeps banking-before-the-last-floor optimal (tension
+  alive) while 2 would flip the run to always-dive. Engine stays PURE (no new GameState field — the kit
+  lives in the ephemeral run.json); the seed debit is crash-safe (run written before the currency is
+  spent, shield stripped if unaffordable) and the start-without-funds path TEACHES instead of erroring.
+  **1879 tests, tsc clean, build OK, firewall intact.** (Shipped on PR atop the #7 firewall hardening.)
+- **2026-06-06 — Incursion floor archetypes (ELITE).** The next vetted-READY item from the same
+  37-agent workflow, scope-cut to combat+ELITE for a clean first commit (REST/TREASURE deferred). A
+  non-final floor now rolls ELITE (~24% of floors, ~75% of runs) on a fresh `kind:i` rng stream: a
+  **harder gamble (×1.15 difficulty) that guards fatter loot (×2 seeds)** — the mid-run greed fork. The
+  load-bearing tuning is FREQUENCY, not the mult: `ELITE_DIFF_MULT=1.15` is deliberately smaller than a
+  depth step, so difficulty stays strictly rising (proven across seeds) and the boss floor — NEVER elite —
+  stays the depth-bias + gear climax. Balance re-pinned: bare greedy full-clear 0.203→**0.171** (a tighter
+  gamble), strong (2.1) 0.800, the gap preserved. Engine stays PURE; back-compat (`floor.kind ?? 'combat'`
+  at every read site) means a legacy kit-less run.json resolves byte-identically; help untouched (archetypes
+  are a map-roll detail). **1889 tests, tsc clean, build OK, firewall intact.** (Stacked PR atop the shield.)
+- **2026-06-06 — Incursion run history (war stories).** Third vetted-READY item from the workflow:
+  `sq incursion history` shows a calm, cosmetic log of past runs in a SIBLING ephemeral file
+  (`incursion-history.json`, capped at 20, best-effort — NEVER GameState). The gate caught a real latent
+  bug: floors-cleared must come from `bag.cards.length` (a clear always banks one card), NOT `run.current`
+  (which advances on a fail/shield too) — so "cleared N/5" can't lie. A pure `runOutcomeRecord(run, outcome)`
+  derives it; a DEATH banks `null` (the forfeit bag never reached real state — no firewall leak) and the line
+  is purely factual ("Fell on floor N", no "you died"/death-count/"try again" nag). The record is appended
+  ONCE in the dive dead-branch (never via the tombstone-cleanup path) and skips instant empty escapes.
+  `history` added to USAGE + cli.help ×4 locales. **1898 tests, tsc clean, build OK, firewall intact.**
+- **2026-06-06 — Incursion TREASURE floors (the safe-jackpot fork).** A third archetype completing the
+  combat/elite/treasure set: a non-final floor rolls TREASURE — FATTER loot (×2.5 seeds) at its NORMAL
+  depth difficulty (a real dive, not free money). It pairs with ELITE (risky-richer): treasure is
+  safe-richer. The key safety property, verified: TREASURE is carved from the COMBAT window AFTER elite is
+  rolled (elite's window is fixed first), and it leaves difficulty untouched — so the elite set and the
+  bare greedy full-clear rate are provably UNCHANGED (still exactly 0.171; the existing balance band holds
+  with NO re-tune). Pure engine (rollMap-only, no resolveFloor change), back-compat (`kind ?? 'combat'`),
+  scout/cleared lines tag `💎 TREASURE`, help untouched (a map-roll detail). **1903 tests, tsc clean, build
+  OK, firewall intact.** (Stacked PR atop run history. A REST archetype remains the one deferred follow-up.)
+- **2026-06-06 — Incursion BOSS climax (a fresh 37-agent design→review round).** With the prior vetted queue
+  nearly dry, a new design→adversarial-review workflow vetted 6 next-gen decision-deepeners and REJECTED two
+  with reproduced engine math (run-modifiers: glass+shield is a strict free-upside dominant config; depth-push:
+  a failed push at HP=2 forfeits nothing — a free lottery). Top pick SHIPPED: the final floor is now a TWO-PHASE
+  BOSS — clearing it means winning clearChance² in one dive, so the climax is a real escape-vs-dive crux again
+  (it had decayed to a near-automatic single gear roll). A pure `floorClearChance(power, floor)` is the single
+  odds source (CLI never hand-squares); `boss?:boolean` on the ephemeral RunFloor (no GameState field, no
+  i18n/USAGE churn); the boss guards the fattest seeds (×1.5) + gear; a boss fail-survive is rendered honestly
+  ("the boss still stands — no boss loot", not a false trophy). Balance RE-PINNED in the same commit: the boss
+  pulled bare greedy full-clear 0.171→**0.110** (a fatal phase-fail at 1 HP is likelier); the existing 0.12..0.22
+  bands moved to 0.07..0.15, and a TENSION pin proves escape-before-the-boss is EV-optimal up to ~power 2.0 (the
+  flip to DIVE lands above). **1918 tests, tsc clean, build OK, firewall intact.** (Stacked PR atop treasure.)
+- **2026-06-06 — Incursion REST floors (the archetype system, completed).** The deferred floor-types half,
+  now vetted-ready and shipped: combat / elite / treasure / **rest**. A non-final floor rolls REST (~14%):
+  clearing it HEALS 1 HP (capped, no overheal) and banks NO loot — a respite that can carry you to the boss
+  at FULL HP to survive a phase-fail (it synergizes with the new brutal climax). Carved from the combat window
+  AFTER elite+treasure (their sets/difficulty untouched); a rest floor is a real dive (a FAIL still chips HP)
+  but never the final floor. Pure (resolveFloor heal branch on CLEAR only); no GameState field; no i18n/USAGE
+  churn; `🌿 REST` scout tag + "heals 1 HP (no loot)" + a heal narration on clear. Balance RE-PINNED: the heal
+  lifts bare greedy full-clear 0.110→**0.160** (a healthy middle — the respite partly offsets the boss), bands
+  0.07..0.15→0.12..0.20; the boss TENSION pin still holds. **1925 tests, tsc clean, build OK, firewall intact.**
+  (Stacked PR atop the boss. Highest-value remaining: branching-paths — choose-your-next-floor, decisionDensity
+  9 — but it is an XL run-state-model refactor + full balance recalibration; recommend a dedicated effort.)
+- **2026-06-06 — Dashboard surfaces the active Incursion run (a BROAD design→review round's top pick).** With the
+  dungeon feature-complete, a fresh 21-agent round surveyed ALL of Grove for the next right-sized improvement
+  (it DEFERRED two with hard blockers: a loadout-ownership-gate that turns 15 tests RED + has broken buff/gear
+  semantics, and a statusline-ETA that breaks the ≤28 width contract). Top pick, shipped: the Incursion — Grove's
+  biggest loot-at-stake feature — was structurally INVISIBLE from the daily `sq dashboard` (grep returned zero
+  hits); start a run, walk away, nothing reminded you. Now `renderDashboard` appends ONE factual panel
+  (`⚔ INCURSION · floor N/M · HP X · run open`) when a run is open. FIREWALL must-fix the gate caught: the
+  dashboard reads run.json with the PLAIN read-only `readRun` (NOT `readActiveRun`, which DELETES a dead tombstone
+  — merely viewing the dashboard would have erased the firewall marker); a dead/absent run shows no panel and is
+  byte-identical to before. No GameState field (the run is ephemeral); render stays PURE; no CTA/nag (passive
+  surface = factual state only); 3 i18n keys ×4 locales. **1934 tests, tsc clean, build OK, firewall intact.**
+- **2026-06-06 — Per-set FOIL progress in the collection panel (a focused vet round's top pick).** A second
+  vet round (4 un-vetted broad-round candidates) DEFERRED doc-streak (calm invariant actually PASSED — positive-
+  only counter — but the blueprint understated scope: 4 quest-board surfaces + QuestVM plumbing it omitted),
+  ranked achievement-i18n (value 3) and web-xp-drift (value 2, cap already pinned) low. Top pick SHIPPED: the
+  collection panel now shows a per-set foil marker (`forest 2/5 ✨2/5`) so shards spent foiling owned cards become
+  lasting board presence instead of a one-shot line. RENDER-ONLY (state.foiled already exists + wired — ZERO new
+  GameState); suppressed at foiled===0 (no clutter). The load-bearing care: the collection row renders on FOUR
+  surfaces (dashboard string · renderTuiFrame · live Ink AppView · web HTML) — the [[tui-dual-render-paths]]
+  lesson, here quadruple — all moved in lockstep, each pinned by a test. New ui.collection.foil key ×4 locales
+  (glyph+numbers, em-dash-free). **1939 tests, tsc clean, build OK, firewall intact.**
+- **2026-06-06 — Doc Streak surfaced on the quest board (the focused round's deferred item, right-sized).**
+  The earlier round DEFERRED doc-streak for an understated scope (it claimed 2 render paths; there are FOUR
+  quest-board surfaces + QuestVM drops `completions`); the CALM invariant had already PASSED (positive-only
+  counter, no streak-to-lose — surfacing it is forgiving, shows a goal not a nag). Built the corrected version:
+  Grove's one RENEWABLE quest now reads renewable — `◆ Doc Streak 🔥3 · next +20 🌰 at 6` — its current streak
+  (the quest's `completions`) + the next tier goal (from DOC_STREAK_TIERS), top-tier label at max, suppressed at
+  0. A pure `docStreakSuffix(streak, locale)` in core/quests.ts (core→i18n/t is sanctioned — t() is I/O-free);
+  QuestVM gains a `streak` field for the two TUI paths. All FOUR surfaces (dashboard renderQuests · format
+  formatQuests · renderTuiFrame · live Ink AppView) moved in lockstep ([[tui-dual-render-paths]], quadruple),
+  each pinned. 2 i18n keys ×4. **1946 tests, tsc clean, build OK, firewall intact.**
 
 ## Current snapshot (2026-06-01)
 

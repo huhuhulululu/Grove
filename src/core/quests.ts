@@ -4,6 +4,9 @@
 //  - first-time achievement fires once, then fades to informational (anti-overjustification);
 //  - forgiving: a lapsed buff is a renewable gain, never a shame; no guilt nags.
 
+import { t } from '../i18n/t'
+import type { Locale } from '../i18n/types'
+
 export interface QuestDef {
   id: string
   title: string
@@ -114,6 +117,21 @@ export function docStreakTier(streak: number): number {
     if (streak >= DOC_STREAK_TIERS[i]!.at) tier = i
   }
   return tier
+}
+
+/**
+ * The renewable Doc Streak's board label, so the one renewable quest READS renewable:
+ * ' 🔥{streak} · next +{seeds} 🌰 at {at}' while climbing, ' 🔥{streak} · top tier' at the
+ * max tier, and '' for a zero streak (no 🔥0 clutter on a never-done quest). Pure — t() is
+ * I/O-free (ADR-0005). Calm: it shows a positive count + a goal, never a "don't break it" nag.
+ */
+export function docStreakSuffix(streak: number, locale: Locale = 'en'): string {
+  if (streak <= 0) return ''
+  const tier = docStreakTier(streak)
+  const next = DOC_STREAK_TIERS[tier + 1]
+  return next
+    ? t(locale, 'ui.quest.streak', { streak, seeds: next.seeds, at: next.at })
+    : t(locale, 'ui.quest.streak_max', { streak })
 }
 
 /** Document filenames that count as a project-memory "grimoire" for any AI-coding tool. */

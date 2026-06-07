@@ -447,6 +447,11 @@ describe('formatQuests', () => {
     expect(result).toContain('✓')
   })
 
+  it('shows the Doc Streak count for a renewable streak that has climbed', () => {
+    const state = makeState({ quests: [{ id: 'doc-streak', status: 'active', completions: 3 }] })
+    expect(formatQuests(QUESTS, state)).toContain('🔥3')
+  })
+
   it('shows active glyph ◆ for an active quest', () => {
     const state = makeState({ quests: [makeQuestProgress('grimoire', 'active')] })
     const result = formatQuests(QUESTS, state)

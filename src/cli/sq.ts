@@ -419,7 +419,7 @@ Subcommands:
                           sq loadout equip buff/precast-spec
       unequip <N>   Unequip slot N (1-based). e.g. sq loadout unequip 2
 
-  incursion [start [--seed S] | status | dive | escape] [--home DIR]
+  incursion [start [--seed S] [--kit shield] | status | dive | escape | history] [--home DIR]
       THE DUNGEON: a push-your-luck roguelike run. Pack your build, dive a seeded
       gauntlet, bank fatter loot each floor · but only if you ESCAPE alive. Dive too
       deep and DIE: the run-bag is forfeit. Your real collection is touched only on
@@ -427,6 +427,7 @@ Subcommands:
       start   Roll a 5-floor run, snapshotting your loadout + gear power.
       dive    Attempt the next floor (clear = loot · fail = -HP · 0 HP = death).
       escape  Walk out alive and bank the whole run-bag into your collection.
+      history Past runs (war stories): floors cleared, and what you banked or where you fell.
 
   achievements [--all] [--home DIR]
       Show unlocked achievements (retroactive recognitions of cumulative progress).

@@ -19,6 +19,7 @@ import { QUESTS } from '../../core/quests'
 // these are only needed for the `tui` and `serve` subcommands (never on the
 // hot path), they are loaded lazily via dynamic import() inside each handler.
 import { renderDashboard } from '../../render/dashboard'
+import { readRun } from './incursion'
 import { stateDir } from '../../store/paths'
 import type { Locale } from '../../i18n/types'
 import { t } from '../../i18n/t'
@@ -223,8 +224,16 @@ export function handleDashboard(flags: Record<string, string>, dir: string, loca
   }
 
   const state = loadState(dir)
+  // Peek at the ephemeral Incursion run.json with a PLAIN, read-only read — readRun never
+  // mutates disk. (Do NOT use readActiveRun: it DELETES a dead tombstone, so merely viewing
+  // the dashboard would erase the firewall tombstone.) A dead/absent run = no active run.
+  const run = readRun(dir)
+  const incursion =
+    run && !run.dead
+      ? { floor: run.current + 1, floors: run.floors.length, hp: run.hp, cleared: run.current >= run.floors.length }
+      : undefined
   // Inject wall-clock epoch so energy ETAs render correctly (pure renderer).
-  console.log(renderDashboard(state, { nowEpoch: Date.now(), locale }))
+  console.log(renderDashboard(state, { nowEpoch: Date.now(), locale, incursion }))
   return 0
 }
 

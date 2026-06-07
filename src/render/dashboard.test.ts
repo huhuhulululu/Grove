@@ -1142,3 +1142,48 @@ describe('renderDashboard — width is clamped (no RangeError)', () => {
     expect([...top].length).toBeLessThanOrEqual(100)
   })
 })
+
+describe('incursion panel — surface an active run on the daily dashboard', () => {
+  it('shows an INCURSION panel with floor/HP when an active-run summary is injected', () => {
+    const out = renderDashboard(initialState(), { incursion: { floor: 2, floors: 5, hp: 1, cleared: false } })
+    expect(out).toContain('INCURSION')
+    expect(out).toMatch(/floor 2\/5/)
+    expect(out).toMatch(/HP 1/)
+  })
+
+  it('is ABSENT — byte-identical to today — when no incursion summary is injected (firewall: no run, no change)', () => {
+    const s = initialState()
+    expect(renderDashboard(s, { incursion: undefined })).toBe(renderDashboard(s))
+    expect(renderDashboard(s)).not.toContain('INCURSION')
+  })
+
+  it('a cleared-position run reads "reached/escape", never a false "floor 6/5"', () => {
+    const out = renderDashboard(initialState(), { incursion: { floor: 6, floors: 5, hp: 2, cleared: true } })
+    expect(out).not.toMatch(/floor 6\/5/)
+    expect(out.toLowerCase()).toMatch(/reached|escape/)
+  })
+})
+
+describe('renderDashboard — COLLECTION foil progress', () => {
+  it('shows a per-set FOIL marker (✨N/total) when owned cards in a set are foiled', () => {
+    const cards = [
+      { id: 'forest.sapling', name: 'Sapling', rarity: 'common', set: 'forest' },
+      { id: 'forest.fern', name: 'Fern', rarity: 'common', set: 'forest' },
+    ] as GameState['cards']
+    const state: GameState = { ...initialState(), cards, foiled: ['forest.sapling', 'forest.fern'] }
+    expect(renderDashboard(state)).toMatch(/✨2\/5/) // forest has 5 cards; 2 foiled
+  })
+
+  it('shows NO foil marker for a set with zero foiled cards (no ✨0 clutter)', () => {
+    const cards = [{ id: 'forest.sapling', name: 'Sapling', rarity: 'common', set: 'forest' }] as GameState['cards']
+    const state: GameState = { ...initialState(), cards, foiled: [] }
+    expect(renderDashboard(state)).not.toMatch(/✨\d/) // the ✨-foil CTA is "✨ foil", never "✨<digit>"
+  })
+})
+
+describe('renderDashboard — QUESTS doc-streak', () => {
+  it('shows the Doc Streak count + next tier when the renewable streak has climbed', () => {
+    const state: GameState = { ...initialState(), quests: [{ id: 'doc-streak', status: 'active', completions: 3 }] }
+    expect(renderDashboard(state)).toContain('🔥3')
+  })
+})

@@ -27,6 +27,17 @@ import type { Reward } from '../core/rewards'
 import type { Locale } from '../i18n/types'
 
 describe('renderTuiFrame — static frame for headless testing', () => {
+  it('shows the per-set foil marker (✨) for foiled cards', () => {
+    const forestCards = CARD_SETS['forest']!.map((d) => cardFromDef(d))
+    const state: GameState = { ...initialState(), cards: forestCards, foiled: [forestCards[0]!.id, forestCards[1]!.id] }
+    expect(renderTuiFrame(state)).toMatch(/✨2\//) // 2 of forest foiled
+  })
+
+  it('shows the Doc Streak count on the quest board when the renewable streak has climbed', () => {
+    const state: GameState = { ...initialState(), quests: [{ id: 'doc-streak', status: 'active', completions: 3 }] }
+    expect(renderTuiFrame(state)).toContain('🔥3')
+  })
+
   it('shows level / seeds / shards / prestige in the header', () => {
     const state: GameState = {
       ...initialState(),

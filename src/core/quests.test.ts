@@ -5,6 +5,7 @@ import {
   isRenewable,
   DOC_STREAK_TIERS,
   docStreakTier,
+  docStreakSuffix,
 } from './quests'
 
 // ---------------------------------------------------------------------------
@@ -98,5 +99,25 @@ describe('docStreakTier (tiered weekly doc-freshness streak)', () => {
   it('the doc-streak quest is one of the renewable quests', () => {
     expect(RENEWABLE_QUEST_IDS).toContain('doc-streak')
     expect(isRenewable('doc-streak')).toBe(true)
+  })
+
+  describe('docStreakSuffix — the renewable streak label for the quest board', () => {
+    it('is EMPTY for a zero streak (no 🔥0 clutter on a never-done quest)', () => {
+      expect(docStreakSuffix(0, 'en')).toBe('')
+    })
+
+    it('shows the streak count + the NEXT tier goal while climbing', () => {
+      const s = docStreakSuffix(3, 'en') // tier 1 (at 3); next tier at 6 (+20 🌰)
+      expect(s).toContain('🔥3')
+      expect(s).toContain('6') // next tier's `at`
+      expect(s).toContain('20') // next tier's seeds
+    })
+
+    it('shows a top-tier label at the max tier (no phantom "next")', () => {
+      const top = DOC_STREAK_TIERS[DOC_STREAK_TIERS.length - 1]!
+      const s = docStreakSuffix(top.at, 'en')
+      expect(s).toContain(`🔥${top.at}`)
+      expect(s.toLowerCase()).toMatch(/top|max/)
+    })
   })
 })

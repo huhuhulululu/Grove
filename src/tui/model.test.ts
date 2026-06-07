@@ -88,6 +88,12 @@ describe('tuiModel — collection grid', () => {
     expect(forest.complete).toBe(true)
   })
 
+  it('reports per-set foiled count (cosmetic foil progress)', () => {
+    const state: GameState = { ...initialState(), cards: [card('forest.sapling'), card('forest.fern')], foiled: ['forest.sapling'] }
+    const forest = tuiModel(state).collection.find((s) => s.set === 'forest')!
+    expect(forest.foiled).toBe(1)
+  })
+
   it('exposes a representative rarity per set (the highest-rarity card OWNED) for colour', () => {
     // Own forest.sapling (common) + forest.elder (epic) → the row rarity is epic.
     const state: GameState = {
@@ -162,6 +168,12 @@ describe('tuiModel — quest board', () => {
     // A quest with no progress is 'todo'.
     const untouched = m.quests.find((q) => q.id === 'test-warden')!
     expect(untouched.status).toBe('todo')
+  })
+
+  it('carries the renewable quest streak (Doc Streak completions) on the VM', () => {
+    const state: GameState = { ...initialState(), quests: [{ id: 'doc-streak', status: 'active', completions: 4 }] }
+    const docStreak = tuiModel(state).quests.find((q) => q.id === 'doc-streak')!
+    expect(docStreak.streak).toBe(4)
   })
 })
 

@@ -9,6 +9,7 @@
 import { loadState, readEvents } from '../../store/store'
 import { ingestEvent } from '../../app/ingest'
 import { buildRecap } from '../../app/recap'
+import { eventsToCsv } from '../../app/csv-export'
 import { formatReward, formatStatus, formatRecap, formatQuests } from '../../render/format'
 import { EVENT_TYPES } from '../../core/events'
 import type { GroveEvent } from '../../core/events'
@@ -152,6 +153,15 @@ export function handleRecap(flags: Record<string, string>, dir: string, locale: 
     windowLabel = t(locale, 'ui.recap.window.week')
   }
   // 'all' → sinceTs stays undefined
+
+  // --csv: own-your-data export of the OUTCOME timeline (read-only, machine-readable,
+  // no spectacle → no zen branch). Reuse the EXACT same since-window filter as buildRecap
+  // (recap.ts: e.ts >= sinceTs), then serialize the event-native fields. Pipe it: `> file.csv`.
+  if (flags['csv'] === 'true') {
+    const windowed = sinceTs !== undefined ? events.filter((e) => e.ts >= sinceTs!) : events
+    console.log(eventsToCsv(windowed))
+    return 0
+  }
 
   // Inject the clock (mirrors handleDashboard) so buildRecap stays pure yet can derive
   // the read-only 7-day outcome sparkline.

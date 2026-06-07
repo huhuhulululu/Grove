@@ -249,6 +249,36 @@ describe('sq CLI', () => {
       const combined = output.join('\n')
       expect(combined).not.toMatch(/✨|🃏|\+\d+ XP/) // no loot/reward line
     })
+
+    // ---- --csv: own-your-data export of the OUTCOME timeline -----------------
+
+    it('recap --csv prints the CSV header and REPLACES the human recap block', () => {
+      captureRun(['event', 'commit', '--home', tmpHome])
+      const { code, output } = captureRun(['recap', '--csv', '--home', tmpHome])
+      expect(code).toBe(0)
+      const combined = output.join('\n')
+      expect(combined.split('\n')[0]).toBe('timestamp,event_type,source,magnitude,success,session_id,cwd,repo')
+      expect(combined).not.toContain('RECAP') // the CSV branch replaces the text recap
+    })
+
+    it('recap --csv --since all emits the header + one row per event, honouring the window', () => {
+      captureRun(['event', 'commit', '--home', tmpHome])
+      captureRun(['event', 'pr_merged', '--home', tmpHome])
+      const { code, output } = captureRun(['recap', '--csv', '--since', 'all', '--home', tmpHome])
+      expect(code).toBe(0)
+      const lines = output.join('\n').split('\n').filter((l) => l.length > 0)
+      expect(lines).toHaveLength(3) // header + 2 events
+      expect(lines[1]).toContain(',commit,')
+      expect(lines[2]).toContain(',pr_merged,')
+    })
+
+    it('recap --csv is read-only — exports without mutating persisted state (firewall)', () => {
+      captureRun(['event', 'commit', '--home', tmpHome])
+      const before = loadState(stateDir(tmpHome))
+      captureRun(['recap', '--csv', '--home', tmpHome])
+      const after = loadState(stateDir(tmpHome))
+      expect(after).toEqual(before)
+    })
   })
 
   // ---- pull subcommand (the core DECISION) ------------------------------------

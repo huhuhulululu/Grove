@@ -115,7 +115,7 @@ interface ParsedArgs {
  */
 // Flags that carry NO value (boolean-only). A flag in this set is set to
 // 'true' unconditionally, never consuming the following positional token.
-const BOOL_FLAGS = new Set(['zen', 'no-clear', 'premium', 'once', 'no-wait', 'badge', 'all'])
+const BOOL_FLAGS = new Set(['zen', 'no-clear', 'premium', 'once', 'no-wait', 'badge', 'all', 'csv'])
 
 function parseArgs(argv: string[]): ParsedArgs {
   const positional: string[] = []
@@ -262,11 +262,12 @@ Subcommands:
   status
       Show current Grove game state.
 
-  recap [--since session|week|all]
+  recap [--since session|week|all] [--csv]
       Show a recap of events and progress.
       --since session  (default) · events since the last session_start
       --since week     · events since this week (UTC) began
       --since all      · all events
+      --csv            · export the event timeline as CSV to stdout (pipe: > file.csv)
 
   scan [path] [--home DIR]
       Scan a repo directory for Pillar-B signals (grimoire, tests, docs, specs, decisions).

@@ -388,7 +388,7 @@ export const zhCN: Catalog = {
   'cli.help.cmd.event': '  event <类型> [--magnitude N] [--success true|false] [--source S] [--session ID]\n      摄入一个 Grove 事件。<类型> 必须是以下之一:\n          {eventTypes}',
   'cli.help.cmd.wrap': '  wrap [--as <类型>] [--home 目录] -- <命令...>\n      运行你本来就会运行的命令(测试/构建/lint),透明地流式传输输出,\n      并从其退出码摄入真实结果(ADR-0003):\n      绿色命令授予奖励;失败命令不授予任何奖励(防火墙)。\n      sq 以被包裹命令的精确退出码退出(透明传递),\n      可插入脚本或 CI 中任何命令前面。\n      --as  强制事件类型 (test_result | build_result | lint_clean)。\n            否则从命令推断(test/build/lint),默认 test_result。\n      例:   sq wrap -- npm test      sq wrap --as build_result -- make',
   'cli.help.cmd.status': '  status\n      显示当前 Grove 游戏状态。',
-  'cli.help.cmd.recap': '  recap [--since session|week|all]\n      显示事件和进度回顾。\n      --since session  (默认) · 上次 session_start 之后的事件\n      --since week     · 本周(UTC)开始以来的事件\n      --since all      · 所有事件',
+  'cli.help.cmd.recap': '  recap [--since session|week|all] [--csv]\n      显示事件和进度回顾。\n      --since session  (默认) · 上次 session_start 之后的事件\n      --since week     · 本周(UTC)开始以来的事件\n      --since all      · 所有事件\n      --csv            · 将事件时间线导出为 CSV 到 stdout（管道：> file.csv）',
   'cli.help.cmd.scan': '  scan [路径] [--home 目录]\n      扫描仓库目录以查找 Pillar-B 信号(魔典、测试、文档、规格、决策)。\n      未给路径时默认 process.cwd()。摄入检测到的事件并打印奖励;打印检测摘要。',
   'cli.help.cmd.quests': '  quests [--home 目录]\n      显示 Pillar-B 任务看板及状态图示和活跃增益。\n      ✓ 完成  ◆ 进行中  · 未开始',
   'cli.help.cmd.pull': '  pull [--premium] [--spark <cardId>] [--seed N] [--home 目录]\n      花费 {pullCost} 🌰 种子进行一次抽取(核心决策 · 你选择何时)。\n      --premium  花费 {premiumCost} 🌰 进行高级抽取(更好的概率;递增消耗)。\n      --spark    (配合 --premium) 选择一张缺失卡牌建立保底 ·\n                 足够多次高级未中后下一次高级抽取保证是它。\n      通过交付成果(提交、绿色测试、合并、文档)赚取种子。\n      余额不足时平静拒绝。仅装饰性 (ADR-0005)。',

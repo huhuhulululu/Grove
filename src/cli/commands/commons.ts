@@ -12,7 +12,7 @@
 
 import type { Locale } from '../../i18n/types'
 import { t } from '../../i18n/t'
-import { listCommonsIssues, commonsToken } from '../../adapters/commons-github'
+import { listCommonsIssues, getCommonsIssue, commonsToken } from '../../adapters/commons-github'
 
 /** Default commons task repo; override with --repo OWNER/REPO. */
 const DEFAULT_REPO = 'grove-commons/tasks'
@@ -53,7 +53,12 @@ export async function handleCommons(
     }
     // Read-only: a brief for the user's AI to fill in, then the exact command the
     // USER runs to open the PR under their own identity. Grove writes/opens nothing.
-    console.log(t(locale, 'cli.commons.brief', { number: n, title: `commons task #${n}` }))
+    // Fetch the REAL issue title; getCommonsIssue always resolves within 5s and
+    // never rejects, so on offline / timeout / malformed we fail soft to the
+    // "commons task #N" placeholder — the brief still prints, the CLI never hangs.
+    const task = await getCommonsIssue(repo, n, commonsToken())
+    const title = task && task.title ? task.title : `commons task #${n}`
+    console.log(t(locale, 'cli.commons.brief', { number: n, title }))
     console.log(t(locale, 'cli.commons.open_hint', { repo, number: n }))
     return 0
   }

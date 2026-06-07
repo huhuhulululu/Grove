@@ -53,6 +53,13 @@ function githubGet(apiPath: string, token?: string): Promise<unknown> {
         },
       )
       req.on('error', () => resolve(null))
+      // Fail-soft socket timeout: NO caller (list / single-issue / merge-state)
+      // may hang the CLI on a slow or black-hole network (ADR-0013). resolve() is
+      // idempotent, so a late timeout after a real response is a harmless no-op.
+      req.setTimeout(5000, () => {
+        req.destroy()
+        resolve(null)
+      })
       req.end()
     } catch {
       resolve(null)
@@ -89,6 +96,38 @@ export async function listCommonsIssues(repo: string, token?: string): Promise<C
         : [],
       url: typeof it['html_url'] === 'string' ? it['html_url'] : '',
     }))
+}
+
+/**
+ * Fetch ONE commons issue by number (for the draft/open brief title). GET-only,
+ * fail-soft: resolves null on any failure (offline / non-200 / 404 / malformed /
+ * timeout) so the CLI falls back to its placeholder and never crashes or hangs.
+ * Mirrors listCommonsIssues' field-by-field normalization; a `pull_request` key
+ * means the number is a PR, not a commons task -> null.
+ */
+export async function getCommonsIssue(
+  repo: string,
+  number: number,
+  token?: string,
+): Promise<CommonsTask | null> {
+  const data = await githubGet(`/repos/${repo}/issues/${number}`, token)
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return null
+  const it = data as Record<string, unknown>
+  if ('pull_request' in it) return null
+  return {
+    number: typeof it['number'] === 'number' ? it['number'] : 0,
+    title: typeof it['title'] === 'string' ? it['title'] : '',
+    labels: Array.isArray(it['labels'])
+      ? (it['labels'] as unknown[])
+          .map((l) =>
+            typeof l === 'object' && l !== null && typeof (l as Record<string, unknown>)['name'] === 'string'
+              ? ((l as Record<string, unknown>)['name'] as string)
+              : '',
+          )
+          .filter((s) => s.length > 0)
+      : [],
+    url: typeof it['html_url'] === 'string' ? it['html_url'] : '',
+  }
 }
 
 /** Whether a PR is merged (the only signal that justifies a commons reward). */

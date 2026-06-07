@@ -362,3 +362,34 @@ not-a-second-quest-system distinction.
 **Firewall (ADR-0005):** engine stays pure; networking lives in the impure adapter/CLI shell; the reward is
 cosmetic-only and read by no power selector. **Deferred (P1/P2):** reputation/contribution-count, leaderboard,
 auto-poll/daemon, scratch-dir auto-clone — none built (no new GameState field).
+
+## ADR-0016 — The Incursion: real STAKES inside the cosmetic layer (a push-your-luck roguelike run)
+**Status:** accepted · 2026-06-06 (as-built record, backfilled — shipped across the autonomous /loop session) · supersedes nothing; extends ADR-0005
+
+**Problem:** Grove had no real STAKES. Every reward was additive and guaranteed — you could only ever GAIN (loot/XP/cards), never lose anything. That is the correct shape for the relief/habit pillars, but it left Grove without the tension that makes a *game* a game. Adding stakes naively (e.g. "lose XP", "break a streak") would violate the ethics firewall and the calm/anti-FOMO promise. See [[the-incursion-game-pivot]].
+
+**Decision:** Add **The Incursion** — a push-your-luck roguelike *run* with GENUINE risk (you can LOSE the run's accumulated loot) confined ENTIRELY to an ephemeral cosmetic layer. The firewall (ADR-0005: real code/commits/docs/git history are never touched/penalized) is preserved by construction: the only thing at stake is loot that **never existed in real state**.
+
+**The load-bearing design — stakes that can't leak (the whole ADR turns on this):**
+- **Ephemeral RunState in a sibling `run.json`, NEVER in GameState/`state.json`.** A run accumulates an un-banked `bag` (cards/gear/seeds) in `run.json`. A DEATH forfeits the bag by simply discarding `run.json` — the forfeit bag never reached persisted cosmetic state, so there is nothing real to lose. Banking into actual GameState happens ONLY on a voluntary `escape` (`escapeBag` → real rewards). `runOutcomeRecord` banks `null` on death (history is factual + no-shame). A new GameState field was deliberately NOT added (dodges the R2 data-loss class entirely).
+- **Stakes are cosmetic-only and OPT-IN.** You enter a run by choice (`sq incursion start`); real work/commits/code are NEVER penalized by a dive outcome. The engine reads cosmetic state READ-ONLY (`buildPower` derives dive odds from your gear/loadout) but writes nothing back during a run.
+- **Surfacing must not mutate the firewall marker.** `sq dashboard` reads an active run via the PLAIN read-only `readRun`, NOT `readActiveRun` (which deletes a dead tombstone) — viewing the board can never erase the firewall state.
+
+**Pure, deterministic, resumable engine (`src/engine/incursion.ts`):** seed-derived rng only (`runRng(seed, label)`), so a dive is deterministic from `(seed, current)` and the run survives across separate CLI process invocations (`start` → `dive` → `dive` … each a fresh process). No fs/clock/ambient-randomness in the engine (purity test holds).
+
+**Real tension, PINNED (balance is an invariant, not a vibe):**
+- A Monte-Carlo balance test pins the bare-greedy full-clear rate so the stakes stay REAL — a greedy full run is genuinely uncertain (neither ~always nor ~never). Re-pinned at each layer (combat 0.203 → elite 0.171 → boss 0.110 → rest 0.160).
+- The escape-vs-dive EV tension is pinned: banking BEFORE the final floor must stay EV-optimal at strong power, so "push your luck" is a real decision, not a forced dive.
+- `SHIELD_CAP = 1` is load-bearing: Monte-Carlo proves ONE single-use shield keeps banking-early optimal (tension alive), while TWO flips the optimal line to always-dive (tension dead). The balance test asserts TENSION (escape-early EV ≥ full-dive EV), not merely a win ceiling.
+- The build MATTERS: `buildPower` (loadout + enhanced, un-broken, name-deduped gear) swings clear odds by a meaningful margin — so enhancing/equipping is load-bearing, not flavor.
+
+**Content (carved to preserve the curve):** four floor archetypes — combat / ELITE (harder + fatter, the mid-run greed fork) / TREASURE (safe jackpot at normal odds) / REST (heals, banks nothing) — plus a two-phase BOSS finale (`clearChance²`). Archetypes are carved out of the combat window AFTER fixing elite, so difficulty stays STRICTLY rising and the final floor is NEVER elite (it stays the gear climax). A one-time `--kit shield` consumable (30 🌰, crash-safe debit) soaks one failed dive.
+
+**Acceptance criteria (as-built, all tested):**
+- Engine PURE (purity test) and deterministic/resumable from `(seed, current)`.
+- A death forfeits the bag WITHOUT touching GameState — proven by a firewall test (`runOutcomeRecord(...).banked === null` on death); banking occurs only via `escape`.
+- Balance Monte-Carlo pins a REAL bare full-clear rate inside a band AND the escape-vs-dive tension; `SHIELD_CAP=1` asserted as the tension knob.
+- `buildPower` swings deep-floor clear odds meaningfully (build is not inert); broken gear contributes nothing; duplicate gear names count only the highest level.
+- Cosmetic-only (ADR-0005); no real activity penalized; `sq dashboard` surfaces a run read-only via `readRun`.
+
+**Why:** Grove needed the tension of a game without betraying its soul. The answer was not to put real work at risk, but to build a self-contained arena where the ONLY thing you can lose is loot that was never real — push-your-luck stakes that are forgiving by construction.

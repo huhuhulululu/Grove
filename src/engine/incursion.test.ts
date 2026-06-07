@@ -76,6 +76,25 @@ describe('buildPower — your loadout + enhanced gear finally matter', () => {
     const kitted: GameState = { ...initialState(), gear: [gear('Commit Hammer', 8), gear('Type Saber', 6)] }
     expect(buildPower(kitted)).toBeGreaterThan(buildPower(initialState()))
   })
+
+  it('a BROKEN gear contributes NOTHING to power (only un-broken levels count)', () => {
+    const brokenOnly: GameState = { ...initialState(), gear: [{ ...gear('Commit Hammer', 8), broken: true }] }
+    // A broken hammer is back to baseline — broken gear confers no power.
+    expect(buildPower(brokenOnly)).toBeCloseTo(buildPower(initialState()), 5)
+    // The SAME gear un-broken does raise power (so it was the broken flag, not the gear).
+    const working: GameState = { ...initialState(), gear: [gear('Commit Hammer', 8)] }
+    expect(buildPower(working)).toBeGreaterThan(buildPower(brokenOnly))
+  })
+
+  it('duplicate gear NAMES count only the HIGHEST level (a name is not double-dipped)', () => {
+    const dupLowAndHigh: GameState = { ...initialState(), gear: [gear('Commit Hammer', 3), gear('Commit Hammer', 8)] }
+    const highOnly: GameState = { ...initialState(), gear: [gear('Commit Hammer', 8)] }
+    // The level-3 duplicate of the same name adds nothing — only the best (8) counts.
+    expect(buildPower(dupLowAndHigh)).toBeCloseTo(buildPower(highOnly), 5)
+    // A DIFFERENT name DOES add — proving the dedup is per-name, not a global cap.
+    const twoNames: GameState = { ...initialState(), gear: [gear('Commit Hammer', 8), gear('Type Saber', 3)] }
+    expect(buildPower(twoNames)).toBeGreaterThan(buildPower(highOnly))
+  })
 })
 
 describe('clearChance — published curve', () => {
@@ -453,6 +472,16 @@ describe('BALANCE (Monte-Carlo) — elite floors keep the run a real gamble', ()
 })
 
 describe('resolveFloor — dive resolution', () => {
+  it('resolveFloor on an ALREADY-CLEARED run is a no-op (guards against double resolution)', () => {
+    // current advanced past the last floor → floors[current] is undefined.
+    const base = runWithPower(2.0, 1)
+    const done: RunState = { ...base, current: base.floors.length }
+    const res = resolveFloor(done)
+    expect(res.cleared).toBe(false)
+    expect(res.dead).toBe(false)
+    expect(res.run).toBe(done) // returns the same run, untouched
+  })
+
   it('a clear banks the floor drop and advances; deterministic from (seed, floor)', () => {
     // A high-power run clears floor 0 deterministically.
     const run = runWithPower(5, 42)

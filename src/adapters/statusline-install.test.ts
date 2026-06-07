@@ -86,6 +86,35 @@ describe('installStatusline', () => {
     expect(result2.action).toBe('already-installed')
   })
 
+  // ---- robustness: first-time install with NO existing settings.json ---------
+
+  it('does NOT crash when settings.json does not exist yet — installs into a fresh file', () => {
+    // A first-time user runs `sq statusline install` before any settings.json
+    // exists. readSettings already fails soft to {}, but the pre-mutation backup
+    // did copyFileSync(settingsPath) unconditionally → ENOENT crash. Guard it.
+    const freshDir = path.join(tmpDir, 'fresh')
+    fs.mkdirSync(freshDir, { recursive: true })
+    const freshSettings = path.join(freshDir, 'settings.json')
+    const freshWrapper = path.join(freshDir, 'grove-statusline-wrapper.sh')
+    expect(fs.existsSync(freshSettings)).toBe(false)
+
+    let result!: ReturnType<typeof installStatusline>
+    expect(() => {
+      result = installStatusline(freshSettings, freshWrapper)
+    }).not.toThrow()
+
+    expect(result.action).toBe('installed')
+    expect(result.original).toBe('')
+    // settings.json is created, surgically pointing at the wrapper.
+    const created = readSettings(freshSettings)
+    const sl = created['statusLine'] as Record<string, unknown>
+    expect(sl['command']).toBe(freshWrapper)
+    expect(fs.existsSync(freshWrapper)).toBe(true)
+    // Nothing to back up on a first install → no backup file written.
+    const backups = fs.readdirSync(freshDir).filter((f) => f.startsWith('settings.json.bak'))
+    expect(backups).toHaveLength(0)
+  })
+
   // ---- settings.json mutations ------------------------------------------------
 
   it('rewrites ONLY .statusLine.command — other top-level keys are unchanged', () => {

@@ -194,6 +194,34 @@ describe('sq CLI', () => {
       const combined = output.join('\n')
       expect(combined).toMatch(/Level\s*\.+\s*1/)
     })
+
+    // ---- --json: machine-readable computed-state snapshot -------------------
+
+    it('status --json prints parseable JSON and REPLACES the human status block', () => {
+      const { code, output } = captureRun(['status', '--json', '--home', tmpHome])
+      expect(code).toBe(0)
+      const combined = output.join('\n')
+      expect(combined).not.toContain('GROVE STATUS') // the JSON branch replaces the banner
+      const parsed = JSON.parse(combined)
+      expect(parsed.player.level).toBe(1)
+      expect(parsed.cards).toEqual({ total: 0, byRarity: {} })
+      expect(parsed.pity).toEqual({ sinceLegendary: 0 })
+    })
+
+    it('status --zen --json still emits JSON (a machine format ignores calm mode)', () => {
+      const { code, output } = captureRun(['status', '--zen', '--json', '--home', tmpHome])
+      expect(code).toBe(0)
+      const parsed = JSON.parse(output.join('\n'))
+      expect(typeof parsed.player.level).toBe('number')
+    })
+
+    it('status --json is read-only — never mutates persisted state (firewall)', () => {
+      captureRun(['event', 'commit', '--home', tmpHome])
+      const before = loadState(stateDir(tmpHome))
+      captureRun(['status', '--json', '--home', tmpHome])
+      const after = loadState(stateDir(tmpHome))
+      expect(after).toEqual(before)
+    })
   })
 
   // ---- recap subcommand -------------------------------------------------------
